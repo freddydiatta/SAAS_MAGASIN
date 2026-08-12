@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { IconMenu, IconX } from './icons';
 
 export const Navbar = () => {
@@ -9,20 +10,20 @@ export const Navbar = () => {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex justify-between h-20">
                     <div className="flex items-center">
-                        <div className="flex-shrink-0 flex items-center gap-3 cursor-pointer">
+                        <Link to="/" className="flex-shrink-0 flex items-center gap-3 cursor-pointer">
                             <div className="w-10 h-10 rounded-lg bg-accent flex items-center justify-center shadow-sm">
                                 <span className="text-white font-bold text-xl">G</span>
                             </div>
                             <span className="font-bold text-2xl text-primary tracking-tight">Gestion<span className="text-accent">Pro</span></span>
-                        </div>
+                        </Link>
                     </div>
                     
                     {/* Desktop menu */}
                     <div className="hidden md:flex items-center space-x-8">
                         <a href="#features" className="font-semibold text-secondary hover:text-accent transition-colors">Fonctionnalités</a>
                         <a href="#partner" className="font-semibold text-secondary hover:text-accent transition-colors">Programme Partenaire</a>
-                        <a href="/dashboard" className="font-semibold text-secondary hover:text-accent transition-colors">Connexion</a>
-                        <a href="#signup" className="btn-primary px-6 py-2.5">Essai Gratuit</a>
+                        <Link to="/login" className="font-semibold text-secondary hover:text-accent transition-colors">Connexion</Link>
+                        <Link to="/register" className="btn-primary px-6 py-2.5">Essai Gratuit</Link>
                     </div>
 
                     {/* Mobile menu button */}
@@ -40,11 +41,11 @@ export const Navbar = () => {
                     <div className="px-4 pt-2 pb-4 space-y-1 sm:px-3">
                         <a href="#features" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-medium text-secondary hover:text-primary hover:bg-slate-50 rounded-lg transition-colors">Fonctionnalités</a>
                         <a href="#partner" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-medium text-secondary hover:text-primary hover:bg-slate-50 rounded-lg transition-colors">Programme Partenaire</a>
-                        <a href="/dashboard" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-medium text-secondary hover:text-primary hover:bg-slate-50 rounded-lg transition-colors">Connexion</a>
+                        <Link to="/login" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-medium text-secondary hover:text-primary hover:bg-slate-50 rounded-lg transition-colors">Connexion</Link>
                         <div className="p-3 mt-2">
-                            <a href="#signup" onClick={() => setIsOpen(false)} className="block w-full text-center btn-primary px-5 py-3">
+                            <Link to="/register" onClick={() => setIsOpen(false)} className="block w-full text-center btn-primary px-5 py-3">
                                 Essai Gratuit
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>
