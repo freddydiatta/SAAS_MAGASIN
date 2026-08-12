@@ -85,7 +85,9 @@ export const Register = () => {
                         <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium">
                             {authError}
                             <div className="mt-2 text-xs text-red-400">
-                                Debug: URL is {import.meta.env.VITE_SUPABASE_URL ? 'defined' : 'MISSING'}, Key is {import.meta.env.VITE_SUPABASE_ANON_KEY ? 'defined' : 'MISSING'}.
+                                Debug: URL length: {import.meta.env.VITE_SUPABASE_URL?.length || 0}.<br />
+                                Key length: {import.meta.env.VITE_SUPABASE_ANON_KEY?.length || 0}.<br />
+                                Key starts with: {import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 10)}
                             </div>
                         </div>
                     )}
