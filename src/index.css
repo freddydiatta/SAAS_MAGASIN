@@ -1,14 +1,20 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #000000;
-  --color-secondary: #222222;
-  --color-accent: #FFC300;
-  --color-accentHover: #FF5722;
-  --color-surface: #F4F1EA;
-  --font-sans: "Space Grotesk", sans-serif;
-  --shadow-neo: 6px 6px 0px 0px rgba(0,0,0,1);
-  --shadow-neo-sm: 4px 4px 0px 0px rgba(0,0,0,1);
+  --color-primary: #0F172A; /* Slate 900 - Deep Navy */
+  --color-secondary: #475569; /* Slate 600 */
+  --color-accent: #EA580C; /* Orange 600 - Burnt Orange */
+  --color-accentHover: #C2410C; /* Orange 700 */
+  --color-surface: #F8FAFC; /* Slate 50 - Very soft blue-grey */
+  --color-panel: #FFFFFF; /* White for cards */
+  --color-success: #10B981; /* Emerald 500 */
+  --color-warning: #F59E0B; /* Amber 500 */
+  --color-danger: #EF4444; /* Red 500 */
+  
+  --font-sans: "Plus Jakarta Sans", sans-serif;
+  
+  --shadow-premium: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
+  --shadow-premium-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
 }
 
 body {
@@ -25,27 +31,43 @@ html {
 }
 
 @layer utilities {
-  .shadow-neo {
-    box-shadow: var(--shadow-neo);
+  .shadow-premium {
+    box-shadow: var(--shadow-premium);
   }
-  .shadow-neo-sm {
-    box-shadow: var(--shadow-neo-sm);
+  .shadow-premium-lg {
+    box-shadow: var(--shadow-premium-lg);
   }
 }
 
-.neo-button {
-  border: 4px solid var(--color-primary);
-  box-shadow: var(--shadow-neo-sm);
+.btn-primary {
+  background-color: var(--color-accent);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.5rem;
   transition: all 0.2s ease-in-out;
-  font-weight: 900;
+  box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2);
 }
 
-.neo-button:hover {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1);
+.btn-primary:hover {
+  background-color: var(--color-accentHover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px -1px rgba(234, 88, 12, 0.3);
 }
 
-.neo-button:active {
-  transform: translate(4px, 4px);
-  box-shadow: 0px 0px 0px 0px rgba(0,0,0,1);
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.btn-secondary {
+  background-color: var(--color-panel);
+  color: var(--color-primary);
+  font-weight: 600;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: #F1F5F9;
+  border-color: #CBD5E1;
 }
