@@ -80,7 +80,7 @@ export const ContactModal = ({ isOpen, onClose }) => {
                                     type="text" 
                                     required
                                     className="w-full bg-surface border-4 border-primary p-4 font-bold text-primary focus:outline-none focus:bg-white focus:ring-4 focus:ring-accent/50 transition-all"
-                                    placeholder="Ex: +221 77 ... ou email@..."
+                                    placeholder="Ex: +221 76 ... ou email@..."
                                     value={formData.email}
                                     onChange={(e) => setFormData({...formData, email: e.target.value})}
                                 />

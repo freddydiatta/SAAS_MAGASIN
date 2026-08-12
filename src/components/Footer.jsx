@@ -35,7 +35,7 @@ export const Footer = ({ onContactClick }) => {
                         <h4 className="font-black text-primary uppercase mb-4 text-lg">Contact</h4>
                         <ul className="space-y-3">
                             <li className="text-primary font-bold">Dakar, Sénégal</li>
-                            <li className="text-primary font-bold">+221 77 123 45 67</li>
+                            <li className="text-primary font-bold">+221 76 846 57 86</li>
                             <li><a href="mailto:contact@gestionpro.sn" className="text-primary font-bold hover:bg-accent hover:px-2 transition-all inline-block">contact@gestionpro.sn</a></li>
                         </ul>
                     </div>
