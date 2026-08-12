@@ -1,46 +1,49 @@
 import { useState } from 'react';
-import { IconMenu } from './icons';
+import { IconMenu, IconX } from './icons';
 
 export const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <nav className="fixed w-full z-50 transition-all duration-300 bg-white/90 backdrop-blur-md shadow-sm">
+        <nav className="fixed w-full bg-surface border-b-4 border-primary z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between h-20 items-center">
-                    <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
-                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
-                            <span className="text-white font-bold text-xl">G</span>
+                <div className="flex justify-between h-20">
+                    <div className="flex items-center">
+                        <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer">
+                            <div className="w-10 h-10 border-4 border-primary bg-accent flex items-center justify-center shadow-neo-sm">
+                                <span className="text-primary font-black uppercase text-xl">G</span>
+                            </div>
+                            <span className="font-black text-2xl text-primary uppercase">Gestion<span className="bg-accent px-1 border-2 border-primary">Pro</span></span>
                         </div>
-                        <span className="font-bold text-2xl text-primary tracking-tight">Gestion<span className="text-accent">Pro</span></span>
                     </div>
-
+                    
+                    {/* Desktop menu */}
                     <div className="hidden md:flex items-center space-x-8">
-                        <a href="#features" className="text-gray-600 hover:text-primary font-medium transition-colors">Fonctionnalités</a>
-                        <a href="#partner" className="text-gray-600 hover:text-primary font-medium transition-colors">Programme Partenaire</a>
-                        <a href="#login" className="text-gray-600 hover:text-primary font-medium transition-colors">Connexion</a>
-                        <a href="#signup" className="bg-accent hover:bg-accentHover text-white px-6 py-2.5 rounded-full font-semibold transition-all transform hover:scale-105 shadow-lg hover:shadow-accent/30">
-                            Essai gratuit
-                        </a>
+                        <a href="#features" className="font-bold text-primary hover:bg-accent hover:px-2 transition-all">Fonctionnalités</a>
+                        <a href="#partner" className="font-bold text-primary hover:bg-accent hover:px-2 transition-all">Programme Partenaire</a>
+                        <a href="#login" className="font-bold text-primary hover:bg-accent hover:px-2 transition-all">Connexion</a>
+                        <a href="#signup" className="neo-button bg-accentHover text-primary px-6 py-2">Essai Gratuit</a>
                     </div>
 
+                    {/* Mobile menu button */}
                     <div className="md:hidden flex items-center">
-                        <button onClick={() => setIsOpen(!isOpen)} className="text-primary focus:outline-none">
-                            <IconMenu />
+                        <button onClick={() => setIsOpen(!isOpen)} className="text-primary focus:outline-none p-2 border-4 border-primary bg-white shadow-neo-sm active:shadow-none active:translate-y-1 transition-all">
+                            {isOpen ? <IconX /> : <IconMenu />}
                         </button>
                     </div>
                 </div>
             </div>
 
+            {/* Mobile menu */}
             {isOpen && (
-                <div className="md:hidden bg-white border-t border-gray-100 absolute w-full shadow-lg">
-                    <div className="px-4 pt-2 pb-6 space-y-2">
-                        <a href="#features" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50">Fonctionnalités</a>
-                        <a href="#partner" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50">Programme Partenaire</a>
-                        <a href="#login" onClick={() => setIsOpen(false)} className="block px-3 py-3 rounded-md text-base font-medium text-gray-700 hover:text-primary hover:bg-gray-50">Connexion</a>
-                        <div className="mt-4 px-3">
-                            <a href="#signup" onClick={() => setIsOpen(false)} className="block w-full text-center bg-accent text-white px-5 py-3 rounded-xl font-semibold shadow-md">
-                                Essai gratuit
+                <div className="md:hidden border-t-4 border-primary bg-white">
+                    <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                        <a href="#features" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-bold text-primary border-b-4 border-transparent hover:border-primary hover:bg-accent transition-colors">Fonctionnalités</a>
+                        <a href="#partner" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-bold text-primary border-b-4 border-transparent hover:border-primary hover:bg-accent transition-colors">Programme Partenaire</a>
+                        <a href="#login" onClick={() => setIsOpen(false)} className="block px-3 py-3 font-bold text-primary border-b-4 border-transparent hover:border-primary hover:bg-accent transition-colors">Connexion</a>
+                        <div className="p-3">
+                            <a href="#signup" onClick={() => setIsOpen(false)} className="block w-full text-center neo-button bg-accentHover text-primary px-5 py-3">
+                                Essai Gratuit
                             </a>
                         </div>
                     </div>

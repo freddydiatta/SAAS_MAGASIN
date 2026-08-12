@@ -6,14 +6,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#0A2540',
-        secondary: '#11355F',
-        accent: '#F9A826',
-        accentHover: '#E0961C',
-        surface: '#F8FAFC',
+        primary: '#000000',
+        secondary: '#222222',
+        accent: '#FFC300',
+        accentHover: '#FF5722',
+        surface: '#F4F1EA',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
+        sans: ['"Space Grotesk"', 'sans-serif'],
+      },
+      boxShadow: {
+        'neo': '6px 6px 0px 0px rgba(0,0,0,1)',
+        'neo-sm': '3px 3px 0px 0px rgba(0,0,0,1)',
       }
     }
   },
