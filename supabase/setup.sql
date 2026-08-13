@@ -108,3 +108,46 @@ ON public.bookings
 FOR ALL USING (
     business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
 );
+
+-- ==========================================
+-- 5. Tables Spécifiques : RESTAURANT
+-- ==========================================
+
+DROP TABLE IF EXISTS public.restaurant_orders;
+DROP TABLE IF EXISTS public.menu_items;
+
+CREATE TABLE public.menu_items (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'plat', -- 'plat', 'boisson', 'dessert', etc.
+    price DECIMAL(10, 2) NOT NULL,
+    is_available BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage menu items of their businesses"
+ON public.menu_items
+FOR ALL USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);
+
+CREATE TABLE public.restaurant_orders (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    table_number TEXT,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'served', 'paid', 'cancelled'
+    items JSONB NOT NULL DEFAULT '[]'::jsonb, -- Array of { menu_item_id, name, quantity, price }
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.restaurant_orders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage restaurant orders of their businesses"
+ON public.restaurant_orders
+FOR ALL USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);

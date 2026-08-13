@@ -10,6 +10,12 @@ import { Login } from './pages/auth/Login';
 import { Register } from './pages/auth/Register';
 import { BusinessList } from './pages/businesses/BusinessList';
 import { PlaceholderPage } from './pages/PlaceholderPage';
+import { Stock } from './pages/retail/Stock';
+import { Caisse } from './pages/retail/Caisse';
+import { Villas } from './pages/villas/Villas';
+import { Reservations } from './pages/villas/Reservations';
+import { Menu } from './pages/restaurant/Menu';
+import { Commandes } from './pages/restaurant/Commandes';
 
 const queryClient = new QueryClient();
 
@@ -42,12 +48,12 @@ function App() {
             } />
             <Route path="/dashboard/caisse" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Caisse / Point de Vente" /></DashboardLayout>
+                <DashboardLayout><Caisse /></DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/dashboard/stock" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Gestion de Stock" /></DashboardLayout>
+                <DashboardLayout><Stock /></DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/dashboard/motos" element={
@@ -62,22 +68,22 @@ function App() {
             } />
             <Route path="/dashboard/villas" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Gestion des Villas" /></DashboardLayout>
+                <DashboardLayout><Villas /></DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/dashboard/reservations" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Historique des Réservations" /></DashboardLayout>
+                <DashboardLayout><Reservations /></DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/dashboard/commandes" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Gestion des Commandes" /></DashboardLayout>
+                <DashboardLayout><Commandes /></DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/dashboard/menu" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Gestion du Menu" /></DashboardLayout>
+                <DashboardLayout><Menu /></DashboardLayout>
               </ProtectedRoute>
             } />
             </Routes>
