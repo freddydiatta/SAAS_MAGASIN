@@ -4,11 +4,13 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { AddProductModal } from '../AddProductModal';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export const RetailDashboard = () => {
     const { user } = useAuth();
     const { selectedBusiness } = useBusiness();
     const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+    const navigate = useNavigate();
 
     // Fetch Products (Stock)
     const { data: products = [], isLoading: loadingProducts } = useQuery({
@@ -49,7 +51,7 @@ export const RetailDashboard = () => {
         .filter(sale => new Date(sale.created_at).getTime() >= today)
         .reduce((sum, sale) => sum + Number(sale.total_price), 0);
 
-    const alertesStock = products.filter(p => p.quantity <= 2).length;
+    const alertesStock = products.filter(p => p.stock_quantity <= 2).length;
     
     // Format monétaire
     const formatFCFA = (amount) => {
@@ -68,7 +70,7 @@ export const RetailDashboard = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="btn-secondary bg-white px-5 py-2.5 text-sm border border-slate-200 text-primary">Ajouter une vente</button>
+                    <button onClick={() => navigate('/dashboard/caisse')} className="btn-secondary bg-white px-5 py-2.5 text-sm border border-slate-200 text-primary">Ajouter une vente</button>
                     <button 
                         onClick={() => setIsAddProductOpen(true)}
                         className="btn-primary px-5 py-2.5 text-sm"
@@ -101,7 +103,7 @@ export const RetailDashboard = () => {
                     </div>
                     <p className="text-secondary text-sm font-medium mb-1">Total Articles en Stock</p>
                     <p className="text-3xl font-bold text-primary mb-2">
-                        {loadingProducts ? "..." : products.reduce((sum, p) => sum + p.quantity, 0)}
+                        {loadingProducts ? "..." : products.reduce((sum, p) => sum + (p.stock_quantity || 0), 0)}
                     </p>
                     <p className="text-secondary font-medium text-xs">
                         Répartis sur {products.length} références
@@ -202,11 +204,11 @@ export const RetailDashboard = () => {
                                 <p className="text-secondary font-medium text-sm">Tous vos stocks sont au beau fixe !</p>
                             </div>
                         ) : (
-                            products.filter(p => p.quantity <= 2).map(product => (
+                            products.filter(p => p.stock_quantity <= 2).map(product => (
                                 <div key={product.id} className="bg-white border border-red-100 rounded-xl p-4 shadow-sm relative overflow-hidden group">
                                     <div className="absolute top-0 left-0 bottom-0 w-1 bg-red-500"></div>
                                     <p className="font-bold text-primary text-sm mb-1">{product.name}</p>
-                                    <p className="text-secondary text-xs mb-3">Plus que {product.quantity} en stock</p>
+                                    <p className="text-secondary text-xs mb-3">Plus que {product.stock_quantity} en stock</p>
                                 </div>
                             ))
                         )}

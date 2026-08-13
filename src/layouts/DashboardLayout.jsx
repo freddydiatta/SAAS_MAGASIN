@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -6,6 +6,7 @@ export const DashboardLayout = ({ children }) => {
     const location = useLocation();
     const { selectedBusiness } = useBusiness();
     const { user } = useAuth();
+    const navigate = useNavigate();
 
     const getMenuItems = () => {
         const type = selectedBusiness?.type;
@@ -126,13 +127,13 @@ export const DashboardLayout = ({ children }) => {
 
                     <div className="flex items-center gap-5">
                         {/* Notifications */}
-                        <button className="relative p-2 text-secondary hover:text-primary transition-colors">
+                        <button onClick={() => alert('Aucune nouvelle notification.')} className="relative p-2 text-secondary hover:text-primary transition-colors">
                             <span className="text-xl">🔔</span>
                             <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
                         </button>
                         
                         {/* Quick Action */}
-                        <button className="btn-primary px-5 py-2.5 text-sm hidden sm:flex items-center gap-2">
+                        <button onClick={() => navigate('/dashboard/caisse')} className="btn-primary px-5 py-2.5 text-sm hidden sm:flex items-center gap-2">
                             <span>➕</span> Nouvelle Vente
                         </button>
                     </div>

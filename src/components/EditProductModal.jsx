@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 
-export const AddProductModal = ({ isOpen, onClose }) => {
+export const EditProductModal = ({ isOpen, onClose, product }) => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     
@@ -11,13 +11,21 @@ export const AddProductModal = ({ isOpen, onClose }) => {
     const [price, setPrice] = useState('');
     const [quantity, setQuantity] = useState('');
     
-    // Type could be specific to the business type, but let's just make it simple
     const [type, setType] = useState('standard');
     
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (product && isOpen) {
+            setName(product.name || '');
+            setPrice(product.price || '');
+            setQuantity(product.stock_quantity || '');
+            setType(product.type || 'standard');
+        }
+    }, [product, isOpen]);
+
+    if (!isOpen || !product) return null;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -27,30 +35,25 @@ export const AddProductModal = ({ isOpen, onClose }) => {
         try {
             const { error } = await supabase
                 .from('products')
-                .insert([
-                    {
-                        business_id: selectedBusiness.id,
-                        name,
-                        type,
-                        price: parseFloat(price),
-                        stock_quantity: parseInt(quantity, 10)
-                    }
-                ]);
+                .update({
+                    name,
+                    type,
+                    price: parseFloat(price),
+                    stock_quantity: parseInt(quantity, 10)
+                })
+                .eq('id', product.id);
 
             if (error) throw error;
 
             // Rafraîchir les produits
             queryClient.invalidateQueries(['products', selectedBusiness.id]);
             
-            // Fermer et reset
-            setName('');
-            setPrice('');
-            setQuantity('');
+            // Fermer
             onClose();
             
         } catch (err) {
-            console.error('Error adding product:', err);
-            setError(err.message || "Erreur lors de l'ajout du produit.");
+            console.error('Error updating product:', err);
+            setError(err.message || "Erreur lors de la modification du produit.");
         } finally {
             setIsLoading(false);
         }
@@ -60,7 +63,7 @@ export const AddProductModal = ({ isOpen, onClose }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
                 <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                    <h3 className="text-xl font-bold text-primary">Nouveau Produit</h3>
+                    <h3 className="text-xl font-bold text-primary">Modifier Produit</h3>
                     <button 
                         onClick={onClose}
                         className="text-slate-400 hover:text-slate-600 transition-colors"
@@ -84,7 +87,6 @@ export const AddProductModal = ({ isOpen, onClose }) => {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                            placeholder="Ex: Plaquette de frein"
                         />
                     </div>
 
@@ -99,11 +101,10 @@ export const AddProductModal = ({ isOpen, onClose }) => {
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
                                 className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                placeholder="5000"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-primary mb-1.5">Quantité initiale</label>
+                            <label className="block text-sm font-semibold text-primary mb-1.5">Quantité en stock</label>
                             <input
                                 type="number"
                                 required
@@ -112,7 +113,6 @@ export const AddProductModal = ({ isOpen, onClose }) => {
                                 value={quantity}
                                 onChange={(e) => setQuantity(e.target.value)}
                                 className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                placeholder="10"
                             />
                         </div>
                     </div>
@@ -130,7 +130,7 @@ export const AddProductModal = ({ isOpen, onClose }) => {
                             disabled={isLoading}
                             className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accentHover shadow-md transition-all disabled:opacity-50"
                         >
-                            {isLoading ? 'Ajout...' : 'Ajouter'}
+                            {isLoading ? 'Mise à jour...' : 'Mettre à jour'}
                         </button>
                     </div>
                 </form>

@@ -3,11 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { AddProductModal } from '../../components/AddProductModal';
+import { EditProductModal } from '../../components/EditProductModal';
 
 export const Stock = () => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+    const [isEditProductOpen, setIsEditProductOpen] = useState(false);
+    const [productToEdit, setProductToEdit] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
     const { data: products = [], isLoading } = useQuery({
@@ -97,7 +100,9 @@ export const Stock = () => {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button className="text-indigo-600 hover:text-indigo-900 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={() => { setProductToEdit(product); setIsEditProductOpen(true); }}
+                                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                                                 Modifier
                                             </button>
                                         </td>
@@ -112,6 +117,11 @@ export const Stock = () => {
             <AddProductModal 
                 isOpen={isAddProductOpen} 
                 onClose={() => setIsAddProductOpen(false)} 
+            />
+            <EditProductModal 
+                isOpen={isEditProductOpen} 
+                onClose={() => { setIsEditProductOpen(false); setProductToEdit(null); }} 
+                product={productToEdit}
             />
         </div>
     );
