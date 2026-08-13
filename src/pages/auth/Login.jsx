@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,7 +14,22 @@ const loginSchema = z.object({
 export const Login = () => {
     const [authError, setAuthError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [failedAttempts, setFailedAttempts] = useState(0);
+    const [lockoutCountdown, setLockoutCountdown] = useState(0);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        let timer;
+        if (lockoutCountdown > 0) {
+            timer = setInterval(() => {
+                setLockoutCountdown(prev => prev - 1);
+            }, 1000);
+        } else if (lockoutCountdown === 0 && failedAttempts >= 5) {
+            setFailedAttempts(0);
+            setAuthError('');
+        }
+        return () => clearInterval(timer);
+    }, [lockoutCountdown, failedAttempts]);
 
     const {
         register,
@@ -25,6 +40,8 @@ export const Login = () => {
     });
 
     const onSubmit = async (data) => {
+        if (lockoutCountdown > 0) return;
+
         setIsLoading(true);
         setAuthError('');
         
@@ -35,9 +52,17 @@ export const Login = () => {
             });
 
             if (error) {
-                setAuthError("Identifiants incorrects. Veuillez réessayer.");
+                const newAttempts = failedAttempts + 1;
+                setFailedAttempts(newAttempts);
+                
+                if (newAttempts >= 5) {
+                    setLockoutCountdown(60);
+                    setAuthError("Trop de tentatives échouées. Veuillez patienter 60 secondes.");
+                } else {
+                    setAuthError(`Identifiants incorrects. Il vous reste ${5 - newAttempts} tentative(s).`);
+                }
             } else {
-                // Succès de connexion, redirection vers le dashboard
+                setFailedAttempts(0);
                 navigate('/dashboard');
             }
         } catch (err) {
@@ -106,10 +131,16 @@ export const Login = () => {
 
                         <button
                             type="submit"
-                            disabled={isLoading}
-                            className="btn-primary w-full py-3 mt-2 flex justify-center items-center disabled:opacity-70 disabled:cursor-not-allowed"
+                            disabled={isLoading || lockoutCountdown > 0}
+                            className={`w-full py-3 mt-2 flex justify-center items-center font-bold rounded-xl text-white transition-all ${
+                                lockoutCountdown > 0 
+                                ? 'bg-slate-400 cursor-not-allowed' 
+                                : 'bg-accent hover:bg-accentHover shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed'
+                            }`}
                         >
-                            {isLoading ? (
+                            {lockoutCountdown > 0 ? (
+                                `Réessayez dans ${lockoutCountdown}s`
+                            ) : isLoading ? (
                                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             ) : (
                                 "Se connecter"
