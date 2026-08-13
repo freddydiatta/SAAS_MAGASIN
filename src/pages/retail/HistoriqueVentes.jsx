@@ -385,14 +385,14 @@ export const HistoriqueVentes = () => {
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button 
-                                                    onClick={() => handlePrint(receipt)}
-                                                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg"
-                                                >
-                                                    Facture
-                                                </button>
                                                 {receipt.status !== 'cancelled' && (
                                                     <>
+                                                        <button 
+                                                            onClick={() => handlePrint(receipt)}
+                                                            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg"
+                                                        >
+                                                            Facture
+                                                        </button>
                                                         <button 
                                                             onClick={() => handleModify(receipt)}
                                                             className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors bg-amber-50 px-3 py-1.5 rounded-lg"
