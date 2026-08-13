@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
 ALTER TABLE public.businesses ENABLE ROW LEVEL SECURITY;
 
 -- Politique : L'utilisateur ne voit et modifie que ses propres magasins
+DROP POLICY IF EXISTS "Users can manage their own businesses" ON public.businesses;
 CREATE POLICY "Users can manage their own businesses"
 ON public.businesses
 FOR ALL USING (auth.uid() = user_id);
@@ -40,6 +41,7 @@ CREATE TABLE public.products (
 
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage products of their businesses" ON public.products;
 CREATE POLICY "Users can manage products of their businesses"
 ON public.products
 FOR ALL USING (
@@ -58,6 +60,7 @@ CREATE TABLE public.sales (
 
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage sales of their businesses" ON public.sales;
 CREATE POLICY "Users can manage sales of their businesses"
 ON public.sales
 FOR ALL USING (
@@ -83,6 +86,7 @@ CREATE TABLE public.villas (
 
 ALTER TABLE public.villas ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage villas of their businesses" ON public.villas;
 CREATE POLICY "Users can manage villas of their businesses"
 ON public.villas
 FOR ALL USING (
@@ -103,6 +107,7 @@ CREATE TABLE public.bookings (
 
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage bookings of their businesses" ON public.bookings;
 CREATE POLICY "Users can manage bookings of their businesses"
 ON public.bookings
 FOR ALL USING (
@@ -128,6 +133,7 @@ CREATE TABLE public.menu_items (
 
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage menu items of their businesses" ON public.menu_items;
 CREATE POLICY "Users can manage menu items of their businesses"
 ON public.menu_items
 FOR ALL USING (
@@ -146,6 +152,7 @@ CREATE TABLE public.restaurant_orders (
 
 ALTER TABLE public.restaurant_orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can manage restaurant orders of their businesses" ON public.restaurant_orders;
 CREATE POLICY "Users can manage restaurant orders of their businesses"
 ON public.restaurant_orders
 FOR ALL USING (
