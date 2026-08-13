@@ -70,7 +70,6 @@ export const RetailDashboard = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button onClick={() => navigate('/dashboard/caisse')} className="btn-secondary bg-white px-5 py-2.5 text-sm border border-slate-200 text-primary">Ajouter une vente</button>
                     <button 
                         onClick={() => setIsAddProductOpen(true)}
                         className="btn-primary px-5 py-2.5 text-sm"

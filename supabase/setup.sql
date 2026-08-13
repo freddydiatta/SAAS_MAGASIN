@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.businesses (
     name TEXT NOT NULL,
     type TEXT NOT NULL, -- Ex: 'pieces_moto', 'villa', 'quincaillerie', etc.
     subscription_plan TEXT DEFAULT 'essentiel', -- 'essentiel', 'business'
+    phone TEXT,
+    address TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

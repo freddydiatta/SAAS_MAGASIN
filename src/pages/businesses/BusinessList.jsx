@@ -21,6 +21,8 @@ export const BusinessList = () => {
     const [isCreating, setIsCreating] = useState(false);
     const [newBusinessName, setNewBusinessName] = useState('');
     const [newBusinessType, setNewBusinessType] = useState('pieces_moto');
+    const [newBusinessPhone, setNewBusinessPhone] = useState('');
+    const [newBusinessAddress, setNewBusinessAddress] = useState('');
     const [createError, setCreateError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,6 +44,8 @@ export const BusinessList = () => {
                         user_id: user.id,
                         name: newBusinessName,
                         type: newBusinessType,
+                        phone: newBusinessPhone,
+                        address: newBusinessAddress,
                         subscription_plan: plan
                     }
                 ])
@@ -52,6 +56,8 @@ export const BusinessList = () => {
             await refreshBusinesses();
             setIsCreating(false);
             setNewBusinessName('');
+            setNewBusinessPhone('');
+            setNewBusinessAddress('');
             
             // Select the newly created business and go to dashboard
             if (data && data.length > 0) {
@@ -169,6 +175,32 @@ export const BusinessList = () => {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-primary mb-2">
+                                    Numéro de téléphone
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newBusinessPhone}
+                                    onChange={(e) => setNewBusinessPhone(e.target.value)}
+                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                                    placeholder="Ex: +221 77 123 45 67"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-semibold text-primary mb-2">
+                                    Adresse
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newBusinessAddress}
+                                    onChange={(e) => setNewBusinessAddress(e.target.value)}
+                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+                                    placeholder="Ex: Dakar, Point E"
+                                />
                             </div>
 
                             <div className="pt-4 flex gap-4">

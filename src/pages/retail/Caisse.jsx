@@ -167,6 +167,8 @@ export const Caisse = () => {
                             <div>
                                 <h1 className="text-4xl font-bold text-primary mb-2">{selectedBusiness?.name}</h1>
                                 <p className="text-secondary">{selectedBusiness?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin'}</p>
+                                {selectedBusiness?.address && <p className="text-secondary mt-1">📍 {selectedBusiness.address}</p>}
+                                {selectedBusiness?.phone && <p className="text-secondary">📞 {selectedBusiness.phone}</p>}
                             </div>
                             <div className="text-right">
                                 <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Facture</h2>
