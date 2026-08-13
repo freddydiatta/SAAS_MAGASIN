@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Reveal } from './animations';
 import { IconCheck } from './icons';
+import { Link } from 'react-router-dom';
 
 export const Pricing = () => {
     const [isAnnual, setIsAnnual] = useState(false);
@@ -99,9 +100,9 @@ export const Pricing = () => {
                                     ))}
                                 </ul>
 
-                                <button className={`w-full py-3.5 rounded-xl font-semibold transition-all ${plan.popular ? 'bg-accent text-white shadow-md hover:bg-accentHover hover:shadow-lg' : 'bg-slate-50 text-primary border border-slate-200 hover:bg-slate-100'}`}>
+                                <Link to={`/register?plan=${plan.name === 'Pack Essentiel' ? 'essentiel' : 'business'}`} className={`w-full py-3.5 rounded-xl font-semibold transition-all inline-block text-center ${plan.popular ? 'bg-accent text-white shadow-md hover:bg-accentHover hover:shadow-lg' : 'bg-slate-50 text-primary border border-slate-200 hover:bg-slate-100'}`}>
                                     Démarrer l'essai gratuit
-                                </button>
+                                </Link>
                             </div>
                         </Reveal>
                     ))}

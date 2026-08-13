@@ -1,7 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useBusiness } from '../contexts/BusinessContext';
+import { useAuth } from '../contexts/AuthContext';
 
 export const DashboardLayout = ({ children }) => {
     const location = useLocation();
+    const { selectedBusiness } = useBusiness();
+    const { user } = useAuth();
 
     const menuItems = [
         { path: '/dashboard', label: 'Aperçu', icon: '📊' },
@@ -49,17 +53,27 @@ export const DashboardLayout = ({ children }) => {
                 {/* Bottom Actions */}
                 <div className="p-4 border-t border-slate-200 bg-slate-50/50">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white shadow-sm">
-                            OM
+                        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent text-xl">
+                            🏢
                         </div>
-                        <div>
-                            <div className="font-bold text-primary text-sm">Ousmane M.</div>
-                            <div className="text-xs text-secondary">Gérant</div>
+                        <div className="flex-1 min-w-0">
+                            <div className="font-bold text-primary text-sm truncate" title={selectedBusiness?.name}>
+                                {selectedBusiness?.name || "Mon Magasin"}
+                            </div>
+                            <div className="text-xs text-secondary truncate">
+                                {user?.user_metadata?.subscription_plan === 'business' ? 'Pack Business' : 'Pack Essentiel'}
+                            </div>
                         </div>
                     </div>
-                    <Link to="/" className="w-full btn-secondary px-4 py-2 text-sm text-center block">
-                        Se Déconnecter
-                    </Link>
+                    
+                    <div className="flex flex-col gap-2">
+                        <Link to="/businesses" className="w-full btn-secondary bg-white border border-slate-200 px-4 py-2 text-sm text-center block text-slate-600 hover:text-accent">
+                            Changer de magasin
+                        </Link>
+                        <Link to="/" onClick={() => supabase.auth.signOut()} className="w-full text-red-500 hover:bg-red-50 rounded-lg px-4 py-2 text-sm text-center font-medium transition-colors">
+                            Se Déconnecter
+                        </Link>
+                    </div>
                 </div>
             </aside>
 

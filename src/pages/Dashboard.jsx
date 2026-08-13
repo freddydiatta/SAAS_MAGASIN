@@ -1,39 +1,46 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useBusiness } from '../contexts/BusinessContext';
+import { AddProductModal } from '../components/AddProductModal';
+import { useState } from 'react';
 
 export const Dashboard = () => {
     const { user } = useAuth();
+    const { selectedBusiness } = useBusiness();
+    const [isAddProductOpen, setIsAddProductOpen] = useState(false);
 
     // Fetch Products (Stock)
     const { data: products = [], isLoading: loadingProducts } = useQuery({
-        queryKey: ['products'],
+        queryKey: ['products', selectedBusiness?.id],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('products')
                 .select('*')
+                .eq('business_id', selectedBusiness?.id)
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
             return data;
         },
-        enabled: !!user
+        enabled: !!user && !!selectedBusiness
     });
 
     // Fetch Sales
     const { data: sales = [], isLoading: loadingSales } = useQuery({
-        queryKey: ['sales'],
+        queryKey: ['sales', selectedBusiness?.id],
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('sales')
                 .select('*, products(name, type)')
+                .eq('business_id', selectedBusiness?.id)
                 .order('created_at', { ascending: false })
                 .limit(10);
             
             if (error) throw error;
             return data;
         },
-        enabled: !!user
+        enabled: !!user && !!selectedBusiness
     });
 
     // Calculs KPI
@@ -61,7 +68,13 @@ export const Dashboard = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="btn-secondary px-5 py-2.5 text-sm">Ajouter une vente (Bientôt)</button>
+                    <button className="btn-secondary bg-white px-5 py-2.5 text-sm border border-slate-200 text-primary">Ajouter une vente</button>
+                    <button 
+                        onClick={() => setIsAddProductOpen(true)}
+                        className="btn-primary px-5 py-2.5 text-sm"
+                    >
+                        + Ajouter Produit
+                    </button>
                 </div>
             </div>
 
@@ -201,6 +214,10 @@ export const Dashboard = () => {
                 </div>
             </div>
 
+            <AddProductModal 
+                isOpen={isAddProductOpen} 
+                onClose={() => setIsAddProductOpen(false)} 
+            />
         </div>
     );
 };

@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 
 const registerSchema = z.object({
-    businessName: z.string().min(2, 'Le nom de l\'entreprise est requis.'),
     email: z.string().email('Veuillez entrer une adresse email valide.'),
     password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères.'),
     confirmPassword: z.string()
@@ -20,6 +19,8 @@ export const Register = () => {
     const [authSuccess, setAuthSuccess] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const selectedPlan = searchParams.get('plan') || 'essentiel';
 
     const {
         register,
@@ -39,7 +40,7 @@ export const Register = () => {
                 password: data.password,
                 options: {
                     data: {
-                        business_name: data.businessName,
+                        subscription_plan: selectedPlan,
                     }
                 }
             });
@@ -84,11 +85,6 @@ export const Register = () => {
                     {authError && (
                         <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium">
                             {authError}
-                            <div className="mt-2 text-xs text-red-400">
-                                Debug: URL length: {import.meta.env.VITE_SUPABASE_URL?.length || 0}.<br />
-                                Key length: {import.meta.env.VITE_SUPABASE_ANON_KEY?.length || 0}.<br />
-                                Key starts with: {import.meta.env.VITE_SUPABASE_ANON_KEY?.substring(0, 10)}
-                            </div>
                         </div>
                     )}
 
@@ -107,17 +103,6 @@ export const Register = () => {
                         </div>
                     ) : (
                         <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-                            <div>
-                                <label className="block text-sm font-semibold text-primary mb-1.5">Nom du magasin / entreprise</label>
-                                <input
-                                    type="text"
-                                    {...register('businessName')}
-                                    className={`w-full bg-surface border ${errors.businessName ? 'border-red-400 focus:ring-red-500' : 'border-slate-300 focus:border-accent focus:ring-accent/50'} rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all`}
-                                    placeholder="Auto Pièces Dakar"
-                                />
-                                {errors.businessName && <p className="mt-1 text-sm text-red-500 font-medium">{errors.businessName.message}</p>}
-                            </div>
-
                             <div>
                                 <label className="block text-sm font-semibold text-primary mb-1.5">Adresse email</label>
                                 <input
