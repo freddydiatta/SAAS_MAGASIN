@@ -37,6 +37,17 @@ export const HistoriqueVentes = () => {
 
     const cancelReceiptMutation = useMutation({
         mutationFn: async (receipt) => {
+            // Check if already cancelled
+            const { data: latestReceipt } = await supabase
+                .from('receipts')
+                .select('status')
+                .eq('id', receipt.id)
+                .single();
+                
+            if (latestReceipt?.status === 'cancelled') {
+                throw new Error("Cette vente est déjà annulée.");
+            }
+
             // 1. Update receipt status
             const { error: receiptError } = await supabase
                 .from('receipts')
@@ -239,10 +250,10 @@ export const HistoriqueVentes = () => {
                             <button onClick={() => setReceiptToCancel(null)} className="flex-1 btn-secondary bg-slate-100 py-3">Retour</button>
                             <button 
                                 onClick={confirmCancel} 
-                                disabled={cancelReceiptMutation.isLoading}
+                                disabled={cancelReceiptMutation.isPending}
                                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3 transition-colors disabled:opacity-50"
                             >
-                                {cancelReceiptMutation.isLoading ? 'Annulation...' : 'Oui, annuler'}
+                                {cancelReceiptMutation.isPending ? 'Annulation...' : 'Oui, annuler'}
                             </button>
                         </div>
                     </div>
@@ -291,10 +302,10 @@ export const HistoriqueVentes = () => {
                             <button onClick={() => setReceiptToModify(null)} className="flex-1 btn-secondary bg-slate-100 py-3">Annuler</button>
                             <button 
                                 onClick={confirmModify} 
-                                disabled={modifyReceiptMutation.isLoading}
+                                disabled={modifyReceiptMutation.isPending}
                                 className="flex-1 btn-primary py-3"
                             >
-                                {modifyReceiptMutation.isLoading ? 'Enregistrement...' : 'Enregistrer'}
+                                {modifyReceiptMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
                             </button>
                         </div>
                     </div>
