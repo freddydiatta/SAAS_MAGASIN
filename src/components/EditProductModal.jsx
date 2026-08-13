@@ -52,7 +52,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
             onClose();
             
         } catch (err) {
-            console.error('Error updating product:', err);
+            console.error('Error updating product:', err.message);
             setError(err.message || "Erreur lors de la modification du produit.");
         } finally {
             setIsLoading(false);

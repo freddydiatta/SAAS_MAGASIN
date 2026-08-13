@@ -83,7 +83,7 @@ export const HistoriqueVentes = () => {
                 receipt_id: receipt.id,
                 details: { total_amount: receipt.total_amount }
             }]);
-            if (auditError) console.error("Audit log failed:", auditError);
+            if (auditError) console.error("Audit log failed:", auditError.message);
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['receipts']);
@@ -93,7 +93,7 @@ export const HistoriqueVentes = () => {
             showToast('✅ Vente annulée avec succès. Le stock a été restauré.');
         },
         onError: (error) => {
-            console.error("Erreur lors de l'annulation:", error);
+            console.error("Erreur lors de l'annulation:", error.message);
             showToast('❌ Une erreur est survenue lors de l\'annulation.');
         }
     });
@@ -200,7 +200,7 @@ export const HistoriqueVentes = () => {
             showToast('✅ Vente modifiée avec succès.');
         },
         onError: (error) => {
-            console.error("Erreur modif:", error);
+            console.error("Erreur modif:", error.message);
             showToast('❌ Erreur lors de la modification.');
         }
     });

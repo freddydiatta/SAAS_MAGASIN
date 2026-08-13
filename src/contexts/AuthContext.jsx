@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
                     setUser(null);
                 }
             } catch (error) {
-                console.error("Erreur lors de la récupération de la session", error);
+                console.error("Erreur lors de la récupération de la session", error.message);
             } finally {
                 setLoading(false);
             }

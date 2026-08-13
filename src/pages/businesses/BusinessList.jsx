@@ -65,7 +65,7 @@ export const BusinessList = () => {
                 navigate('/dashboard');
             }
         } catch (error) {
-            console.error('Error creating business:', error);
+            console.error('Error creating business:', error.message);
             setCreateError(error.message || 'Une erreur est survenue lors de la création.');
         } finally {
             setIsSubmitting(false);

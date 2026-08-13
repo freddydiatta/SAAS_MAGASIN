@@ -43,61 +43,21 @@ function App() {
             {/* Dashboard Routes (wrapped in Layout) */}
             <Route path="/dashboard" element={
               <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout>
-                  <Dashboard />
-                </DashboardLayout>
+                <DashboardLayout />
               </ProtectedRoute>
-            } />
-            <Route path="/dashboard/caisse" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><Caisse /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/stock" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><Stock /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/historique" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><HistoriqueVentes /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/securite" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><AuditLogs /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/motos" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Gestion des Motos" /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/calendrier" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><PlaceholderPage title="Calendrier des Villas" /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/villas" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><Villas /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/reservations" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><Reservations /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/commandes" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><Commandes /></DashboardLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard/menu" element={
-              <ProtectedRoute requireBusiness={true}>
-                <DashboardLayout><Menu /></DashboardLayout>
-              </ProtectedRoute>
-            } />
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="caisse" element={<Caisse />} />
+              <Route path="stock" element={<Stock />} />
+              <Route path="historique" element={<HistoriqueVentes />} />
+              <Route path="securite" element={<AuditLogs />} />
+              <Route path="motos" element={<PlaceholderPage title="Gestion des Motos" />} />
+              <Route path="calendrier" element={<PlaceholderPage title="Calendrier des Villas" />} />
+              <Route path="villas" element={<Villas />} />
+              <Route path="reservations" element={<Reservations />} />
+              <Route path="commandes" element={<Commandes />} />
+              <Route path="menu" element={<Menu />} />
+            </Route>
             </Routes>
           </Router>
         </BusinessProvider>

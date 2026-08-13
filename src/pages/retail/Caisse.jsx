@@ -75,7 +75,7 @@ export const Caisse = () => {
             alert('Vente validée avec succès !');
         },
         onError: (error) => {
-            console.error('Erreur lors de la vente:', error);
+            console.error('Erreur lors de la vente:', error.message);
             alert('Erreur lors de la vente. Veuillez réessayer.');
         }
     });
@@ -174,7 +174,7 @@ export const Caisse = () => {
             setIsFacturing(false);
             
         } catch (error) {
-            console.error("Erreur lors de l'encaissement:", error);
+            console.error("Erreur lors de l'encaissement:", error.message);
             showToast('❌ Erreur lors de l\'encaissement');
         }
     };

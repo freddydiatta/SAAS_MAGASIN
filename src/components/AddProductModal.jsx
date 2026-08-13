@@ -49,7 +49,7 @@ export const AddProductModal = ({ isOpen, onClose }) => {
             onClose();
             
         } catch (err) {
-            console.error('Error adding product:', err);
+            console.error('Error adding product:', err.message);
             setError(err.message || "Erreur lors de l'ajout du produit.");
         } finally {
             setIsLoading(false);

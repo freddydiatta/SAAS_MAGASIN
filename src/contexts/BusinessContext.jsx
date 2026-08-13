@@ -41,7 +41,7 @@ export const BusinessProvider = ({ children }) => {
                 setSelectedBusiness(null);
             }
         } catch (error) {
-            console.error('Error fetching businesses:', error);
+            console.error('Error fetching businesses:', error.message);
         } finally {
             setLoading(false);
         }

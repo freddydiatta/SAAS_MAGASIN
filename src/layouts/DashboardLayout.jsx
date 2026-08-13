@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
 
-export const DashboardLayout = ({ children }) => {
+export const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
     const { selectedBusiness } = useBusiness();
@@ -194,7 +194,7 @@ export const DashboardLayout = ({ children }) => {
 
                 {/* Page Content */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8">
-                    {children}
+                    <Outlet />
                 </main>
             </div>
         </div>
