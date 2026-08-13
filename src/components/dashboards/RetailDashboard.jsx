@@ -111,8 +111,8 @@ export const RetailDashboard = () => {
                 </div>
 
                 {/* KPI 3 */}
-                <div className="bg-white rounded-2xl p-6 shadow-premium relative border-t-4 border-amber-500">
-                    <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 text-2xl mb-4">
+                <div className="bg-white rounded-2xl p-6 shadow-premium relative border-t-4 border-rose-500">
+                    <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 text-2xl mb-4">
                         ⚠️
                     </div>
                     <p className="text-secondary text-sm font-medium mb-1">Alertes Stock</p>

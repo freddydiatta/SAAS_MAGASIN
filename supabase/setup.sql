@@ -180,3 +180,25 @@ ON public.restaurant_orders
 FOR ALL USING (
     business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
 );
+
+-- ==========================================
+-- AUDIT LOGS (Security & Traceability)
+-- ==========================================
+CREATE TABLE public.audit_logs (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    user_email TEXT,
+    action TEXT NOT NULL, -- e.g., 'CANCEL_SALE', 'MODIFY_SALE'
+    receipt_id UUID,
+    details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view and insert audit logs of their businesses" ON public.audit_logs;
+CREATE POLICY "Users can view and insert audit logs of their businesses"
+ON public.audit_logs
+FOR ALL USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);

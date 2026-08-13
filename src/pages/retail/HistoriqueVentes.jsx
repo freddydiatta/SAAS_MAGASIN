@@ -2,13 +2,19 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { InvoicePrint } from '../../components/InvoicePrint';
 
 export const HistoriqueVentes = () => {
     const { selectedBusiness } = useBusiness();
+    const { user } = useAuth();
     const queryClient = useQueryClient();
     
     const [toastMessage, setToastMessage] = useState('');
     const [receiptToCancel, setReceiptToCancel] = useState(null);
+    const [receiptToPrint, setReceiptToPrint] = useState(null);
+    const [receiptToModify, setReceiptToModify] = useState(null);
+    const [modifiedItems, setModifiedItems] = useState([]);
 
     const showToast = (message) => {
         setToastMessage(message);
@@ -57,6 +63,16 @@ export const HistoriqueVentes = () => {
                     .update({ stock_quantity: productData.stock_quantity + sale.quantity })
                     .eq('id', sale.product_id);
             }
+
+            // 3. Log Audit
+            const { error: auditError } = await supabase.from('audit_logs').insert([{
+                business_id: receipt.business_id,
+                user_email: user?.email || 'unknown',
+                action: 'CANCEL_SALE',
+                receipt_id: receipt.id,
+                details: { total_amount: receipt.total_amount }
+            }]);
+            if (auditError) console.error("Audit log failed:", auditError);
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['receipts']);
@@ -77,6 +93,113 @@ export const HistoriqueVentes = () => {
         }
     };
 
+    const handlePrint = (receipt) => {
+        const invoiceDetails = {
+            receiptId: receipt.id,
+            date: receipt.created_at,
+            customerName: receipt.customer_name,
+            customerPhone: receipt.customer_phone,
+            items: receipt.sales.map(s => ({
+                name: s.products?.name,
+                quantity: s.quantity,
+                price: s.total_price / s.quantity
+            })),
+            total: receipt.total_amount
+        };
+        setReceiptToPrint(invoiceDetails);
+    };
+
+    const handleModify = (receipt) => {
+        setReceiptToModify(receipt);
+        setModifiedItems(receipt.sales.map(s => ({
+            id: s.id,
+            product_id: s.product_id,
+            name: s.products?.name || 'Produit',
+            original_qty: s.quantity,
+            new_qty: s.quantity,
+            price: s.total_price / s.quantity
+        })));
+    };
+
+    const updateModifiedQty = (saleId, newQty) => {
+        if (newQty < 0) return;
+        setModifiedItems(prev => prev.map(item => 
+            item.id === saleId ? { ...item, new_qty: newQty } : item
+        ));
+    };
+
+    const modifyReceiptMutation = useMutation({
+        mutationFn: async ({ receipt, items }) => {
+            let newTotalAmount = 0;
+            const auditDetails = { changes: [] };
+
+            for (const item of items) {
+                const qtyDiff = item.new_qty - item.original_qty;
+                const itemTotal = item.new_qty * item.price;
+                newTotalAmount += itemTotal;
+
+                if (qtyDiff !== 0) {
+                    auditDetails.changes.push({
+                        product: item.name,
+                        old_qty: item.original_qty,
+                        new_qty: item.new_qty
+                    });
+
+                    // Update sale
+                    await supabase.from('sales').update({ 
+                        quantity: item.new_qty,
+                        total_price: itemTotal
+                    }).eq('id', item.id);
+
+                    // Update stock
+                    if (item.product_id) {
+                        const { data: pData } = await supabase.from('products').select('stock_quantity').eq('id', item.product_id).single();
+                        if (pData) {
+                            await supabase.from('products').update({
+                                stock_quantity: pData.stock_quantity - qtyDiff
+                            }).eq('id', item.product_id);
+                        }
+                    }
+                }
+            }
+
+            if (newTotalAmount !== receipt.total_amount) {
+                await supabase.from('receipts').update({
+                    total_amount: newTotalAmount
+                }).eq('id', receipt.id);
+                auditDetails.old_total = receipt.total_amount;
+                auditDetails.new_total = newTotalAmount;
+            }
+
+            if (auditDetails.changes.length > 0) {
+                await supabase.from('audit_logs').insert([{
+                    business_id: receipt.business_id,
+                    user_email: user?.email || 'unknown',
+                    action: 'MODIFY_SALE',
+                    receipt_id: receipt.id,
+                    details: auditDetails
+                }]);
+            }
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['receipts']);
+            queryClient.invalidateQueries(['products']);
+            queryClient.invalidateQueries(['sales']);
+            setReceiptToModify(null);
+            showToast('✅ Vente modifiée avec succès.');
+        },
+        onError: (error) => {
+            console.error("Erreur modif:", error);
+            showToast('❌ Erreur lors de la modification.');
+        }
+    });
+
+    const confirmModify = () => {
+        if (receiptToModify) {
+            modifyReceiptMutation.mutate({ receipt: receiptToModify, items: modifiedItems });
+        }
+    };
+
     if (isLoading) {
         return <div className="p-8 text-center text-secondary">Chargement de l'historique...</div>;
     }
@@ -88,6 +211,15 @@ export const HistoriqueVentes = () => {
                 <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg font-medium animate-fade-in-up flex items-center gap-2">
                     {toastMessage}
                 </div>
+            )}
+
+            {/* Print Invoice Modal */}
+            {receiptToPrint && (
+                <InvoicePrint 
+                    invoiceDetails={receiptToPrint}
+                    business={selectedBusiness}
+                    onClose={() => setReceiptToPrint(null)}
+                />
             )}
 
             {/* Cancel Confirmation Modal */}
@@ -111,6 +243,58 @@ export const HistoriqueVentes = () => {
                                 className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3 transition-colors disabled:opacity-50"
                             >
                                 {cancelReceiptMutation.isLoading ? 'Annulation...' : 'Oui, annuler'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modify Sale Modal */}
+            {receiptToModify && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-primary">Modifier la Vente</h2>
+                            <button onClick={() => setReceiptToModify(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+                        </div>
+                        
+                        <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2">
+                            {modifiedItems.map(item => (
+                                <div key={item.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <div>
+                                        <p className="font-semibold text-primary text-sm">{item.name}</p>
+                                        <p className="text-xs text-secondary">{item.price.toLocaleString('fr-FR')} F / unité</p>
+                                    </div>
+                                    <div className="flex items-center gap-3 bg-white rounded-lg border border-slate-200 p-1">
+                                        <button 
+                                            onClick={() => updateModifiedQty(item.id, item.new_qty - 1)}
+                                            className="w-7 h-7 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium"
+                                        >-</button>
+                                        <span className="w-6 text-center font-bold text-primary">{item.new_qty}</span>
+                                        <button 
+                                            onClick={() => updateModifiedQty(item.id, item.new_qty + 1)}
+                                            className="w-7 h-7 flex items-center justify-center rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium"
+                                        >+</button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        <div className="flex justify-between items-center mb-6 px-2">
+                            <span className="text-secondary font-medium">Nouveau Total</span>
+                            <span className="text-xl font-bold text-indigo-600">
+                                {modifiedItems.reduce((acc, item) => acc + (item.new_qty * item.price), 0).toLocaleString('fr-FR')} FCFA
+                            </span>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setReceiptToModify(null)} className="flex-1 btn-secondary bg-slate-100 py-3">Annuler</button>
+                            <button 
+                                onClick={confirmModify} 
+                                disabled={modifyReceiptMutation.isLoading}
+                                className="flex-1 btn-primary py-3"
+                            >
+                                {modifyReceiptMutation.isLoading ? 'Enregistrement...' : 'Enregistrer'}
                             </button>
                         </div>
                     </div>
@@ -189,14 +373,30 @@ export const HistoriqueVentes = () => {
                                             )}
                                         </td>
                                         <td className="py-4 px-6 text-right">
-                                            {receipt.status !== 'cancelled' && (
+                                            <div className="flex justify-end gap-2">
                                                 <button 
-                                                    onClick={() => setReceiptToCancel(receipt)}
-                                                    className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors bg-red-50 px-3 py-1.5 rounded-lg"
+                                                    onClick={() => handlePrint(receipt)}
+                                                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg"
                                                 >
-                                                    Annuler
+                                                    Facture
                                                 </button>
-                                            )}
+                                                {receipt.status !== 'cancelled' && (
+                                                    <>
+                                                        <button 
+                                                            onClick={() => handleModify(receipt)}
+                                                            className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors bg-amber-50 px-3 py-1.5 rounded-lg"
+                                                        >
+                                                            Modifier
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => setReceiptToCancel(receipt)}
+                                                            className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors bg-red-50 px-3 py-1.5 rounded-lg"
+                                                        >
+                                                            Annuler
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
