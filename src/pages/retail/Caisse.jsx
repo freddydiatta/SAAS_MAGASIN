@@ -14,7 +14,14 @@ export const Caisse = () => {
     const [customerName, setCustomerName] = useState('');
     const [customerPhone, setCustomerPhone] = useState('');
     const [showInvoice, setShowInvoice] = useState(false);
+    const [isFacturing, setIsFacturing] = useState(false);
     const [lastSaleDetails, setLastSaleDetails] = useState(null);
+    const [toastMessage, setToastMessage] = useState('');
+
+    const showToast = (message) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(''), 3000);
+    };
 
     const { data: products = [], isLoading } = useQuery({
         queryKey: ['products', selectedBusiness?.id],
@@ -103,16 +110,9 @@ export const Caisse = () => {
 
     const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
-    const handleCheckout = () => {
+    const handleCheckout = (withInvoice = false) => {
         if (cart.length === 0) return;
-        // Due to the simplified schema, we will loop and insert each as a separate sale record
-        // since we didn't create a 'sale_items' table.
-        // For a real SaaS, we would use an RPC or specific tables.
-        // Let's do it simply by mutating for the first item (or better, loop)
         
-        // Quick MVP hack: we process the whole cart. But since the mutation expects 1 item,
-        // we'll update the mutation to handle multiple items if needed, or just iterate.
-        // Let's iterate here to keep it simple:
         cart.forEach(async (item) => {
             await supabase.from('sales').insert([{
                 business_id: selectedBusiness.id,
@@ -132,18 +132,23 @@ export const Caisse = () => {
         queryClient.invalidateQueries(['products']);
         queryClient.invalidateQueries(['sales']);
         
-        setLastSaleDetails({
-            items: [...cart],
-            total: cartTotal,
-            date: new Date(),
-            customerName: customerName || 'Client Comptoir',
-            customerPhone: customerPhone
-        });
+        if (withInvoice) {
+            setLastSaleDetails({
+                items: [...cart],
+                total: cartTotal,
+                date: new Date(),
+                customerName: customerName || 'Client Comptoir',
+                customerPhone: customerPhone
+            });
+            setShowInvoice(true);
+        } else {
+            showToast('✅ Vente encaissée avec succès !');
+        }
         
-        setShowInvoice(true);
         setCart([]);
         setCustomerName('');
         setCustomerPhone('');
+        setIsFacturing(false);
     };
 
     if (showInvoice && lastSaleDetails) {
@@ -250,7 +255,55 @@ export const Caisse = () => {
     }
 
     return (
-        <div className="h-[calc(100vh-6rem)] flex gap-6 animate-fade-in-up">
+        <div className="h-[calc(100vh-6rem)] flex gap-6 animate-fade-in-up relative">
+            {/* Toast Notification */}
+            {toastMessage && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg font-medium animate-fade-in-up flex items-center gap-2">
+                    {toastMessage}
+                </div>
+            )}
+
+            {/* Facturation Modal */}
+            {isFacturing && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
+                        <div className="flex justify-between items-center mb-6">
+                            <h2 className="text-xl font-bold text-primary">Créer une facture</h2>
+                            <button onClick={() => setIsFacturing(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                        </div>
+                        
+                        <div className="space-y-4 mb-8">
+                            <p className="text-sm text-secondary">Renseignez les informations du client pour la facture. Ces champs sont optionnels.</p>
+                            <div>
+                                <label className="block text-sm font-semibold text-primary mb-2">Nom du client</label>
+                                <input 
+                                    type="text" 
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
+                                    placeholder="Ex: Jean Dupont"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-primary mb-2">Numéro de téléphone</label>
+                                <input 
+                                    type="text" 
+                                    value={customerPhone}
+                                    onChange={(e) => setCustomerPhone(e.target.value)}
+                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
+                                    placeholder="Ex: +221 77 123 45 67"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary bg-slate-100 py-3">Annuler</button>
+                            <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3">Encaisser & Facturer</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Left side: Products Grid */}
             <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50">
@@ -339,24 +392,6 @@ export const Caisse = () => {
                 </div>
 
                 <div className="p-6 border-t border-slate-100 bg-slate-50">
-                    <div className="mb-4 space-y-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                        <h3 className="text-xs font-bold text-slate-500 uppercase">Infos Client (Optionnel)</h3>
-                        <input 
-                            type="text" 
-                            placeholder="Nom du client"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
-                        />
-                        <input 
-                            type="text" 
-                            placeholder="Numéro de téléphone"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
-                        />
-                    </div>
-                    
                     <div className="flex justify-between text-lg mb-2 px-2">
                         <span className="text-secondary">Sous-total</span>
                         <span className="font-medium text-primary">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
@@ -365,17 +400,32 @@ export const Caisse = () => {
                         <span className="text-primary">Total</span>
                         <span className="text-indigo-600">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
                     </div>
-                    <button 
-                        onClick={handleCheckout}
-                        disabled={cart.length === 0}
-                        className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
-                            cart.length === 0 
-                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-xl active:scale-95'
-                        }`}
-                    >
-                        Encaisser {cartTotal > 0 ? `${cartTotal.toLocaleString('fr-FR')} F` : ''}
-                    </button>
+                    
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => handleCheckout(false)}
+                            disabled={cart.length === 0}
+                            className={`flex-[2] py-4 rounded-xl font-bold text-lg transition-all ${
+                                cart.length === 0 
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-xl active:scale-95'
+                            }`}
+                        >
+                            Encaisser
+                        </button>
+                        <button 
+                            onClick={() => setIsFacturing(true)}
+                            disabled={cart.length === 0}
+                            title="Générer une facture"
+                            className={`flex-[1] py-4 rounded-xl font-bold text-lg flex items-center justify-center transition-all ${
+                                cart.length === 0 
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-xl active:scale-95'
+                            }`}
+                        >
+                            📄 Facture
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
