@@ -1,20 +1,43 @@
 @import "tailwindcss";
 
+:root {
+  --color-primary-base: #111827; /* Gray 900 */
+  --color-secondary-base: #4B5563; /* Gray 600 */
+  --color-surface-base: #FBF9F6; /* Cream */
+  --color-panel-base: #FFFFFF; /* White */
+  --color-border-base: #F1F5F9; /* Slate 100 */
+  
+  --shadow-premium-base: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+  --shadow-premium-lg-base: 0 10px 30px -4px rgba(0, 0, 0, 0.05);
+}
+
+.dark {
+  --color-primary-base: #F9FAFB; /* Gray 50 */
+  --color-secondary-base: #9CA3AF; /* Gray 400 */
+  --color-surface-base: #111827; /* Gray 900 */
+  --color-panel-base: #1F2937; /* Gray 800 */
+  --color-border-base: #374151; /* Gray 700 */
+  
+  --shadow-premium-base: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --shadow-premium-lg-base: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
+}
+
 @theme {
-  --color-primary: #0F172A; /* Slate 900 - Deep Navy */
-  --color-secondary: #475569; /* Slate 600 */
-  --color-accent: #EA580C; /* Orange 600 - Burnt Orange */
-  --color-accentHover: #C2410C; /* Orange 700 */
-  --color-surface: #F8FAFC; /* Slate 50 - Very soft blue-grey */
-  --color-panel: #FFFFFF; /* White for cards */
-  --color-success: #10B981; /* Emerald 500 */
-  --color-warning: #F59E0B; /* Amber 500 */
-  --color-danger: #EF4444; /* Red 500 */
+  --color-primary: var(--color-primary-base);
+  --color-secondary: var(--color-secondary-base);
+  --color-accent: #D96645;
+  --color-accentHover: #C25637;
+  --color-surface: var(--color-surface-base);
+  --color-panel: var(--color-panel-base);
+  --color-border-theme: var(--color-border-base);
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
   
-  --font-sans: "Plus Jakarta Sans", sans-serif;
+  --font-sans: "Plus Jakarta Sans", "Inter", sans-serif;
   
-  --shadow-premium: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -1px rgba(15, 23, 42, 0.04);
-  --shadow-premium-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -2px rgba(15, 23, 42, 0.04);
+  --shadow-premium: var(--shadow-premium-base);
+  --shadow-premium-lg: var(--shadow-premium-lg-base);
 }
 
 body {
@@ -43,15 +66,16 @@ html {
   background-color: var(--color-accent);
   color: #ffffff;
   font-weight: 600;
-  border-radius: 0.5rem;
+  border-radius: 9999px; /* Pill shape */
+  padding: 0.5rem 1.25rem;
   transition: all 0.2s ease-in-out;
-  box-shadow: 0 4px 6px -1px rgba(234, 88, 12, 0.2);
+  box-shadow: 0 4px 10px -2px rgba(217, 102, 69, 0.3);
 }
 
 .btn-primary:hover {
   background-color: var(--color-accentHover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 8px -1px rgba(234, 88, 12, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px -2px rgba(217, 102, 69, 0.4);
 }
 
 .btn-primary:active {
@@ -62,12 +86,13 @@ html {
   background-color: var(--color-panel);
   color: var(--color-primary);
   font-weight: 600;
-  border: 1px solid #E2E8F0;
-  border-radius: 0.5rem;
+  border: 1px solid #E5E7EB;
+  border-radius: 9999px;
+  padding: 0.5rem 1.25rem;
   transition: all 0.2s ease-in-out;
 }
 
 .btn-secondary:hover {
-  background-color: #F1F5F9;
-  border-color: #CBD5E1;
+  background-color: #F9FAFB;
+  border-color: #D1D5DB;
 }

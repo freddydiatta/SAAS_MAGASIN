@@ -6,11 +6,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: '#000000',
-        secondary: '#222222',
-        accent: '#FFC300',
-        accentHover: '#FF5722',
-        surface: '#F4F1EA',
+        primary: '#111827', // Gray 900
+        secondary: '#4B5563', // Gray 600
+        accent: '#D96645', // Brand Orange
+        accentHover: '#C25637', // Darker Orange
+        surface: '#FBF9F6', // Soft cream background
       },
       fontFamily: {
         sans: ['"Space Grotesk"', 'sans-serif'],

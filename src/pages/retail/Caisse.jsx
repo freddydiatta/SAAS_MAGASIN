@@ -200,11 +200,11 @@ export const Caisse = () => {
 
             {/* Facturation Modal */}
             {isFacturing && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-primary">Créer une facture</h2>
-                            <button onClick={() => setIsFacturing(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+                            <button onClick={() => setIsFacturing(false)} className="text-slate-400 hover:text-primary transition-colors">✕</button>
                         </div>
                         
                         <div className="space-y-4 mb-8">
@@ -215,7 +215,7 @@ export const Caisse = () => {
                                     type="text" 
                                     value={customerName}
                                     onChange={(e) => setCustomerName(e.target.value)}
-                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
+                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow text-primary"
                                     placeholder="Ex: Jean Dupont"
                                 />
                             </div>
@@ -225,54 +225,65 @@ export const Caisse = () => {
                                     type="text" 
                                     value={customerPhone}
                                     onChange={(e) => setCustomerPhone(e.target.value)}
-                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
+                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow text-primary"
                                     placeholder="Ex: +221 77 123 45 67"
                                 />
                             </div>
                         </div>
 
                         <div className="flex gap-3">
-                            <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary bg-slate-100 py-3">Annuler</button>
-                            <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3">Encaisser & Facturer</button>
+                            <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary py-3 text-center">Annuler</button>
+                            <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3 text-center">Encaisser & Facturer</button>
                         </div>
                     </div>
                 </div>
             )}
 
             {/* Left side: Products Grid */}
-            <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden min-h-[500px] lg:min-h-0">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex-1 flex flex-col bg-transparent lg:min-h-0">
+                <div className="mb-6 relative">
                     <input 
                         type="text" 
-                        placeholder="Rechercher pour ajouter à la commande..." 
+                        placeholder="Scanner ou rechercher un article..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="input-field max-w-xl bg-white text-lg py-3"
+                        className="w-full bg-panel shadow-premium-lg rounded-full py-4 px-6 pl-14 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border border-slate-100/50 dark:border-border-theme text-primary placeholder:text-slate-400"
                     />
+                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto pb-6">
                     {isLoading ? (
                         <p className="text-secondary text-center py-8">Chargement du catalogue...</p>
                     ) : filteredProducts.length === 0 ? (
                         <p className="text-secondary text-center py-8">Aucun produit ne correspond.</p>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                             {filteredProducts.map(product => (
                                 <button 
                                     key={product.id}
                                     onClick={() => addToCart(product)}
                                     disabled={product.stock_quantity <= 0}
-                                    className={`relative p-4 rounded-2xl text-left border transition-all ${
+                                    className={`group flex flex-col relative rounded-2xl text-left transition-all overflow-hidden ${
                                         product.stock_quantity <= 0 
-                                            ? 'opacity-50 cursor-not-allowed border-slate-200 bg-slate-50' 
-                                            : 'border-slate-100 hover:border-indigo-500 hover:shadow-md bg-white cursor-pointer active:scale-95'
+                                            ? 'opacity-50 cursor-not-allowed grayscale' 
+                                            : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer hover:-translate-y-1'
                                     }`}
                                 >
-                                    <div className="font-semibold text-primary mb-1 line-clamp-2">{product.name}</div>
-                                    <div className="text-indigo-600 font-bold">{product.price.toLocaleString('fr-FR')} FCFA</div>
-                                    <div className="text-xs text-secondary mt-2">
-                                        En stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
+                                    {/* Image Placeholder */}
+                                    <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-4">
+                                        <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
+                                            <span className="text-4xl opacity-20">📦</span>
+                                        </div>
+                                    </div>
+                                    <div className="p-4 flex flex-col flex-1">
+                                        <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight">{product.name}</div>
+                                        <div className="mt-auto pt-2 flex items-end justify-between">
+                                            <div className="text-accent font-bold text-lg">{product.price.toLocaleString('fr-FR')} F</div>
+                                            <div className="text-xs text-secondary font-medium">
+                                                Stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </button>
                             ))}
@@ -282,42 +293,47 @@ export const Caisse = () => {
             </div>
 
             {/* Right side: Cart / POS */}
-            <div className="w-full lg:w-96 bg-white rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden min-h-[500px] lg:min-h-0">
-                <div className="p-6 border-b border-slate-100 bg-indigo-600 text-white">
-                    <h2 className="text-xl font-bold">Commande en cours</h2>
+            <div className="w-full lg:w-[400px] bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme flex flex-col overflow-hidden min-h-[500px] lg:min-h-0 shrink-0">
+                <div className="px-6 py-5 bg-accent text-white flex justify-between items-center">
+                    <h2 className="text-lg font-bold">Commande en cours</h2>
+                    <span className="text-sm bg-white/20 px-3 py-1 rounded-full font-medium">
+                        {cart.length === 0 ? "Aucun article" : `${cart.length} article${cart.length > 1 ? 's' : ''}`}
+                    </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-surface/50 dark:bg-panel">
                     {cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-3">
-                            <span className="text-5xl">🛒</span>
-                            <p>Le panier est vide</p>
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
+                            <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2">
+                                <span className="text-4xl grayscale opacity-50">🛍️</span>
+                            </div>
+                            <p className="font-medium text-secondary">Le panier est vide</p>
                         </div>
                     ) : (
                         cart.map(item => (
-                            <div key={item.id} className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <div className="flex justify-between items-start">
-                                    <span className="font-semibold text-primary">{item.name}</span>
+                            <div key={item.id} className="flex flex-col gap-3 p-4 bg-panel rounded-2xl border border-slate-100 dark:border-border-theme shadow-sm">
+                                <div className="flex justify-between items-start gap-2">
+                                    <span className="font-bold text-primary leading-tight">{item.name}</span>
                                     <button 
                                         onClick={() => removeFromCart(item.id)}
-                                        className="text-slate-400 hover:text-red-500"
+                                        className="text-slate-400 hover:text-red-500 transition-colors p-1"
                                     >
                                         ✕
                                     </button>
                                 </div>
-                                <div className="flex justify-between items-center mt-1">
-                                    <div className="flex items-center gap-3 bg-white rounded-lg border border-slate-200 p-1">
+                                <div className="flex justify-between items-end mt-1">
+                                    <div className="flex items-center gap-1 bg-surface dark:bg-slate-800 rounded-xl p-1 border border-slate-100 dark:border-border-theme">
                                         <button 
                                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                            className="w-7 h-7 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600"
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm text-secondary transition-all"
                                         >-</button>
-                                        <span className="w-4 text-center font-medium">{item.quantity}</span>
+                                        <span className="w-8 text-center font-bold text-primary">{item.quantity}</span>
                                         <button 
                                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                            className="w-7 h-7 flex items-center justify-center rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-600"
+                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm text-accent font-bold transition-all"
                                         >+</button>
                                     </div>
-                                    <span className="font-bold text-primary">
+                                    <span className="font-bold text-primary text-lg">
                                         {(item.price * item.quantity).toLocaleString('fr-FR')} F
                                     </span>
                                 </div>
@@ -326,24 +342,38 @@ export const Caisse = () => {
                     )}
                 </div>
 
-                <div className="p-6 border-t border-slate-100 bg-slate-50">
-                    <div className="flex justify-between text-lg mb-2 px-2">
-                        <span className="text-secondary">Sous-total</span>
-                        <span className="font-medium text-primary">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
+                <div className="p-6 bg-panel border-t border-slate-100 dark:border-border-theme">
+                    <div className="space-y-3 mb-6">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-secondary font-medium">Sous-total</span>
+                            <span className="font-bold text-primary">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
+                        </div>
+                        <div className="flex justify-between text-2xl font-bold">
+                            <span className="text-primary">Total</span>
+                            <span className="text-accent">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
+                        </div>
                     </div>
-                    <div className="flex justify-between text-2xl font-bold mb-6 px-2">
-                        <span className="text-primary">Total</span>
-                        <span className="text-indigo-600">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
+
+                    <div className="mb-6">
+                        <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Montant reçu du client</label>
+                        <div className="relative">
+                            <input 
+                                type="number" 
+                                placeholder="0"
+                                className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-lg font-bold text-primary focus:outline-none focus:border-accent transition-colors"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary font-medium">FCFA</span>
+                        </div>
                     </div>
                     
-                    <div className="flex gap-2">
+                    <div className="flex gap-3">
                         <button 
                             onClick={() => handleCheckout(false)}
                             disabled={cart.length === 0}
-                            className={`flex-[2] py-4 rounded-xl font-bold text-lg transition-all ${
+                            className={`flex-[3] py-4 rounded-xl font-bold text-lg transition-all flex justify-center items-center ${
                                 cart.length === 0 
-                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-lg hover:shadow-xl active:scale-95'
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
+                                    : 'bg-primary text-white hover:opacity-90 shadow-premium active:scale-95'
                             }`}
                         >
                             Encaisser
@@ -352,13 +382,13 @@ export const Caisse = () => {
                             onClick={() => setIsFacturing(true)}
                             disabled={cart.length === 0}
                             title="Générer une facture"
-                            className={`flex-[1] py-4 rounded-xl font-bold text-lg flex items-center justify-center transition-all ${
+                            className={`flex-[1] py-4 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${
                                 cart.length === 0 
-                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg hover:shadow-xl active:scale-95'
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
+                                    : 'bg-surface dark:bg-slate-800 text-primary border border-slate-200 dark:border-border-theme hover:border-accent hover:text-accent shadow-sm active:scale-95'
                             }`}
                         >
-                            📄 Facture
+                            📄
                         </button>
                     </div>
                 </div>

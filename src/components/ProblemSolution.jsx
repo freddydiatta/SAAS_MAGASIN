@@ -1,39 +1,44 @@
 import { Reveal } from './animations';
-import { IconX, IconCheck } from './icons';
+import { XCircle, CheckCircle2, TrendingDown, TrendingUp, AlertCircle, ShieldCheck, Users } from 'lucide-react';
 
 export const ProblemSolution = () => {
     return (
-        <section className="py-24 bg-slate-50 relative overflow-hidden">
+        <section className="py-24 bg-surface dark:bg-slate-900 relative overflow-hidden">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <Reveal>
-                    <div className="text-center max-w-3xl mx-auto mb-16">
-                        <h2 className="text-3xl md:text-4xl font-extrabold text-primary mb-6 tracking-tight">Le business avance, vos outils aussi.</h2>
-                        <p className="text-lg text-secondary inline-block px-4 py-2 bg-white rounded-full border border-slate-200 shadow-sm">L'ancienne méthode vous fait perdre du temps et de l'argent.</p>
+                    <div className="text-center max-w-3xl mx-auto mb-20">
+                        <h2 className="text-4xl md:text-5xl font-black text-primary mb-6 tracking-tight">Le business avance, <br className="hidden md:block"/>vos outils aussi.</h2>
+                        <div className="inline-flex items-center gap-2 px-6 py-3 bg-white dark:bg-panel rounded-full border border-slate-100 dark:border-border-theme shadow-sm">
+                            <span className="text-red-500"><TrendingDown className="w-5 h-5" /></span>
+                            <p className="text-lg text-secondary font-medium">L'ancienne méthode vous fait perdre du temps et de l'argent.</p>
+                        </div>
                     </div>
                 </Reveal>
 
                 <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-stretch mt-12">
                     {/* The Problem */}
                     <Reveal delay={200} direction="left">
-                        <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-premium transition-shadow h-full flex flex-col relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-red-50 rounded-bl-full -mr-16 -mt-16 z-0"></div>
+                        <div className="bg-white dark:bg-panel rounded-[2rem] border border-red-100 dark:border-red-900/30 p-10 shadow-sm hover:shadow-lg transition-shadow h-full flex flex-col relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-40 h-40 bg-red-50 dark:bg-red-900/10 rounded-full blur-3xl -mr-16 -mt-16 z-0 transition-transform group-hover:scale-110"></div>
                             
-                            <div className="w-12 h-12 bg-red-100 text-red-500 rounded-xl flex items-center justify-center mb-6 relative z-10">
-                                <IconX />
+                            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 dark:text-red-400 rounded-2xl flex items-center justify-center mb-8 relative z-10">
+                                <XCircle className="w-8 h-8" />
                             </div>
                             
-                            <h3 className="text-xl font-bold text-primary mb-6 relative z-10">Le passé (Carnets)</h3>
+                            <h3 className="text-2xl font-bold text-primary mb-8 relative z-10">Le passé (Carnets & Stylos)</h3>
                             
-                            <ul className="space-y-4 flex-grow relative z-10">
+                            <ul className="space-y-6 flex-grow relative z-10">
                                 {[
-                                    "Carnets perdus, abîmés ou illisibles.",
-                                    "Impossible de savoir le stock exact instantanément.",
-                                    "Oublis sur la caisse en fin de journée.",
-                                    "Pas de suivi sur les employés ou les vendeurs."
+                                    { icon: <AlertCircle className="w-5 h-5" />, text: "Carnets perdus, abîmés ou illisibles." },
+                                    { icon: <TrendingDown className="w-5 h-5" />, text: "Impossible de connaître le stock exact instantanément." },
+                                    { icon: <XCircle className="w-5 h-5" />, text: "Oublis sur la caisse en fin de journée." },
+                                    { icon: <Users className="w-5 h-5" />, text: "Pas de suivi sur les employés ou les vendeurs." }
                                 ].map((item, idx) => (
-                                    <li key={idx} className="flex items-start gap-3">
-                                        <div className="mt-1 text-red-400 font-bold">×</div>
-                                        <p className="text-secondary font-medium">{item}</p>
+                                    <li key={idx} className="flex items-start gap-4">
+                                        <div className="mt-1 text-red-400 dark:text-red-500 bg-red-50 dark:bg-red-900/20 p-1 rounded-lg">
+                                            {item.icon}
+                                        </div>
+                                        <p className="text-secondary font-medium text-lg leading-relaxed">{item.text}</p>
                                     </li>
                                 ))}
                             </ul>
@@ -42,25 +47,31 @@ export const ProblemSolution = () => {
 
                     {/* The Solution */}
                     <Reveal delay={400} direction="right">
-                        <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-premium h-full flex flex-col relative overflow-hidden ring-1 ring-accent/10">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-50 rounded-bl-full -mr-16 -mt-16 z-0"></div>
+                        <div className="bg-white dark:bg-panel rounded-[2rem] border-2 border-accent/20 p-10 shadow-premium-lg h-full flex flex-col relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-40 h-40 bg-emerald-50 dark:bg-emerald-900/20 rounded-full blur-3xl -mr-16 -mt-16 z-0 transition-transform group-hover:scale-110"></div>
+                            <div className="absolute bottom-0 left-0 w-40 h-40 bg-accent/10 rounded-full blur-3xl -ml-16 -mb-16 z-0"></div>
                             
-                            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center mb-6 relative z-10">
-                                <IconCheck />
+                            <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-8 relative z-10 shadow-sm">
+                                <CheckCircle2 className="w-8 h-8" />
                             </div>
                             
-                            <h3 className="text-xl font-bold text-primary mb-6 relative z-10">Avec GestionPro</h3>
+                            <h3 className="text-2xl font-bold text-primary mb-8 relative z-10 flex items-center gap-3">
+                                Avec GestionPro
+                                <span className="bg-accent/10 text-accent text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wider">Solution</span>
+                            </h3>
                             
-                            <ul className="space-y-4 flex-grow relative z-10">
+                            <ul className="space-y-6 flex-grow relative z-10">
                                 {[
-                                    "Caisse du jour calculée automatiquement.",
-                                    "Alertes sur les pièces ou motos en rupture de stock.",
-                                    "Statistiques claires (bénéfices, ventes).",
-                                    "Comptes sécurisés pour chaque employé."
+                                    { icon: <TrendingUp className="w-5 h-5" />, text: "Caisse du jour calculée et synchronisée automatiquement." },
+                                    { icon: <AlertCircle className="w-5 h-5" />, text: "Alertes intelligentes avant les ruptures de stock." },
+                                    { icon: <TrendingUp className="w-5 h-5" />, text: "Statistiques claires (bénéfices, meilleures ventes)." },
+                                    { icon: <ShieldCheck className="w-5 h-5" />, text: "Comptes sécurisés et historiques pour chaque employé." }
                                 ].map((item, idx) => (
-                                    <li key={idx} className="flex items-start gap-3">
-                                        <div className="mt-1 text-emerald-500 font-bold">✓</div>
-                                        <p className="text-secondary font-medium">{item}</p>
+                                    <li key={idx} className="flex items-start gap-4">
+                                        <div className="mt-1 text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 p-1 rounded-lg">
+                                            {item.icon}
+                                        </div>
+                                        <p className="text-secondary font-medium text-lg leading-relaxed">{item.text}</p>
                                     </li>
                                 ))}
                             </ul>

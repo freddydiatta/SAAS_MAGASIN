@@ -314,25 +314,36 @@ export const HistoriqueVentes = () => {
 
             <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-primary tracking-tight">Historique des Ventes</h1>
-                    <p className="text-secondary mt-1">Consultez toutes vos transactions et annulez en cas d'erreur.</p>
+                    <h1 className="text-3xl font-bold text-primary tracking-tight">Historique des ventes</h1>
+                    <p className="text-secondary mt-1">Consultez vos transactions et gérez les annulations</p>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        7 jours
+                    </button>
+                    <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-slate-50 dark:bg-slate-800">
+                        30 jours
+                    </button>
+                    <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
+                        Période <span>📅</span>
+                    </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
+            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-slate-50 border-b border-slate-100">
-                            <tr>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Date & Heure</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Client</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Articles</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm text-right">Total</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm text-center">Statut</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm text-right">Actions</th>
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-slate-100 dark:border-border-theme">
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Date & Heure</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Client</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Articles</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right">Total</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-center">Statut</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
                             {receipts.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="py-12 text-center text-secondary">
@@ -341,69 +352,75 @@ export const HistoriqueVentes = () => {
                                 </tr>
                             ) : (
                                 receipts.map(receipt => (
-                                    <tr key={receipt.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={receipt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
                                         <td className="py-4 px-6">
-                                            <div className="font-medium text-primary">
+                                            <div className="font-bold text-primary">
                                                 {new Date(receipt.created_at).toLocaleDateString('fr-FR')}
                                             </div>
-                                            <div className="text-xs text-secondary">
+                                            <div className="text-sm text-secondary">
                                                 {new Date(receipt.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </td>
                                         <td className="py-4 px-6">
                                             {receipt.customer_name ? (
                                                 <div>
-                                                    <div className="font-medium text-primary">{receipt.customer_name}</div>
-                                                    {receipt.customer_phone && <div className="text-xs text-secondary">{receipt.customer_phone}</div>}
+                                                    <div className="font-bold text-primary">{receipt.customer_name}</div>
+                                                    {receipt.customer_phone && <div className="text-sm text-secondary">{receipt.customer_phone}</div>}
                                                 </div>
                                             ) : (
-                                                <span className="text-slate-400 italic">Client Comptoir</span>
+                                                <div>
+                                                    <div className="font-bold text-primary">Client Comptoir</div>
+                                                    <div className="text-sm text-secondary italic">Passage en caisse</div>
+                                                </div>
                                             )}
                                         </td>
                                         <td className="py-4 px-6">
                                             <div className="flex flex-col gap-1">
                                                 {receipt.sales?.map(sale => (
                                                     <div key={sale.id} className="text-sm text-secondary">
-                                                        <span className="font-medium text-primary">{sale.quantity}x</span> {sale.products?.name}
+                                                        <span className="font-bold text-primary">{sale.quantity}x</span> {sale.products?.name}
                                                     </div>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="py-4 px-6 text-right font-bold text-primary">
-                                            {receipt.total_amount.toLocaleString('fr-FR')} FCFA
+                                        <td className="py-4 px-6 text-right font-bold text-primary text-lg">
+                                            {receipt.total_amount.toLocaleString('fr-FR')} F
                                         </td>
                                         <td className="py-4 px-6 text-center">
                                             {receipt.status === 'cancelled' ? (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
                                                     Annulé
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                                    Terminé
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                                                    Validé
                                                 </span>
                                             )}
                                         </td>
                                         <td className="py-4 px-6 text-right">
-                                            <div className="flex justify-end gap-2">
+                                            <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {receipt.status !== 'cancelled' && (
                                                     <>
                                                         <button 
                                                             onClick={() => handlePrint(receipt)}
-                                                            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors bg-indigo-50 px-3 py-1.5 rounded-lg"
+                                                            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors"
+                                                            title="Imprimer Facture"
                                                         >
-                                                            Facture
+                                                            📄
                                                         </button>
                                                         <button 
                                                             onClick={() => handleModify(receipt)}
-                                                            className="text-sm text-amber-600 hover:text-amber-800 font-medium transition-colors bg-amber-50 px-3 py-1.5 rounded-lg"
+                                                            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
+                                                            title="Modifier"
                                                         >
-                                                            Modifier
+                                                            ✏️
                                                         </button>
                                                         <button 
                                                             onClick={() => setReceiptToCancel(receipt)}
-                                                            className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors bg-red-50 px-3 py-1.5 rounded-lg"
+                                                            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
+                                                            title="Annuler Vente"
                                                         >
-                                                            Annuler
+                                                            🚫
                                                         </button>
                                                     </>
                                                 )}

@@ -48,63 +48,68 @@ export const Stock = () => {
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-premium overflow-hidden border border-slate-100">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
+                <div className="p-6 border-b border-slate-100 dark:border-border-theme relative">
                     <input 
                         type="text" 
                         placeholder="Rechercher un article..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="input-field max-w-md bg-white"
+                        className="w-full max-w-md bg-surface border border-slate-200 dark:border-border-theme rounded-full py-3 px-5 pl-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary placeholder:text-slate-400"
                     />
+                    <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
+                    <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                                <th className="px-6 py-4">Article</th>
-                                <th className="px-6 py-4">Prix Unitaire</th>
-                                <th className="px-6 py-4">En Stock</th>
-                                <th className="px-6 py-4 text-right">Actions</th>
+                            <tr className="border-b border-slate-100 dark:border-border-theme">
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Article</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Prix Unitaire</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">En Stock</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="4" className="px-6 py-8 text-center text-secondary">Chargement...</td>
+                                    <td colSpan="4" className="px-6 py-12 text-center text-secondary">Chargement...</td>
                                 </tr>
                             ) : filteredProducts.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" className="px-6 py-8 text-center text-secondary">
+                                    <td colSpan="4" className="px-6 py-12 text-center text-secondary">
                                         Aucun article trouvé. Ajoutez votre premier produit !
                                     </td>
                                 </tr>
                             ) : (
                                 filteredProducts.map((product) => (
-                                    <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
-                                        <td className="px-6 py-4 font-medium text-primary">
+                                    <tr key={product.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
+                                        <td className="px-6 py-4 font-bold text-primary">
                                             {product.name}
                                         </td>
-                                        <td className="px-6 py-4 text-secondary">
-                                            {product.price.toLocaleString('fr-FR')} FCFA
+                                        <td className="px-6 py-4 text-secondary font-medium">
+                                            {product.price.toLocaleString('fr-FR')} F
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                                                 product.stock_quantity > 10 
-                                                    ? 'bg-emerald-100 text-emerald-800' 
+                                                    ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' 
                                                     : product.stock_quantity > 0 
-                                                        ? 'bg-amber-100 text-amber-800' 
-                                                        : 'bg-red-100 text-red-800'
+                                                        ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' 
+                                                        : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
                                             }`}>
                                                 {product.stock_quantity}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <button 
-                                                onClick={() => { setProductToEdit(product); setIsEditProductOpen(true); }}
-                                                className="text-indigo-600 hover:text-indigo-900 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                                Modifier
-                                            </button>
+                                            <div className="flex justify-end opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button 
+                                                    onClick={() => { setProductToEdit(product); setIsEditProductOpen(true); }}
+                                                    className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
+                                                    title="Modifier"
+                                                >
+                                                    ✏️
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IconX } from './icons';
+import { X, CheckCircle2, Send } from 'lucide-react';
 
 export const ContactModal = ({ isOpen, onClose }) => {
     const [isSubmitted, setIsSubmitted] = useState(false);
@@ -27,21 +27,24 @@ export const ContactModal = ({ isOpen, onClose }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0">
             <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
             
-            <div className="relative bg-white rounded-2xl shadow-premium-lg w-full max-w-lg p-6 sm:p-8 animate-fade-in-up">
+            <div className="relative bg-white dark:bg-panel rounded-3xl shadow-2xl w-full max-w-lg p-6 sm:p-8 animate-fade-in-up border border-slate-100 dark:border-border-theme overflow-hidden">
+                {/* Decoration */}
+                <div className="absolute top-0 right-0 w-40 h-40 bg-accent/5 rounded-full blur-3xl -mr-16 -mt-16 z-0"></div>
+
                 <button 
                     onClick={onClose}
-                    className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 text-secondary hover:bg-slate-200 hover:text-primary flex items-center justify-center transition-colors"
+                    className="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 text-secondary hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-primary flex items-center justify-center transition-colors z-20 border border-slate-200 dark:border-slate-700"
                 >
-                    <IconX />
+                    <X className="w-5 h-5" />
                 </button>
 
                 {isSubmitted ? (
-                    <div className="text-center py-8">
-                        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-6">
-                            <span className="text-3xl font-bold">✓</span>
+                    <div className="text-center py-8 relative z-10">
+                        <div className="w-20 h-20 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center mx-auto mb-6 border-8 border-emerald-50 dark:border-emerald-900/10">
+                            <CheckCircle2 className="w-10 h-10" />
                         </div>
-                        <h3 className="text-2xl font-bold text-primary mb-3">Message Envoyé !</h3>
-                        <p className="text-secondary mb-8 text-sm leading-relaxed">
+                        <h3 className="text-2xl font-black text-primary mb-3">Message Envoyé !</h3>
+                        <p className="text-secondary mb-8 text-sm font-medium leading-relaxed max-w-sm mx-auto">
                             Nous avons bien reçu votre message. Notre équipe vous recontactera très prochainement.
                         </p>
                         <button 
@@ -49,25 +52,25 @@ export const ContactModal = ({ isOpen, onClose }) => {
                                 onClose();
                                 setTimeout(() => setIsSubmitted(false), 300); // reset after close
                             }}
-                            className="btn-primary w-full py-3.5"
+                            className="bg-primary text-white w-full py-4 rounded-xl font-bold hover:bg-slate-800 transition-colors"
                         >
                             Fermer
                         </button>
                     </div>
                 ) : (
-                    <>
-                        <h3 className="text-2xl font-bold text-primary mb-2">Nous Contacter</h3>
-                        <p className="text-secondary text-sm mb-8">
+                    <div className="relative z-10">
+                        <h3 className="text-3xl font-black text-primary mb-2">Nous Contacter</h3>
+                        <p className="text-secondary text-sm font-medium mb-8">
                             Une question sur nos tarifs ? Besoin d'une démo personnalisée ? Écrivez-nous !
                         </p>
 
                         <form onSubmit={handleSubmit} className="space-y-5">
                             <div>
-                                <label className="block text-sm font-semibold text-primary mb-1.5">Votre Nom / Entreprise</label>
+                                <label className="block text-sm font-bold text-primary mb-2">Votre Nom / Entreprise</label>
                                 <input 
                                     type="text" 
                                     required
-                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all dark:text-white"
                                     placeholder="Ex: Magasin Auto Mermoz"
                                     value={formData.name}
                                     onChange={(e) => setFormData({...formData, name: e.target.value})}
@@ -75,11 +78,11 @@ export const ContactModal = ({ isOpen, onClose }) => {
                             </div>
                             
                             <div>
-                                <label className="block text-sm font-semibold text-primary mb-1.5">Numéro de téléphone ou Email</label>
+                                <label className="block text-sm font-bold text-primary mb-2">Numéro de téléphone ou Email</label>
                                 <input 
                                     type="text" 
                                     required
-                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
+                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all dark:text-white"
                                     placeholder="Ex: +221 76 ... ou email@..."
                                     value={formData.email}
                                     onChange={(e) => setFormData({...formData, email: e.target.value})}
@@ -87,23 +90,23 @@ export const ContactModal = ({ isOpen, onClose }) => {
                             </div>
 
                             <div>
-                                <label className="block text-sm font-semibold text-primary mb-1.5">Comment pouvons-nous aider ?</label>
+                                <label className="block text-sm font-bold text-primary mb-2">Comment pouvons-nous aider ?</label>
                                 <textarea 
                                     required
                                     rows="4"
-                                    className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none"
+                                    className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all resize-none dark:text-white"
                                     placeholder="Décrivez votre besoin..."
                                     value={formData.message}
                                     onChange={(e) => setFormData({...formData, message: e.target.value})}
                                 ></textarea>
                             </div>
 
-                            <button type="submit" className="btn-primary w-full py-3.5 mt-2 flex items-center justify-center gap-2 group">
+                            <button type="submit" className="bg-accent hover:bg-accentHover text-white w-full py-4 rounded-xl font-bold mt-4 flex items-center justify-center gap-2 group transition-all shadow-lg shadow-accent/20">
                                 Envoyer le message
-                                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                                <Send className="w-4 h-4 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
                             </button>
                         </form>
-                    </>
+                    </div>
                 )}
             </div>
         </div>

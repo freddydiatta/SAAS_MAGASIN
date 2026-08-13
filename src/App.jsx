@@ -19,7 +19,15 @@ import { Reservations } from './pages/villas/Reservations';
 import { Menu } from './pages/restaurant/Menu';
 import { Commandes } from './pages/restaurant/Commandes';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // Les données restent fraîches pendant 5 minutes
+      refetchOnWindowFocus: false, // Ne pas recharger automatiquement quand on revient sur la fenêtre
+      retry: 1, // Limiter les tentatives en cas d'erreur
+    },
+  },
+});
 
 function App() {
   return (

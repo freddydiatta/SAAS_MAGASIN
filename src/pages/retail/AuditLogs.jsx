@@ -81,18 +81,18 @@ export const AuditLogs = () => {
                 </p>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
+            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead className="bg-slate-50 border-b border-slate-100">
-                            <tr>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Date & Heure</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Utilisateur</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Action</th>
-                                <th className="py-4 px-6 font-semibold text-secondary text-sm">Détails de l'opération</th>
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-slate-100 dark:border-border-theme">
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Date & Heure</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Utilisateur</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Action</th>
+                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Détails de l'opération</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
                             {logs.length === 0 ? (
                                 <tr>
                                     <td colSpan="4" className="py-12 text-center text-secondary">
@@ -101,18 +101,18 @@ export const AuditLogs = () => {
                                 </tr>
                             ) : (
                                 logs.map(log => (
-                                    <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                                    <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
                                         <td className="py-4 px-6">
-                                            <div className="font-medium text-primary">
+                                            <div className="font-bold text-primary">
                                                 {new Date(log.created_at).toLocaleDateString('fr-FR')}
                                             </div>
-                                            <div className="text-xs text-secondary">
+                                            <div className="text-sm text-secondary">
                                                 {new Date(log.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                                             </div>
                                         </td>
                                         <td className="py-4 px-6">
-                                            <div className="font-medium text-primary flex items-center gap-2">
-                                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
+                                            <div className="font-bold text-primary flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 flex items-center justify-center text-sm font-bold">
                                                     {log.user_email?.charAt(0).toUpperCase()}
                                                 </div>
                                                 {log.user_email}

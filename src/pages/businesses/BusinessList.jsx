@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { supabase } from '../../lib/supabase';
-import { IconCheck } from '../../components/icons';
+
 
 const BUSINESS_TYPES = [
     { id: 'pieces_moto', name: 'Pièces Moto', icon: '🏍️' },
