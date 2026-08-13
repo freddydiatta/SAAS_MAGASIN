@@ -110,45 +110,72 @@ export const Caisse = () => {
 
     const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
 
-    const handleCheckout = (withInvoice = false) => {
+    const handleCheckout = async (withInvoice = false) => {
         if (cart.length === 0) return;
         
-        cart.forEach(async (item) => {
-            await supabase.from('sales').insert([{
-                business_id: selectedBusiness.id,
-                product_id: item.id,
-                quantity: item.quantity,
-                total_price: item.price * item.quantity
-            }]);
+        try {
+            // 1. Create the receipt
+            const { data: receiptData, error: receiptError } = await supabase
+                .from('receipts')
+                .insert([{
+                    business_id: selectedBusiness.id,
+                    customer_name: withInvoice ? customerName : null,
+                    customer_phone: withInvoice ? customerPhone : null,
+                    total_amount: cartTotal,
+                    status: 'completed'
+                }])
+                .select()
+                .single();
+                
+            if (receiptError) throw receiptError;
             
-            const product = products.find(p => p.id === item.id);
-            if (product) {
-                await supabase.from('products').update({ 
-                    stock_quantity: product.stock_quantity - item.quantity 
-                }).eq('id', item.id);
+            const receiptId = receiptData.id;
+
+            // 2. Insert sales (line items) and update stock
+            for (const item of cart) {
+                await supabase.from('sales').insert([{
+                    business_id: selectedBusiness.id,
+                    receipt_id: receiptId,
+                    product_id: item.id,
+                    quantity: item.quantity,
+                    total_price: item.price * item.quantity
+                }]);
+                
+                const product = products.find(p => p.id === item.id);
+                if (product) {
+                    await supabase.from('products').update({ 
+                        stock_quantity: product.stock_quantity - item.quantity 
+                    }).eq('id', item.id);
+                }
             }
-        });
-        
-        queryClient.invalidateQueries(['products']);
-        queryClient.invalidateQueries(['sales']);
-        
-        if (withInvoice) {
-            setLastSaleDetails({
-                items: [...cart],
-                total: cartTotal,
-                date: new Date(),
-                customerName: customerName || 'Client Comptoir',
-                customerPhone: customerPhone
-            });
-            setShowInvoice(true);
-        } else {
-            showToast('✅ Vente encaissée avec succès !');
+            
+            queryClient.invalidateQueries(['products']);
+            queryClient.invalidateQueries(['sales']);
+            queryClient.invalidateQueries(['receipts']);
+            
+            if (withInvoice) {
+                setLastSaleDetails({
+                    items: [...cart],
+                    total: cartTotal,
+                    date: new Date(),
+                    customerName: customerName || 'Client Comptoir',
+                    customerPhone: customerPhone,
+                    receiptId: receiptId
+                });
+                setShowInvoice(true);
+            } else {
+                showToast('✅ Vente encaissée avec succès !');
+            }
+            
+            setCart([]);
+            setCustomerName('');
+            setCustomerPhone('');
+            setIsFacturing(false);
+            
+        } catch (error) {
+            console.error("Erreur lors de l'encaissement:", error);
+            showToast('❌ Erreur lors de l\'encaissement');
         }
-        
-        setCart([]);
-        setCustomerName('');
-        setCustomerPhone('');
-        setIsFacturing(false);
     };
 
     if (showInvoice && lastSaleDetails) {
@@ -177,7 +204,7 @@ export const Caisse = () => {
                             </div>
                             <div className="text-right">
                                 <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Facture</h2>
-                                <p className="text-primary font-medium">#{Math.floor(Math.random() * 100000).toString().padStart(5, '0')}</p>
+                                <p className="text-primary font-medium">#{lastSaleDetails.receiptId ? lastSaleDetails.receiptId.split('-')[0].toUpperCase() : Math.floor(Math.random() * 100000).toString().padStart(5, '0')}</p>
                                 <p className="text-secondary">{lastSaleDetails.date.toLocaleDateString('fr-FR')} {lastSaleDetails.date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
                             </div>
                         </div>

@@ -50,10 +50,30 @@ FOR ALL USING (
     business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
 );
 
--- 3. Mise à jour de la table Sales
+-- 3. Mise à jour des Ventes (Receipts & Sales)
+CREATE TABLE public.receipts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    customer_name TEXT,
+    customer_phone TEXT,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    status TEXT DEFAULT 'completed', -- 'completed', 'cancelled'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can manage receipts of their businesses" ON public.receipts;
+CREATE POLICY "Users can manage receipts of their businesses"
+ON public.receipts
+FOR ALL USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);
+
 CREATE TABLE public.sales (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    receipt_id UUID REFERENCES public.receipts(id) ON DELETE CASCADE,
     product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
     quantity INTEGER NOT NULL,
     total_price DECIMAL(10, 2) NOT NULL,

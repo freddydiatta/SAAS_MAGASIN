@@ -34,10 +34,11 @@ export const RetailDashboard = () => {
         queryFn: async () => {
             const { data, error } = await supabase
                 .from('sales')
-                .select('*, products(name, type)')
+                .select('*, products(name, type), receipts!inner(status)')
                 .eq('business_id', selectedBusiness?.id)
+                .eq('receipts.status', 'completed')
                 .order('created_at', { ascending: false })
-                .limit(10);
+                .limit(20);
             
             if (error) throw error;
             return data;
