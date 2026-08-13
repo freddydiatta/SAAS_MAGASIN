@@ -7,13 +7,44 @@ export const DashboardLayout = ({ children }) => {
     const { selectedBusiness } = useBusiness();
     const { user } = useAuth();
 
-    const menuItems = [
-        { path: '/dashboard', label: 'Aperçu', icon: '📊' },
-        { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
-        { path: '/dashboard/stock', label: 'Stock Pièces', icon: '🔧' },
-        { path: '/dashboard/motos', label: 'Motos', icon: '🏍️' },
-        { path: '/dashboard/villas', label: 'Calendrier Villas', icon: '🏠' },
-    ];
+    const getMenuItems = () => {
+        const type = selectedBusiness?.type;
+        
+        const common = [{ path: '/dashboard', label: 'Aperçu', icon: '📊' }];
+        
+        if (type === 'villa') {
+            return [
+                ...common,
+                { path: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
+                { path: '/dashboard/villas', label: 'Villas', icon: '🏠' },
+                { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
+            ];
+        }
+        
+        if (type === 'restaurant') {
+            return [
+                ...common,
+                { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
+                { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
+                { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
+            ];
+        }
+        
+        // Default (Retail: pieces_moto, quincaillerie, boutique)
+        const retail = [
+            ...common,
+            { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
+            { path: '/dashboard/stock', label: 'Stock / Articles', icon: '📦' },
+        ];
+        
+        if (type === 'pieces_moto') {
+            retail.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
+        }
+        
+        return retail;
+    };
+
+    const menuItems = getMenuItems();
 
     return (
         <div className="flex h-screen bg-surface font-sans text-primary">

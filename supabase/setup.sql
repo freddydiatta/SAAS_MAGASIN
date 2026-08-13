@@ -63,3 +63,48 @@ ON public.sales
 FOR ALL USING (
     business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
 );
+
+-- ==========================================
+-- 4. Tables Spécifiques : VILLAS
+-- ==========================================
+
+DROP TABLE IF EXISTS public.bookings;
+DROP TABLE IF EXISTS public.villas;
+
+CREATE TABLE public.villas (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    address TEXT,
+    price_per_night DECIMAL(10, 2) NOT NULL,
+    status TEXT DEFAULT 'available', -- 'available', 'maintenance'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.villas ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage villas of their businesses"
+ON public.villas
+FOR ALL USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);
+
+CREATE TABLE public.bookings (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    villa_id UUID REFERENCES public.villas(id) ON DELETE CASCADE,
+    customer_name TEXT NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL,
+    status TEXT DEFAULT 'confirmed', -- 'pending', 'confirmed', 'cancelled'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage bookings of their businesses"
+ON public.bookings
+FOR ALL USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);
