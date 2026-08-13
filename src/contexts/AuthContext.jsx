@@ -14,7 +14,19 @@ export const AuthProvider = ({ children }) => {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 setSession(session);
-                setUser(session?.user ?? null);
+                
+                if (session) {
+                    // Valider cryptographiquement la session auprès du serveur
+                    const { data: { user }, error } = await supabase.auth.getUser();
+                    if (error) {
+                        console.error("Session invalide ou expirée:", error.message);
+                        setUser(null);
+                    } else {
+                        setUser(user ?? null);
+                    }
+                } else {
+                    setUser(null);
+                }
             } catch (error) {
                 console.error("Erreur lors de la récupération de la session", error);
             } finally {
