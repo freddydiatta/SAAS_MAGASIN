@@ -11,6 +11,10 @@ export const Caisse = () => {
     
     const [cart, setCart] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [customerName, setCustomerName] = useState('');
+    const [customerPhone, setCustomerPhone] = useState('');
+    const [showInvoice, setShowInvoice] = useState(false);
+    const [lastSaleDetails, setLastSaleDetails] = useState(null);
 
     const { data: products = [], isLoading } = useQuery({
         queryKey: ['products', selectedBusiness?.id],
@@ -127,10 +131,121 @@ export const Caisse = () => {
         
         queryClient.invalidateQueries(['products']);
         queryClient.invalidateQueries(['sales']);
+        
+        setLastSaleDetails({
+            items: [...cart],
+            total: cartTotal,
+            date: new Date(),
+            customerName: customerName || 'Client Comptoir',
+            customerPhone: customerPhone
+        });
+        
+        setShowInvoice(true);
         setCart([]);
-        // Use a nice modern toast instead of alert in the future
-        alert('Caisse validée avec succès !'); 
+        setCustomerName('');
+        setCustomerPhone('');
     };
+
+    if (showInvoice && lastSaleDetails) {
+        return (
+            <div className="h-[calc(100vh-6rem)] flex flex-col bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden relative print:fixed print:inset-0 print:h-screen print:w-screen print:z-[100] print:rounded-none print:border-none print:bg-white">
+                {/* Actions (Hidden on Print) */}
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center print:hidden bg-slate-50">
+                    <button onClick={() => setShowInvoice(false)} className="btn-secondary px-5 py-2.5">
+                        ← Nouvelle Vente
+                    </button>
+                    <button onClick={() => window.print()} className="btn-primary px-5 py-2.5 flex items-center gap-2">
+                        🖨️ Imprimer la Facture
+                    </button>
+                </div>
+
+                {/* Printable Invoice Area */}
+                <div className="flex-1 overflow-y-auto p-8 md:p-16 print:p-10 print:overflow-visible bg-slate-100 print:bg-white flex justify-center">
+                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:border-none print:shadow-none print:p-0 print:w-full">
+                        {/* Header */}
+                        <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
+                            <div>
+                                <h1 className="text-4xl font-bold text-primary mb-2">{selectedBusiness?.name}</h1>
+                                <p className="text-secondary">{selectedBusiness?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin'}</p>
+                            </div>
+                            <div className="text-right">
+                                <h2 className="text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Facture</h2>
+                                <p className="text-primary font-medium">#{Math.floor(Math.random() * 100000).toString().padStart(5, '0')}</p>
+                                <p className="text-secondary">{lastSaleDetails.date.toLocaleDateString('fr-FR')} {lastSaleDetails.date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
+                            </div>
+                        </div>
+
+                        {/* Customer Info */}
+                        <div className="mb-10 flex justify-between">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-400 uppercase mb-2">Facturé à</h3>
+                                <p className="text-lg font-bold text-primary">{lastSaleDetails.customerName}</p>
+                                {lastSaleDetails.customerPhone && (
+                                    <p className="text-secondary mt-1">📞 {lastSaleDetails.customerPhone}</p>
+                                )}
+                            </div>
+                            <div className="text-right">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase mb-2">Vendeur</h3>
+                                <p className="text-primary font-medium">{user?.email}</p>
+                            </div>
+                        </div>
+
+                        {/* Items Table */}
+                        <table className="w-full mb-10 text-left border-collapse">
+                            <thead>
+                                <tr className="border-b-2 border-slate-200">
+                                    <th className="py-3 font-bold text-slate-500 uppercase text-sm">Description</th>
+                                    <th className="py-3 font-bold text-slate-500 uppercase text-sm text-center">Qté</th>
+                                    <th className="py-3 font-bold text-slate-500 uppercase text-sm text-right">Prix Unitaire</th>
+                                    <th className="py-3 font-bold text-slate-500 uppercase text-sm text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {lastSaleDetails.items.map((item, idx) => (
+                                    <tr key={idx} className="border-b border-slate-100">
+                                        <td className="py-4 font-medium text-primary">{item.name}</td>
+                                        <td className="py-4 text-center">{item.quantity}</td>
+                                        <td className="py-4 text-right text-secondary">{item.price.toLocaleString('fr-FR')} F</td>
+                                        <td className="py-4 text-right font-bold text-primary">{(item.price * item.quantity).toLocaleString('fr-FR')} F</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        {/* Totals */}
+                        <div className="flex justify-end mb-16">
+                            <div className="w-64">
+                                <div className="flex justify-between py-2 border-b border-slate-100">
+                                    <span className="text-secondary">Sous-total</span>
+                                    <span className="font-medium text-primary">{lastSaleDetails.total.toLocaleString('fr-FR')} F</span>
+                                </div>
+                                <div className="flex justify-between py-4">
+                                    <span className="text-xl font-bold text-primary">Total Net</span>
+                                    <span className="text-xl font-bold text-accent">{lastSaleDetails.total.toLocaleString('fr-FR')} FCFA</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Signatures */}
+                        <div className="flex justify-between mt-12 pt-8 border-t border-slate-200">
+                            <div className="text-center">
+                                <p className="font-medium text-slate-400 mb-12">Signature du Client</p>
+                                <div className="w-48 border-b-2 border-dashed border-slate-300"></div>
+                            </div>
+                            <div className="text-center">
+                                <p className="font-medium text-slate-400 mb-12">Cachet / Signature Magasin</p>
+                                <div className="w-48 border-b-2 border-dashed border-slate-300 mx-auto"></div>
+                            </div>
+                        </div>
+                        
+                        <div className="text-center mt-12 text-sm text-slate-400">
+                            Merci de votre confiance !
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="h-[calc(100vh-6rem)] flex gap-6 animate-fade-in-up">
@@ -222,11 +337,29 @@ export const Caisse = () => {
                 </div>
 
                 <div className="p-6 border-t border-slate-100 bg-slate-50">
-                    <div className="flex justify-between text-lg mb-2">
+                    <div className="mb-4 space-y-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase">Infos Client (Optionnel)</h3>
+                        <input 
+                            type="text" 
+                            placeholder="Nom du client"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
+                        />
+                        <input 
+                            type="text" 
+                            placeholder="Numéro de téléphone"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow"
+                        />
+                    </div>
+                    
+                    <div className="flex justify-between text-lg mb-2 px-2">
                         <span className="text-secondary">Sous-total</span>
                         <span className="font-medium text-primary">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
                     </div>
-                    <div className="flex justify-between text-2xl font-bold mb-6">
+                    <div className="flex justify-between text-2xl font-bold mb-6 px-2">
                         <span className="text-primary">Total</span>
                         <span className="text-indigo-600">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
                     </div>

@@ -50,7 +50,7 @@ export const DashboardLayout = ({ children }) => {
     return (
         <div className="flex h-screen bg-surface font-sans text-primary">
             {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-20">
+            <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-20 print:hidden">
                 {/* Logo */}
                 <div className="h-20 border-b border-slate-200 flex items-center px-6">
                     <Link to="/" className="flex items-center gap-3 cursor-pointer">
@@ -110,9 +110,9 @@ export const DashboardLayout = ({ children }) => {
             </aside>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col h-screen overflow-hidden">
+            <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible">
                 {/* Topbar */}
-                <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10">
+                <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 print:hidden">
                     <div className="flex items-center gap-4 flex-1">
                         {/* Search Bar */}
                         <div className="relative w-full max-w-md hidden sm:block">
@@ -125,12 +125,44 @@ export const DashboardLayout = ({ children }) => {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-5">
+                    <div className="flex items-center gap-5 relative">
                         {/* Notifications */}
-                        <button onClick={() => alert('Aucune nouvelle notification.')} className="relative p-2 text-secondary hover:text-primary transition-colors">
-                            <span className="text-xl">🔔</span>
-                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full"></span>
-                        </button>
+                        <div className="relative group">
+                            <button className="relative p-2 text-secondary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 rounded-full">
+                                <span className="text-xl">🔔</span>
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>
+                            </button>
+                            
+                            {/* Dropdown Notifications */}
+                            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 transform origin-top-right">
+                                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                                    <h3 className="font-bold text-primary">Notifications</h3>
+                                    <span className="bg-accent/10 text-accent text-xs font-bold px-2 py-1 rounded-full">1 Nouvelle</span>
+                                </div>
+                                <div className="max-h-80 overflow-y-auto">
+                                    <div className="p-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-50">
+                                        <div className="flex gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 shrink-0">
+                                                ✨
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium text-primary">Bienvenue sur GestionPro !</p>
+                                                <p className="text-xs text-secondary mt-1">Configurez votre premier magasin pour commencer.</p>
+                                                <p className="text-xs text-slate-400 mt-2">À l'instant</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Empty state (optional) */}
+                                    {/* <div className="p-8 text-center text-secondary">
+                                        <span className="text-4xl mb-3 block">📭</span>
+                                        <p className="text-sm">Aucune notification pour le moment.</p>
+                                    </div> */}
+                                </div>
+                                <div className="p-3 text-center border-t border-slate-100">
+                                    <button className="text-sm font-medium text-accent hover:text-accentHover">Tout marquer comme lu</button>
+                                </div>
+                            </div>
+                        </div>
                         
                         {/* Quick Action */}
                         <button onClick={() => navigate('/dashboard/caisse')} className="btn-primary px-5 py-2.5 text-sm hidden sm:flex items-center gap-2">
