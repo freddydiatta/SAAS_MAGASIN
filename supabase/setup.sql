@@ -35,7 +35,7 @@ CREATE TABLE public.products (
     name TEXT NOT NULL,
     type TEXT,
     price DECIMAL(10, 2),
-    quantity INTEGER DEFAULT 0,
+    stock_quantity INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
