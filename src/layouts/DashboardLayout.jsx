@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
 
 export const DashboardLayout = ({ children }) => {
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
     const { selectedBusiness } = useBusiness();
     const { user } = useAuth();
@@ -50,8 +52,16 @@ export const DashboardLayout = ({ children }) => {
 
     return (
         <div className="flex h-screen bg-surface font-sans text-primary">
+            {/* Mobile Menu Overlay */}
+            {isMobileMenuOpen && (
+                <div 
+                    className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-30 md:hidden"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                ></div>
+            )}
+
             {/* Sidebar */}
-            <aside className="w-72 bg-white border-r border-slate-200 flex flex-col hidden md:flex z-20 print:hidden">
+            <aside className={`w-72 bg-white border-r border-slate-200 flex flex-col fixed md:relative z-40 transition-transform duration-300 ease-in-out h-full print:hidden ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
                 {/* Logo */}
                 <div className="h-20 border-b border-slate-200 flex items-center px-6">
                     <Link to="/" className="flex items-center gap-3 cursor-pointer">
@@ -70,6 +80,7 @@ export const DashboardLayout = ({ children }) => {
                             <Link 
                                 key={idx} 
                                 to={item.path}
+                                onClick={() => setIsMobileMenuOpen(false)}
                                 className={`flex items-center gap-4 px-4 py-3 rounded-xl font-medium transition-colors ${
                                     isActive 
                                     ? 'bg-orange-50 text-accent' 
@@ -113,8 +124,16 @@ export const DashboardLayout = ({ children }) => {
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible">
                 {/* Topbar */}
-                <header className="h-20 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 print:hidden">
+                <header className="h-16 md:h-20 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 z-10 print:hidden">
                     <div className="flex items-center gap-4 flex-1">
+                        {/* Hamburger Menu (Mobile) */}
+                        <button 
+                            className="md:hidden p-2 -ml-2 text-secondary hover:text-primary transition-colors focus:outline-none focus:ring-2 focus:ring-accent/20 rounded-xl"
+                            onClick={() => setIsMobileMenuOpen(true)}
+                        >
+                            <span className="text-2xl">☰</span>
+                        </button>
+
                         {/* Search Bar */}
                         <div className="relative w-full max-w-md hidden sm:block">
                             <input 

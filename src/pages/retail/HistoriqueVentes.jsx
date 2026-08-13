@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
@@ -5,6 +6,14 @@ import { useBusiness } from '../../contexts/BusinessContext';
 export const HistoriqueVentes = () => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
+    
+    const [toastMessage, setToastMessage] = useState('');
+    const [receiptToCancel, setReceiptToCancel] = useState(null);
+
+    const showToast = (message) => {
+        setToastMessage(message);
+        setTimeout(() => setToastMessage(''), 3000);
+    };
 
     const { data: receipts = [], isLoading } = useQuery({
         queryKey: ['receipts', selectedBusiness?.id],
@@ -53,17 +62,18 @@ export const HistoriqueVentes = () => {
             queryClient.invalidateQueries(['receipts']);
             queryClient.invalidateQueries(['products']);
             queryClient.invalidateQueries(['sales']);
-            alert('Vente annulée avec succès. Le stock a été restauré.');
+            setReceiptToCancel(null);
+            showToast('✅ Vente annulée avec succès. Le stock a été restauré.');
         },
         onError: (error) => {
             console.error("Erreur lors de l'annulation:", error);
-            alert('Une erreur est survenue lors de l\'annulation.');
+            showToast('❌ Une erreur est survenue lors de l\'annulation.');
         }
     });
 
-    const handleCancel = (receipt) => {
-        if (window.confirm("Êtes-vous sûr de vouloir annuler cette vente ? Le montant sera déduit et le stock restauré.")) {
-            cancelReceiptMutation.mutate(receipt);
+    const confirmCancel = () => {
+        if (receiptToCancel) {
+            cancelReceiptMutation.mutate(receiptToCancel);
         }
     };
 
@@ -72,8 +82,42 @@ export const HistoriqueVentes = () => {
     }
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 animate-fade-in-up">
-            <div className="flex justify-between items-end">
+        <div className="max-w-7xl mx-auto space-y-6 animate-fade-in-up relative">
+            {/* Toast Notification */}
+            {toastMessage && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg font-medium animate-fade-in-up flex items-center gap-2">
+                    {toastMessage}
+                </div>
+            )}
+
+            {/* Cancel Confirmation Modal */}
+            {receiptToCancel && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
+                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-2xl mb-4 mx-auto">
+                            ⚠️
+                        </div>
+                        <h2 className="text-xl font-bold text-primary text-center mb-2">Annuler la vente ?</h2>
+                        <p className="text-secondary text-center mb-8">
+                            Êtes-vous sûr de vouloir annuler cette transaction de <strong>{receiptToCancel.total_amount.toLocaleString('fr-FR')} FCFA</strong> ?<br/><br/>
+                            Le montant sera déduit de votre caisse et le stock des articles sera automatiquement restauré.
+                        </p>
+                        
+                        <div className="flex gap-3">
+                            <button onClick={() => setReceiptToCancel(null)} className="flex-1 btn-secondary bg-slate-100 py-3">Retour</button>
+                            <button 
+                                onClick={confirmCancel} 
+                                disabled={cancelReceiptMutation.isLoading}
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3 transition-colors disabled:opacity-50"
+                            >
+                                {cancelReceiptMutation.isLoading ? 'Annulation...' : 'Oui, annuler'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-primary tracking-tight">Historique des Ventes</h1>
                     <p className="text-secondary mt-1">Consultez toutes vos transactions et annulez en cas d'erreur.</p>
@@ -147,9 +191,8 @@ export const HistoriqueVentes = () => {
                                         <td className="py-4 px-6 text-right">
                                             {receipt.status !== 'cancelled' && (
                                                 <button 
-                                                    onClick={() => handleCancel(receipt)}
-                                                    disabled={cancelReceiptMutation.isLoading}
-                                                    className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors"
+                                                    onClick={() => setReceiptToCancel(receipt)}
+                                                    className="text-sm text-red-500 hover:text-red-700 font-medium transition-colors bg-red-50 px-3 py-1.5 rounded-lg"
                                                 >
                                                     Annuler
                                                 </button>

@@ -282,7 +282,7 @@ export const Caisse = () => {
     }
 
     return (
-        <div className="h-[calc(100vh-6rem)] flex gap-6 animate-fade-in-up relative">
+        <div className="h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 lg:gap-6 animate-fade-in-up relative overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
             {/* Toast Notification */}
             {toastMessage && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg font-medium animate-fade-in-up flex items-center gap-2">
@@ -332,7 +332,7 @@ export const Caisse = () => {
             )}
 
             {/* Left side: Products Grid */}
-            <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden">
+            <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-premium border border-slate-100 overflow-hidden min-h-[500px] lg:min-h-0">
                 <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                     <input 
                         type="text" 
@@ -374,7 +374,7 @@ export const Caisse = () => {
             </div>
 
             {/* Right side: Cart / POS */}
-            <div className="w-96 bg-white rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden">
+            <div className="w-full lg:w-96 bg-white rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden min-h-[500px] lg:min-h-0">
                 <div className="p-6 border-b border-slate-100 bg-indigo-600 text-white">
                     <h2 className="text-xl font-bold">Commande en cours</h2>
                 </div>
