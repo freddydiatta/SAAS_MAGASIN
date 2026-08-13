@@ -13,6 +13,7 @@ import { PlaceholderPage } from './pages/PlaceholderPage';
 import { Stock } from './pages/retail/Stock';
 import { Caisse } from './pages/retail/Caisse';
 import { HistoriqueVentes } from './pages/retail/HistoriqueVentes';
+import { AuditLogs } from './pages/retail/AuditLogs';
 import { Villas } from './pages/villas/Villas';
 import { Reservations } from './pages/villas/Reservations';
 import { Menu } from './pages/restaurant/Menu';
@@ -60,6 +61,11 @@ function App() {
             <Route path="/dashboard/historique" element={
               <ProtectedRoute requireBusiness={true}>
                 <DashboardLayout><HistoriqueVentes /></DashboardLayout>
+              </ProtectedRoute>
+            } />
+            <Route path="/dashboard/securite" element={
+              <ProtectedRoute requireBusiness={true}>
+                <DashboardLayout><AuditLogs /></DashboardLayout>
               </ProtectedRoute>
             } />
             <Route path="/dashboard/motos" element={
