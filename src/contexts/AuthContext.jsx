@@ -16,13 +16,23 @@ export const AuthProvider = ({ children }) => {
                 setSession(session);
                 
                 if (session) {
-                    // Valider cryptographiquement la session auprès du serveur
-                    const { data: { user }, error } = await supabase.auth.getUser();
-                    if (error) {
-                        console.error("Session invalide ou expirée:", error.message);
-                        setUser(null);
+                    if (!navigator.onLine) {
+                        // Si on est hors ligne, on utilise l'utilisateur de la session mise en cache
+                        setUser(session.user);
                     } else {
-                        setUser(user ?? null);
+                        // Valider cryptographiquement la session auprès du serveur
+                        const { data: { user }, error } = await supabase.auth.getUser();
+                        if (error) {
+                            console.error("Session invalide ou expirée:", error.message);
+                            // Fallback au cas où l'erreur est liée au réseau
+                            if (error.message.includes('fetch') || error.message.includes('Network')) {
+                                setUser(session.user);
+                            } else {
+                                setUser(null);
+                            }
+                        } else {
+                            setUser(user ?? null);
+                        }
                     }
                 } else {
                     setUser(null);

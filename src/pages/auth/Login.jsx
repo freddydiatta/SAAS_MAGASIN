@@ -43,6 +43,11 @@ export const Login = () => {
 
     const onSubmit = async (data) => {
         if (lockoutCountdown > 0) return;
+        
+        if (!navigator.onLine) {
+            setAuthError("Pas de connexion internet. Vous ne pouvez pas vous connecter pour la première fois en étant hors ligne.");
+            return;
+        }
 
         setIsLoading(true);
         setAuthError('');
