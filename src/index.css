@@ -1,23 +1,33 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary-base: #111827; /* Gray 900 */
-  --color-secondary-base: #4B5563; /* Gray 600 */
-  --color-surface-base: #FBF9F6; /* Cream */
-  --color-panel-base: #FFFFFF; /* White */
-  --color-border-base: #F1F5F9; /* Slate 100 */
-  
+  --color-primary-base: #111827;
+  /* Gray 900 */
+  --color-secondary-base: #4B5563;
+  /* Gray 600 */
+  --color-surface-base: #FBF9F6;
+  /* Cream */
+  --color-panel-base: #FFFFFF;
+  /* White */
+  --color-border-base: #F1F5F9;
+  /* Slate 100 */
+
   --shadow-premium-base: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
   --shadow-premium-lg-base: 0 10px 30px -4px rgba(0, 0, 0, 0.05);
 }
 
 .dark {
-  --color-primary-base: #F9FAFB; /* Gray 50 */
-  --color-secondary-base: #9CA3AF; /* Gray 400 */
-  --color-surface-base: #111827; /* Gray 900 */
-  --color-panel-base: #1F2937; /* Gray 800 */
-  --color-border-base: #374151; /* Gray 700 */
-  
+  --color-primary-base: #F9FAFB;
+  /* Gray 50 */
+  --color-secondary-base: #9CA3AF;
+  /* Gray 400 */
+  --color-surface-base: #111827;
+  /* Gray 900 */
+  --color-panel-base: #1F2937;
+  /* Gray 800 */
+  --color-border-base: #374151;
+  /* Gray 700 */
+
   --shadow-premium-base: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
   --shadow-premium-lg-base: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
 }
@@ -33,9 +43,9 @@
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
-  
+
   --font-sans: "Plus Jakarta Sans", "Inter", sans-serif;
-  
+
   --shadow-premium: var(--shadow-premium-base);
   --shadow-premium-lg: var(--shadow-premium-lg-base);
 }
@@ -57,6 +67,7 @@ html {
   .shadow-premium {
     box-shadow: var(--shadow-premium);
   }
+
   .shadow-premium-lg {
     box-shadow: var(--shadow-premium-lg);
   }
@@ -66,7 +77,8 @@ html {
   background-color: var(--color-accent);
   color: #ffffff;
   font-weight: 600;
-  border-radius: 9999px; /* Pill shape */
+  border-radius: 9999px;
+  /* Pill shape */
   padding: 0.5rem 1.25rem;
   transition: all 0.2s ease-in-out;
   box-shadow: 0 4px 10px -2px rgba(217, 102, 69, 0.3);
@@ -95,4 +107,34 @@ html {
 .btn-secondary:hover {
   background-color: #F9FAFB;
   border-color: #D1D5DB;
+}
+
+/* Touch and mobile optimizations */
+@media (max-width: 768px) {
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent zoom on inputs on iOS */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Disable hover effects on touch devices */
+@media (hover: none) {
+  .btn-primary:hover {
+    transform: none;
+    box-shadow: 0 4px 10px -2px rgba(217, 102, 69, 0.3);
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--color-panel);
+    border-color: #E5E7EB;
+  }
 }

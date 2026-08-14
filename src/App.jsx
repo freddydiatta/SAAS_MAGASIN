@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
+import { get, set, del } from 'idb-keyval';
 import { AuthProvider } from './contexts/AuthContext';
 import { BusinessProvider } from './contexts/BusinessContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -25,6 +28,7 @@ import { AffiliateDashboard } from './pages/affiliate/AffiliateDashboard';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      gcTime: 1000 * 60 * 60 * 24, // 24 heures en cache
       staleTime: 1000 * 60 * 5, // Les données restent fraîches pendant 5 minutes
       refetchOnWindowFocus: false, // Ne pas recharger automatiquement quand on revient sur la fenêtre
       retry: 1, // Limiter les tentatives en cas d'erreur
@@ -32,9 +36,20 @@ const queryClient = new QueryClient({
   },
 });
 
+const asyncStoragePersister = createAsyncStoragePersister({
+  storage: {
+    getItem: async (key) => await get(key),
+    setItem: async (key, value) => await set(key, value),
+    removeItem: async (key) => await del(key),
+  },
+});
+
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider 
+      client={queryClient} 
+      persistOptions={{ persister: asyncStoragePersister }}
+    >
       <AuthProvider>
         <BusinessProvider>
           <Router>
@@ -74,7 +89,7 @@ function App() {
           </Router>
         </BusinessProvider>
       </AuthProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 
