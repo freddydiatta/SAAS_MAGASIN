@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
-import { Home, MapPin, Plus, X } from 'lucide-react';
+import { Home, MapPin, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -10,6 +10,7 @@ export const Villas = () => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [editingVilla, setEditingVilla] = useState(null);
     const [formData, setFormData] = useState({ name: '', address: '', price_per_night: '' });
 
     const { data: villas = [], isLoading } = useQuery({
@@ -43,13 +44,75 @@ export const Villas = () => {
         }
     });
 
+    const updateVillaMutation = useMutation({
+        mutationFn: async ({ id, ...updates }) => {
+            const { data, error } = await supabase
+                .from('villas')
+                .update(updates)
+                .eq('id', id)
+                .select();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['villas']);
+            setIsAddOpen(false);
+            setEditingVilla(null);
+            setFormData({ name: '', address: '', price_per_night: '' });
+            toast.success('Villa modifiée avec succès !');
+        }
+    });
+
+    const deleteVillaMutation = useMutation({
+        mutationFn: async (id) => {
+            const { error } = await supabase
+                .from('villas')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            return id;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['villas']);
+            toast.success('Villa supprimée avec succès !');
+        },
+        onError: () => {
+            toast.error('Erreur lors de la suppression. Cette villa a peut-être des réservations.');
+        }
+    });
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        addVillaMutation.mutate({
-            name: formData.name,
-            address: formData.address,
-            price_per_night: parseFloat(formData.price_per_night)
+        if (editingVilla) {
+            updateVillaMutation.mutate({
+                id: editingVilla.id,
+                name: formData.name,
+                address: formData.address,
+                price_per_night: parseFloat(formData.price_per_night)
+            });
+        } else {
+            addVillaMutation.mutate({
+                name: formData.name,
+                address: formData.address,
+                price_per_night: parseFloat(formData.price_per_night)
+            });
+        }
+    };
+
+    const handleEdit = (villa) => {
+        setEditingVilla(villa);
+        setFormData({
+            name: villa.name,
+            address: villa.address || '',
+            price_per_night: villa.price_per_night
         });
+        setIsAddOpen(true);
+    };
+
+    const handleDelete = (villa) => {
+        if (window.confirm(`Êtes-vous sûr de vouloir supprimer la villa "${villa.name}" ?`)) {
+            deleteVillaMutation.mutate(villa.id);
+        }
     };
 
     return (
@@ -61,7 +124,11 @@ export const Villas = () => {
                 </div>
                 <div className="flex gap-3">
                     <button 
-                        onClick={() => setIsAddOpen(true)}
+                        onClick={() => {
+                            setEditingVilla(null);
+                            setFormData({ name: '', address: '', price_per_night: '' });
+                            setIsAddOpen(true);
+                        }}
                         className="btn-primary px-5 py-2.5 text-sm"
                     >
                         + Ajouter une Villa
@@ -110,6 +177,22 @@ export const Villas = () => {
                                 <span className="text-secondary text-sm font-medium">Prix / Nuit</span>
                                 <span className="font-bold text-accent text-lg">{villa.price_per_night.toLocaleString('fr-FR')} F</span>
                             </div>
+                            <div className="pt-4 mt-2 border-t border-slate-100 dark:border-border-theme flex justify-end gap-2">
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleEdit(villa); }}
+                                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                                    title="Modifier la villa"
+                                >
+                                    <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDelete(villa); }}
+                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                    title="Supprimer la villa"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                            </div>
                         </motion.div>
                     ))
                 )}
@@ -131,7 +214,9 @@ export const Villas = () => {
                             className="bg-panel rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-border-theme"
                         >
                         <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
-                            <h2 className="text-xl font-bold text-primary">Ajouter un bien</h2>
+                            <h2 className="text-xl font-bold text-primary">
+                                {editingVilla ? 'Modifier la villa' : 'Ajouter un bien'}
+                            </h2>
                             <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
@@ -171,8 +256,8 @@ export const Villas = () => {
                                 />
                             </div>
                             <div className="pt-4">
-                                <button type="submit" disabled={addVillaMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
-                                    {addVillaMutation.isPending ? 'Ajout en cours...' : 'Enregistrer le bien'}
+                                <button type="submit" disabled={addVillaMutation.isPending || updateVillaMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
+                                    {addVillaMutation.isPending || updateVillaMutation.isPending ? 'Enregistrement...' : (editingVilla ? 'Enregistrer les modifications' : 'Enregistrer le bien')}
                                 </button>
                             </div>
                         </form>

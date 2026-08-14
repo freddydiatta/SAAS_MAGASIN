@@ -43,11 +43,6 @@ export const Calendrier = () => {
                     </h1>
                     <p className="text-secondary font-medium">Visualisez l'occupation de vos villas.</p>
                 </div>
-                <div className="flex gap-3">
-                    <button className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 shadow-premium">
-                        + Nouvelle Réservation
-                    </button>
-                </div>
             </div>
 
             <motion.div 
