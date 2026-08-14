@@ -118,14 +118,32 @@ export const Caisse = () => {
     const handleCheckout = async (withInvoice = false) => {
         if (cart.length === 0) return;
         
+        const paymentMethod = (amountReceived && Number(amountReceived) > 0) ? 'cash' : 'mobile_money';
+
         try {
             if (!navigator.onLine) {
                 // HORS-LIGNE
-                const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal);
+                const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal, paymentMethod);
                 
                 // Mettre à jour le cache local des ventes
                 queryClient.setQueryData(['receipts', selectedBusiness.id], (old) => {
                     return [newReceipt, ...(old || [])];
+                });
+
+                // Mettre à jour le cache local des lignes de ventes pour le dashboard
+                const newSales = cart.map(item => ({
+                    id: 'temp-sale-' + Date.now() + Math.random(),
+                    business_id: selectedBusiness.id,
+                    receipt_id: newReceipt.id,
+                    product_id: item.id,
+                    quantity: item.quantity,
+                    total_price: item.price * item.quantity,
+                    created_at: new Date().toISOString(),
+                    products: { name: item.name, type: item.type },
+                    receipts: { status: 'completed' }
+                }));
+                queryClient.setQueryData(['sales', selectedBusiness.id], (old) => {
+                    return [...newSales, ...(old || [])];
                 });
                 
                 // Décrémenter virtuellement le stock
@@ -172,7 +190,8 @@ export const Caisse = () => {
                     customer_name: withInvoice ? customerName : null,
                     customer_phone: withInvoice ? customerPhone : null,
                     total_amount: cartTotal,
-                    status: 'completed'
+                    status: 'completed',
+                    payment_method: paymentMethod
                 }])
                 .select()
                 .single();
@@ -199,6 +218,22 @@ export const Caisse = () => {
                 }
             }
             
+            // Optimistic update for immediate dashboard reflection
+            const onlineNewSales = cart.map(item => ({
+                id: 'temp-sale-' + Date.now() + Math.random(),
+                business_id: selectedBusiness.id,
+                receipt_id: receiptId,
+                product_id: item.id,
+                quantity: item.quantity,
+                total_price: item.price * item.quantity,
+                created_at: new Date().toISOString(),
+                products: { name: item.name, type: item.type },
+                receipts: { status: 'completed' }
+            }));
+            queryClient.setQueryData(['sales', selectedBusiness.id], (old) => {
+                return [...onlineNewSales, ...(old || [])];
+            });
+
             queryClient.invalidateQueries(['products']);
             queryClient.invalidateQueries(['sales']);
             queryClient.invalidateQueries(['receipts']);

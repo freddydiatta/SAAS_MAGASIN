@@ -6,7 +6,7 @@ const OFFLINE_SALES_KEY = 'offline_sales';
 /**
  * Sauvegarde une vente dans IndexedDB quand l'application est hors ligne.
  */
-export const saveOfflineSale = async (businessId, cart, customerName, customerPhone, total) => {
+export const saveOfflineSale = async (businessId, cart, customerName, customerPhone, total, paymentMethod) => {
     const offlineSales = await get(OFFLINE_SALES_KEY) || [];
     
     const newReceipt = {
@@ -16,6 +16,7 @@ export const saveOfflineSale = async (businessId, cart, customerName, customerPh
         customer_phone: customerPhone,
         total_amount: total,
         status: 'completed',
+        payment_method: paymentMethod || 'cash',
         created_at: new Date().toISOString(),
         isOffline: true,
         sales: cart.map(item => ({
@@ -53,6 +54,7 @@ export const syncOfflineSales = async (queryClient) => {
                  customer_phone: receipt.customer_phone,
                  total_amount: receipt.total_amount,
                  status: 'completed',
+                 payment_method: receipt.payment_method || 'cash',
                  created_at: receipt.created_at
             }]).select().single();
             

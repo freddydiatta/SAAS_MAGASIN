@@ -414,15 +414,26 @@ export const HistoriqueVentes = () => {
                                             {receipt.total_amount.toLocaleString('fr-FR')} F
                                         </td>
                                         <td className="py-4 px-6 text-center">
-                                            {receipt.status === 'cancelled' ? (
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
-                                                    Annulé
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                                                    Validé
-                                                </span>
-                                            )}
+                                            <div className="flex flex-col gap-2 items-center">
+                                                {receipt.status === 'cancelled' ? (
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
+                                                        Annulé
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                                                        Validé
+                                                    </span>
+                                                )}
+                                                {receipt.payment_method === 'mobile_money' ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
+                                                        📱 Mobile Money
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                                                        💵 Espèces
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex justify-end gap-2">
