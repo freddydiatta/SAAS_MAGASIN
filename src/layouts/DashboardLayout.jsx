@@ -201,19 +201,19 @@ export const DashboardLayout = () => {
                     </div>
 
                     {/* Quick Nav Segmented Control */}
-                    <div className="hidden lg:flex items-center pointer-events-auto bg-[#262423] dark:bg-slate-800 rounded-full p-1.5 shadow-premium-lg">
-                        <Link to="/dashboard" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>
+                    <div className="hidden lg:flex items-center pointer-events-auto bg-panel dark:bg-slate-800 border border-slate-200 dark:border-border-theme rounded-full p-1.5 shadow-premium-lg">
+                        <Link to="/dashboard" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}>
                             Aperçu
                         </Link>
-                        <Link to="/dashboard/caisse" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard/caisse' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>
+                        <Link to="/dashboard/caisse" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard/caisse' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}>
                             Caisse
                         </Link>
-                        <Link to="/dashboard/historique" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard/historique' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}>
+                        <Link to="/dashboard/historique" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard/historique' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}>
                             Historique
                         </Link>
                         <button 
                             onClick={() => setIsDarkMode(!isDarkMode)}
-                            className="px-3 py-2 rounded-full text-slate-400 hover:text-white transition-colors ml-1 focus:outline-none"
+                            className="px-3 py-2 rounded-full text-secondary hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ml-1 focus:outline-none"
                             title={isDarkMode ? "Passer au thème clair" : "Passer au thème sombre"}
                         >
                             {isDarkMode ? '☀️' : '🌙'}

@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Plus, X, Utensils, Coffee, Pizza, IceCream } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 export const Menu = () => {
     const { selectedBusiness } = useBusiness();
@@ -39,7 +40,7 @@ export const Menu = () => {
             queryClient.invalidateQueries(['menuItems']);
             setIsAddOpen(false);
             setFormData({ name: '', price: '', category: 'plat' });
-            alert('Plat ajouté au menu !');
+            toast.success('Plat ajouté au menu !');
         }
     });
 

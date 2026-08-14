@@ -4,8 +4,9 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { ShoppingBag, Search, Package, Plus, Minus, X, FileText, CheckCircle2 } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Search, Package2, CreditCard, Banknote, Smartphone, HandCoins } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import { saveOfflineSale } from '../../services/syncService';
 
 export const Caisse = () => {
@@ -77,11 +78,11 @@ export const Caisse = () => {
             queryClient.invalidateQueries(['products']);
             queryClient.invalidateQueries(['sales']);
             setCart([]);
-            alert('Vente validée avec succès !');
+            toast.success('Vente validée avec succès !');
         },
         onError: (error) => {
             console.error('Erreur lors de la vente:', error.message);
-            alert('Erreur lors de la vente. Veuillez réessayer.');
+            toast.error('Erreur lors de la vente. Veuillez réessayer.');
         }
     });
 

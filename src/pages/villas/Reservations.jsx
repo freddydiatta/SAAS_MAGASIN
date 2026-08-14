@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Plus, X, Calendar, Home, Users, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -69,7 +70,7 @@ export const Reservations = () => {
             queryClient.invalidateQueries(['bookings']);
             setIsAddOpen(false);
             setFormData({ villa_id: '', customer_name: '', start_date: '', end_date: '' });
-            alert('Réservation confirmée avec succès !');
+            toast.success('Réservation confirmée avec succès !');
         }
     });
 
@@ -78,7 +79,7 @@ export const Reservations = () => {
         const totalPrice = getCalculatedPrice();
         
         if (totalPrice <= 0) {
-            alert('Veuillez vérifier les dates.');
+            toast.error('Veuillez vérifier les dates.');
             return;
         }
 

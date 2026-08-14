@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Home, MapPin, Plus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 export const Villas = () => {
     const { selectedBusiness } = useBusiness();
@@ -38,7 +39,7 @@ export const Villas = () => {
             queryClient.invalidateQueries(['villas']);
             setIsAddOpen(false);
             setFormData({ name: '', address: '', price_per_night: '' });
-            alert('Villa ajoutée avec succès !');
+            toast.success('Villa ajoutée avec succès !');
         }
     });
 

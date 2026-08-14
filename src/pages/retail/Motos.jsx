@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Plus, Search, Edit2, Bike, Tag, Settings, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 export const Motos = () => {
     const { selectedBusiness } = useBusiness();
@@ -44,7 +45,7 @@ export const Motos = () => {
                 <div className="flex gap-3">
                     <button 
                         className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-premium"
-                        onClick={() => alert("Fonctionnalité d'ajout de moto (Modal) à venir")}
+                        onClick={() => toast.success("Fonctionnalité d'ajout de moto (Modal) à venir")}
                     >
                         <Plus className="w-5 h-5" /> Nouvelle Moto
                     </button>

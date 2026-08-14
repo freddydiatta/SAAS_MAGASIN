@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { ShoppingBag, Minus, Plus, Search, Utensils, Receipt } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 export const Commandes = () => {
     const { selectedBusiness } = useBusiness();
@@ -49,7 +50,7 @@ export const Commandes = () => {
             queryClient.invalidateQueries(['restaurant_orders']);
             setCart([]);
             setTableNumber('');
-            alert('Commande envoyée en cuisine !');
+            toast.success('Commande envoyée en cuisine !');
         }
     });
 

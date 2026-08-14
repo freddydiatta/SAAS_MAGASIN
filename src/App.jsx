@@ -5,6 +5,7 @@ import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persi
 import { get, set, del } from 'idb-keyval';
 import { useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { BusinessProvider } from './contexts/BusinessContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -84,6 +85,7 @@ function App() {
       client={queryClient} 
       persistOptions={{ persister: asyncStoragePersister }}
     >
+      <Toaster position="top-right" toastOptions={{ className: 'font-sans' }} />
       <SyncAndLoadingGate>
         <AuthProvider>
           <BusinessProvider>
