@@ -22,6 +22,7 @@ export const Caisse = () => {
     const [lastSaleDetails, setLastSaleDetails] = useState(null);
     const [toastMessage, setToastMessage] = useState('');
     const [amountReceived, setAmountReceived] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' or 'mobile_money'
 
     const showToast = (message) => {
         setToastMessage(message);
@@ -117,8 +118,6 @@ export const Caisse = () => {
 
     const handleCheckout = async (withInvoice = false) => {
         if (cart.length === 0) return;
-        
-        const paymentMethod = (amountReceived && Number(amountReceived) > 0) ? 'cash' : 'mobile_money';
 
         try {
             if (!navigator.onLine) {
@@ -177,6 +176,7 @@ export const Caisse = () => {
                 setCustomerName('');
                 setCustomerPhone('');
                 setAmountReceived('');
+                setPaymentMethod('cash');
                 setIsFacturing(false);
                 return;
             }
@@ -228,7 +228,7 @@ export const Caisse = () => {
                 total_price: item.price * item.quantity,
                 created_at: new Date().toISOString(),
                 products: { name: item.name, type: item.type },
-                receipts: { status: 'completed' }
+                receipts: { status: 'completed', payment_method: paymentMethod }
             }));
             queryClient.setQueryData(['sales', selectedBusiness.id], (old) => {
                 return [...onlineNewSales, ...(old || [])];
@@ -256,6 +256,7 @@ export const Caisse = () => {
             setCustomerName('');
             setCustomerPhone('');
             setAmountReceived('');
+            setPaymentMethod('cash');
             setIsFacturing(false);
             
         } catch (error) {
@@ -467,39 +468,59 @@ export const Caisse = () => {
                         </div>
                     </div>
 
-                    <div className="mb-6">
-                        <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Montant reçu du client</label>
-                        <div className="relative">
-                            <input 
-                                type="number" 
-                                value={amountReceived}
-                                onChange={(e) => setAmountReceived(e.target.value)}
-                                placeholder="0"
-                                className="w-full bg-panel dark:bg-slate-800 border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-xl font-bold text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-                            />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary font-medium">FCFA</span>
+                    <div className="mb-4">
+                        <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Mode de paiement</label>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => { setPaymentMethod('cash'); setAmountReceived(''); }}
+                                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 ${paymentMethod === 'cash' ? 'bg-blue-100 text-blue-600 border-blue-500' : 'bg-surface dark:bg-slate-800 text-secondary border-transparent hover:border-slate-300'}`}
+                            >
+                                💵 Espèces
+                            </button>
+                            <button 
+                                onClick={() => { setPaymentMethod('mobile_money'); setAmountReceived(''); }}
+                                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 ${paymentMethod === 'mobile_money' ? 'bg-orange-100 text-orange-600 border-orange-500' : 'bg-surface dark:bg-slate-800 text-secondary border-transparent hover:border-slate-300'}`}
+                            >
+                                📱 Mobile Money
+                            </button>
                         </div>
-                        
-                        {amountReceived && cartTotal > 0 && (
-                            <div className="mt-4 p-4 rounded-xl flex justify-between items-center bg-surface dark:bg-slate-800 border border-slate-100 dark:border-border-theme">
-                                {Number(amountReceived) >= cartTotal ? (
-                                    <>
-                                        <span className="font-semibold text-secondary">Monnaie à rendre :</span>
-                                        <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                                            {(Number(amountReceived) - cartTotal).toLocaleString('fr-FR')} FCFA
-                                        </span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="font-semibold text-secondary">Reste à payer :</span>
-                                        <span className="text-xl font-bold text-red-500">
-                                            {(cartTotal - Number(amountReceived)).toLocaleString('fr-FR')} FCFA
-                                        </span>
-                                    </>
-                                )}
-                            </div>
-                        )}
                     </div>
+
+                    {paymentMethod === 'cash' && (
+                        <div className="mb-6 animate-fade-in-up">
+                            <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Montant reçu du client</label>
+                            <div className="relative">
+                                <input 
+                                    type="number" 
+                                    value={amountReceived}
+                                    onChange={(e) => setAmountReceived(e.target.value)}
+                                    placeholder="0"
+                                    className="w-full bg-panel dark:bg-slate-800 border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-xl font-bold text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                                />
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary font-medium">FCFA</span>
+                            </div>
+                            
+                            {amountReceived && cartTotal > 0 && (
+                                <div className="mt-4 p-4 rounded-xl flex justify-between items-center bg-surface dark:bg-slate-800 border border-slate-100 dark:border-border-theme">
+                                    {Number(amountReceived) >= cartTotal ? (
+                                        <>
+                                            <span className="font-semibold text-secondary">Monnaie à rendre :</span>
+                                            <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                                                {(Number(amountReceived) - cartTotal).toLocaleString('fr-FR')} FCFA
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="font-semibold text-secondary">Reste à payer :</span>
+                                            <span className="text-xl font-bold text-red-500">
+                                                {(cartTotal - Number(amountReceived)).toLocaleString('fr-FR')} FCFA
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
                     
                     <div className="flex gap-3">
                         <button 
