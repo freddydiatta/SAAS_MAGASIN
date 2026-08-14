@@ -31,7 +31,8 @@ export const BusinessList = () => {
     // Si on a l'abonnement essentiel, on a le droit qu'à 1 magasin.
     // user_metadata est accessible via user.user_metadata
     const plan = user?.user_metadata?.subscription_plan || 'essentiel';
-    const canCreateMore = plan === 'business' || businesses.length === 0;
+    // Mode Admin temporaire pour permettre la création illimitée
+    const canCreateMore = true; // plan === 'business' || businesses.length === 0;
 
     const handleCreateBusiness = async (e) => {
         e.preventDefault();
@@ -92,10 +93,11 @@ export const BusinessList = () => {
             <div className="max-w-4xl mx-auto animate-fade-in-up">
                 <div className="text-center mb-12">
                     <h1 className="text-3xl font-extrabold text-primary mb-4 tracking-tight">Vos Magasins et Entreprises</h1>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-sm font-bold shadow-sm mb-4">
+                        👑 Mode Admin Activé : Création illimitée de magasins
+                    </div>
                     <p className="text-secondary font-medium">
-                        {plan === 'essentiel' 
-                            ? "Abonnement Essentiel : Vous pouvez gérer un seul magasin."
-                            : "Abonnement Business : Vous pouvez gérer plusieurs magasins."}
+                        Créez autant de magasins que vous voulez pour tester les différentes interfaces.
                     </p>
                 </div>
 
