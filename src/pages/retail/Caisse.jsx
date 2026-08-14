@@ -240,7 +240,7 @@ export const Caisse = () => {
     }
 
     return (
-        <div className="h-[calc(100vh-4rem)] md:h-[calc(100vh-5rem)] flex flex-col lg:flex-row gap-4 lg:gap-6 animate-fade-in-up relative overflow-y-auto lg:overflow-hidden pb-20 lg:pb-0">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 animate-fade-in-up relative lg:h-[calc(100vh-5rem)] lg:overflow-hidden pb-20 lg:pb-0">
             {/* Toast Notification */}
             {toastMessage && (
                 <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-lg font-medium animate-fade-in-up flex items-center gap-2">
@@ -322,7 +322,7 @@ export const Caisse = () => {
                     ) : filteredProducts.length === 0 ? (
                         <p className="text-secondary text-center py-8">Aucun produit ne correspond.</p>
                     ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                             {filteredProducts.map(product => (
                                 <motion.button 
                                     whileHover={product.stock_quantity > 0 ? { scale: 1.02, y: -2 } : {}}
@@ -337,15 +337,15 @@ export const Caisse = () => {
                                     }`}
                                 >
                                     {/* Image Placeholder */}
-                                    <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-4">
+                                    <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-3 sm:p-4">
                                         <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
-                                            <Package className="w-8 h-8 text-orange-300 dark:text-accent/50 opacity-50" />
+                                            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-orange-300 dark:text-accent/50 opacity-50" />
                                         </div>
                                     </div>
-                                    <div className="p-4 flex flex-col flex-1">
-                                        <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight">{product.name}</div>
-                                        <div className="mt-auto pt-2 flex items-end justify-between">
-                                            <div className="text-accent font-bold text-lg">{product.price.toLocaleString('fr-FR')} F</div>
+                                    <div className="p-3 sm:p-4 flex flex-col flex-1">
+                                        <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base">{product.name}</div>
+                                        <div className="mt-auto pt-2 flex flex-col xl:flex-row xl:items-end justify-between gap-1">
+                                            <div className="text-accent font-bold text-sm sm:text-lg whitespace-nowrap">{product.price.toLocaleString('fr-FR')} F</div>
                                             <div className="text-xs text-secondary font-medium">
                                                 Stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
                                             </div>
@@ -359,7 +359,7 @@ export const Caisse = () => {
             </div>
 
             {/* Right side: Cart / POS */}
-            <div className="w-full lg:w-[400px] bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme flex flex-col overflow-hidden min-h-[500px] lg:min-h-0 shrink-0">
+            <div className="w-full lg:w-[400px] bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme flex flex-col overflow-hidden min-h-[400px] lg:min-h-0 shrink-0">
                 <div className="px-6 py-5 bg-accent text-white flex justify-between items-center relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                     <h2 className="text-lg font-bold relative z-10 flex items-center gap-2">
