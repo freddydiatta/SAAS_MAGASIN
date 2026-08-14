@@ -28,7 +28,7 @@ export const BillingModal = ({ isExpired }) => {
             }
         } catch (error) {
             console.error('Erreur de paiement:', error);
-            toast.error("Impossible d'initialiser le paiement pour le moment.");
+            toast.error(error.message || "Impossible d'initialiser le paiement pour le moment.");
         } finally {
             setIsLoading(false);
         }
