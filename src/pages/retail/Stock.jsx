@@ -106,8 +106,8 @@ export const Stock = () => {
                                                 {product.stock_quantity}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <td className="py-4 px-6 text-right">
+                                            <div className="flex justify-end gap-2">
                                                 <button 
                                                     onClick={() => { setProductToEdit(product); setIsEditProductOpen(true); }}
                                                     className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"

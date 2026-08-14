@@ -425,7 +425,7 @@ export const HistoriqueVentes = () => {
                                             )}
                                         </td>
                                         <td className="py-4 px-6 text-right">
-                                            <div className="flex justify-end gap-2 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex justify-end gap-2">
                                                 {receipt.status !== 'cancelled' && (
                                                     <>
                                                         <button 
