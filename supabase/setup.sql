@@ -266,3 +266,33 @@ ON public.commissions FOR SELECT USING (affiliate_id = auth.uid());
  E N D ;  
  \ $ \ $   L A N G U A G E   p l p g s q l   S E C U R I T Y   D E F I N E R ;  
  
+-- ==========================================
+-- 10. Tables Spécifiques : PAIEMENTS & ABONNEMENTS (SaaS)
+-- ==========================================
+
+-- Mise à jour de la table businesses pour gérer les abonnements
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'; -- 'active', 'past_due', 'canceled'
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_end_date TIMESTAMP WITH TIME ZONE DEFAULT (timezone('utc'::text, now()) + interval '14 days');
+
+-- Table pour l'historique des paiements via PayDunya
+CREATE TABLE IF NOT EXISTS public.payments (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'successful', 'failed'
+    provider TEXT DEFAULT 'paydunya',
+    transaction_id TEXT,
+    payment_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Users can view their payments" ON public.payments;
+CREATE POLICY "Users can view their payments"
+ON public.payments
+FOR SELECT USING (
+    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
+);
+
+-- Note: L'insertion et la modification des paiements se feront via une Edge Function Supabase (Service Role)

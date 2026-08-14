@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
+import { BillingModal } from '../components/BillingModal';
 
 export const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -76,6 +77,10 @@ export const DashboardLayout = () => {
     };
 
     const menuItems = getMenuItems();
+
+    const isExpired = selectedBusiness?.subscription_status !== 'active' && 
+                      selectedBusiness?.subscription_end_date && 
+                      new Date(selectedBusiness.subscription_end_date) < new Date();
 
     return (
         <div className="flex h-screen bg-surface font-sans text-primary transition-colors duration-200">
@@ -228,6 +233,8 @@ export const DashboardLayout = () => {
                     </div>
                 </main>
             </div>
+            
+            <BillingModal isExpired={isExpired} />
         </div>
     );
 };
