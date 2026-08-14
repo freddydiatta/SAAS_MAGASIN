@@ -10,6 +10,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
     const [quantity, setQuantity] = useState('');
+    const [addQuantity, setAddQuantity] = useState('');
     
     const [type, setType] = useState('standard');
     
@@ -21,6 +22,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
             setName(product.name || '');
             setPrice(product.price || '');
             setQuantity(product.stock_quantity || '');
+            setAddQuantity('');
             setType(product.type || 'standard');
         }
     }, [product, isOpen]);
@@ -104,15 +106,43 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-semibold text-primary mb-1.5">Quantité en stock</label>
+                            <label className="block text-sm font-semibold text-primary mb-1.5 flex items-center justify-between">
+                                Ajouter au stock (+)
+                            </label>
+                            <input
+                                type="number"
+                                step="1"
+                                placeholder="ex: 100"
+                                value={addQuantity}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setAddQuantity(val);
+                                    const base = product?.stock_quantity || 0;
+                                    if (val === '') {
+                                        setQuantity(base);
+                                    } else {
+                                        setQuantity(base + parseInt(val || 0, 10));
+                                    }
+                                }}
+                                className="w-full bg-emerald-50/50 border border-emerald-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-emerald-300 text-emerald-700 font-bold"
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <label className="block text-sm font-semibold text-primary mb-1.5 flex justify-between">
+                                <span>Quantité finale en stock</span>
+                                <span className="text-slate-400 font-normal">Ancien stock : {product?.stock_quantity || 0}</span>
+                            </label>
                             <input
                                 type="number"
                                 required
                                 min="0"
                                 step="1"
                                 value={quantity}
-                                onChange={(e) => setQuantity(e.target.value)}
-                                className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                onChange={(e) => {
+                                    setQuantity(e.target.value);
+                                    setAddQuantity(''); // Reset add if manually changed
+                                }}
+                                className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent/50 text-lg font-bold"
                             />
                         </div>
                     </div>

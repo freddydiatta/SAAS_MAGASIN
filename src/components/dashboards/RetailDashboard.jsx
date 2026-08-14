@@ -40,7 +40,7 @@ export const RetailDashboard = () => {
             
             const { data, error } = await supabase
                 .from('sales')
-                .select('*, products(name, type), receipts!inner(status)')
+                .select('*, products(name, type), receipts!inner(status, payment_method)')
                 .eq('business_id', selectedBusiness?.id)
                 .eq('receipts.status', 'completed')
                 .gte('created_at', thirtyDaysAgo.toISOString())
@@ -65,6 +65,14 @@ export const RetailDashboard = () => {
 
     const caisseDuJour = salesToday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
     const caisseHier = salesYesterday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+    
+    const caisseDuJourCash = salesToday
+        .filter(sale => sale.receipts?.payment_method === 'cash')
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+        
+    const caisseDuJourMobile = salesToday
+        .filter(sale => sale.receipts?.payment_method === 'mobile_money')
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
     
     // Calculate % change (prevent divide by zero)
     const percentChange = caisseHier > 0 
@@ -161,12 +169,23 @@ export const RetailDashboard = () => {
                             <h3 className="text-2xl font-bold text-primary">{formatFCFA(caisseDuJour)} <span className="text-sm font-medium">F</span></h3>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm relative">
+                    <div className="flex items-center gap-2 text-sm relative mb-3">
                         <span className={`flex items-center gap-1 font-bold ${percentChange >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                             {percentChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                             {percentChange > 0 ? '+' : ''}{percentChange}%
                         </span>
                         <span className="text-slate-400 font-medium">vs hier</span>
+                    </div>
+                    
+                    <div className="pt-3 border-t border-slate-100 dark:border-border-theme/50 flex justify-between text-xs relative">
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Espèces</span>
+                            <span className="font-bold text-primary">{formatFCFA(caisseDuJourCash)} F</span>
+                        </div>
+                        <div className="flex flex-col gap-0.5 text-right">
+                            <span className="text-slate-400 flex items-center justify-end gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Mobile</span>
+                            <span className="font-bold text-primary">{formatFCFA(caisseDuJourMobile)} F</span>
+                        </div>
                     </div>
                 </motion.div>
 
