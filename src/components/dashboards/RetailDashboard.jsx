@@ -6,6 +6,8 @@ import { AddProductModal } from '../AddProductModal';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const RetailDashboard = () => {
     const { user } = useAuth();
@@ -141,64 +143,99 @@ export const RetailDashboard = () => {
                 </div>
             </div>
 
-            {/* KPIs Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* KPI 1 */}
-                <div className="bg-panel rounded-3xl p-6 shadow-premium transition-transform hover:-translate-y-1 duration-300">
-                    <p className="text-secondary text-sm font-medium mb-4">Ventes du jour</p>
-                    <div className="flex items-end gap-2 mb-4">
-                        <p className="text-[32px] font-bold text-primary leading-none">
-                            {loadingSales ? "..." : formatFCFA(caisseDuJour)}
-                        </p>
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors"
+                >
+                    <div className="absolute -right-6 -top-6 w-24 h-24 bg-accent/5 rounded-full blur-2xl group-hover:bg-accent/10 transition-colors"></div>
+                    <div className="flex items-center gap-4 mb-4 relative">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <DollarSign className="w-6 h-6 text-accent" />
+                        </div>
+                        <div>
+                            <p className="text-secondary text-sm font-medium">Caisse du jour</p>
+                            <h3 className="text-2xl font-bold text-primary">{formatFCFA(caisseDuJour)} <span className="text-sm font-medium">F</span></h3>
+                        </div>
                     </div>
-                    <p className="text-secondary font-medium text-xs">FCFA</p>
-                    <p className={`font-bold text-xs mt-3 ${percentChange >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {percentChange > 0 ? '↑' : percentChange < 0 ? '↓' : ''} {Math.abs(percentChange)}% vs hier
-                    </p>
-                </div>
+                    <div className="flex items-center gap-2 text-sm relative">
+                        <span className={`flex items-center gap-1 font-bold ${percentChange >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                            {percentChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                            {percentChange > 0 ? '+' : ''}{percentChange}%
+                        </span>
+                        <span className="text-slate-400 font-medium">vs hier</span>
+                    </div>
+                </motion.div>
 
-                {/* KPI 2 */}
-                <div className="bg-panel rounded-3xl p-6 shadow-premium transition-transform hover:-translate-y-1 duration-300">
-                    <p className="text-secondary text-sm font-medium mb-4">Panier moyen</p>
-                    <div className="flex items-end gap-2 mb-4">
-                        <p className="text-[32px] font-bold text-primary leading-none">
-                            {loadingSales ? "..." : formatFCFA(panierMoyen)}
-                        </p>
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <ShoppingCart className="w-6 h-6 text-indigo-500" />
+                        </div>
+                        <div>
+                            <p className="text-secondary text-sm font-medium">Transactions</p>
+                            <h3 className="text-2xl font-bold text-primary">{transactions}</h3>
+                        </div>
                     </div>
-                    <p className="text-secondary font-medium text-xs">FCFA</p>
-                    <p className="text-slate-400 font-bold text-xs mt-3">
-                        Stable
-                    </p>
-                </div>
+                    <div className="flex items-center gap-2 text-sm">
+                        <span className={`flex items-center gap-1 font-bold ${diffTransactions >= 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
+                            {diffTransactions > 0 ? '+' : ''}{diffTransactions}
+                        </span>
+                        <span className="text-slate-400 font-medium">vs hier</span>
+                    </div>
+                </motion.div>
 
-                {/* KPI 3 */}
-                <div className="bg-panel rounded-3xl p-6 shadow-premium transition-transform hover:-translate-y-1 duration-300">
-                    <p className="text-secondary text-sm font-medium mb-4">Transactions</p>
-                    <div className="flex items-end gap-2 mb-4">
-                        <p className="text-[32px] font-bold text-primary leading-none">
-                            {loadingSales ? "..." : transactions}
-                        </p>
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <CreditCard className="w-6 h-6 text-emerald-500" />
+                        </div>
+                        <div>
+                            <p className="text-secondary text-sm font-medium">Panier Moyen</p>
+                            <h3 className="text-2xl font-bold text-primary">{formatFCFA(panierMoyen)} <span className="text-sm font-medium">F</span></h3>
+                        </div>
                     </div>
-                    <p className="text-secondary font-medium text-xs invisible">.</p>
-                    <p className={`font-bold text-xs mt-3 ${diffTransactions >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {diffTransactions > 0 ? '↑' : diffTransactions < 0 ? '↓' : ''} {Math.abs(diffTransactions)} vs hier
-                    </p>
-                </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
+                        Dépense moyenne par client
+                    </div>
+                </motion.div>
 
-                {/* KPI 4 */}
-                <div className="bg-panel rounded-3xl p-6 shadow-premium transition-transform hover:-translate-y-1 duration-300">
-                    <p className="text-secondary text-sm font-medium mb-4">Alertes stock bas</p>
-                    <div className="flex items-end gap-2 mb-4">
-                        <p className={`text-[32px] font-bold leading-none ${alertesStock > 0 ? 'text-rose-500' : 'text-primary'}`}>
-                            {loadingProducts ? "..." : alertesStock}
-                        </p>
-                        <span className="text-secondary text-sm font-medium mb-1 ml-1">articles</span>
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 }}
+                    className={`bg-panel rounded-3xl p-6 shadow-premium border ${alertesStock > 0 ? 'border-red-200 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10' : 'border-slate-100 dark:border-border-theme'} relative overflow-hidden group`}
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${alertesStock > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 dark:bg-slate-800 text-amber-500'}`}>
+                            {alertesStock > 0 ? <AlertTriangle className="w-6 h-6" /> : <Package className="w-6 h-6" />}
+                        </div>
+                        <div>
+                            <p className={`text-sm font-medium ${alertesStock > 0 ? 'text-red-600 dark:text-red-400' : 'text-secondary'}`}>
+                                Alertes Stock
+                            </p>
+                            <h3 className={`text-2xl font-bold ${alertesStock > 0 ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>
+                                {alertesStock}
+                            </h3>
+                        </div>
                     </div>
-                    <p className="text-secondary font-medium text-xs invisible">.</p>
-                    <p className="text-rose-500 font-bold text-xs mt-3 uppercase tracking-wider">
-                        À réapprovisionner
-                    </p>
-                </div>
+                    <div className={`text-sm font-medium ${alertesStock > 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                        {alertesStock > 0 ? 'Articles à réapprovisionner' : 'Stock sain'}
+                    </div>
+                </motion.div>
             </div>
 
             {/* Bottom Section: Chart & Top Products */}
@@ -253,17 +290,29 @@ export const RetailDashboard = () => {
                         ) : topProducts.length === 0 ? (
                             <p className="text-sm text-secondary">Aucune donnée disponible.</p>
                         ) : (
-                            topProducts.map((product, index) => (
-                                <div key={index} className="flex justify-between items-center group">
-                                    <div>
-                                        <p className="font-bold text-primary text-sm group-hover:text-accent transition-colors">{product.name}</p>
-                                        <p className="text-xs text-secondary mt-1">{product.quantity} ventes</p>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="font-mono text-sm text-primary font-medium">{formatFCFA(product.revenue)}</p>
-                                    </div>
-                                </div>
-                            ))
+                            topProducts.map((product, index) => {
+                                    const Icon = index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉';
+                                    return (
+                                        <motion.div 
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: 0.5 + (index * 0.1) }}
+                                            key={product.name} 
+                                            className="flex items-center justify-between p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-sm">{Icon}</div>
+                                                <div>
+                                                    <p className="font-bold text-primary">{product.name}</p>
+                                                    <p className="text-xs text-secondary">{product.quantity} vendus</p>
+                                                </div>
+                                            </div>
+                                            <div className="font-bold text-accent">
+                                                {formatFCFA(product.revenue)} F
+                                            </div>
+                                        </motion.div>
+                                    );
+                            })
                         )}
                     </div>
                 </div>

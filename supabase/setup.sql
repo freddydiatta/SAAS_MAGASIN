@@ -202,3 +202,67 @@ ON public.audit_logs
 FOR ALL USING (
     business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
 );
+
+-- ==========================================
+-- 8. Tables Spécifiques : AFFILIATION
+-- ==========================================
+
+DROP TABLE IF EXISTS public.commissions;
+DROP TABLE IF EXISTS public.referrals;
+DROP TABLE IF EXISTS public.affiliates;
+
+CREATE TABLE public.affiliates (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    referral_code TEXT UNIQUE NOT NULL,
+    commission_rate DECIMAL(5, 2) DEFAULT 20.00, -- 20% by default
+    total_earnings DECIMAL(10, 2) DEFAULT 0.00,
+    paypal_email TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.affiliates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own affiliate profile"
+ON public.affiliates FOR ALL USING (id = auth.uid());
+
+CREATE TABLE public.referrals (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    affiliate_id UUID REFERENCES public.affiliates(id) ON DELETE CASCADE,
+    referred_user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    status TEXT DEFAULT 'pending', -- 'pending', 'active', 'cancelled'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    UNIQUE(referred_user_id) -- A user can only be referred once
+);
+
+ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Affiliates can view their referrals"
+ON public.referrals FOR SELECT USING (affiliate_id = auth.uid());
+
+CREATE TABLE public.commissions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    affiliate_id UUID REFERENCES public.affiliates(id) ON DELETE CASCADE,
+    referral_id UUID REFERENCES public.referrals(id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL,
+    status TEXT DEFAULT 'pending', -- 'pending', 'paid', 'cancelled'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.commissions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Affiliates can view their commissions"
+ON public.commissions FOR SELECT USING (affiliate_id = auth.uid());
+- -   = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
+ - -   9 .   R P C   F u n c t i o n s   :   A f f i l i a t i o n  
+ - -   = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
+ C R E A T E   O R   R E P L A C E   F U N C T I O N   r e g i s t e r _ r e f e r r a l ( r e f _ c o d e   t e x t )  
+ R E T U R N S   v o i d   A S   \ $ \ $  
+ D E C L A R E  
+         a f f _ i d   u u i d ;  
+ B E G I N  
+         S E L E C T   i d   I N T O   a f f _ i d   F R O M   p u b l i c . a f f i l i a t e s   W H E R E   r e f e r r a l _ c o d e   =   r e f _ c o d e ;  
+         I F   a f f _ i d   I S   N O T   N U L L   T H E N  
+                 I N S E R T   I N T O   p u b l i c . r e f e r r a l s   ( a f f i l i a t e _ i d ,   r e f e r r e d _ u s e r _ i d ,   s t a t u s )  
+                 V A L U E S   ( a f f _ i d ,   a u t h . u i d ( ) ,   ' a c t i v e ' )  
+                 O N   C O N F L I C T   ( r e f e r r e d _ u s e r _ i d )   D O   N O T H I N G ;  
+         E N D   I F ;  
+ E N D ;  
+ \ $ \ $   L A N G U A G E   p l p g s q l   S E C U R I T Y   D E F I N E R ;  
+ 

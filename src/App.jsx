@@ -18,6 +18,9 @@ import { Villas } from './pages/villas/Villas';
 import { Reservations } from './pages/villas/Reservations';
 import { Menu } from './pages/restaurant/Menu';
 import { Commandes } from './pages/restaurant/Commandes';
+import { Motos } from './pages/retail/Motos';
+import { Calendrier } from './pages/villas/Calendrier';
+import { AffiliateDashboard } from './pages/affiliate/AffiliateDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,12 +62,13 @@ function App() {
               <Route path="stock" element={<Stock />} />
               <Route path="historique" element={<HistoriqueVentes />} />
               <Route path="securite" element={<AuditLogs />} />
-              <Route path="motos" element={<PlaceholderPage title="Gestion des Motos" />} />
-              <Route path="calendrier" element={<PlaceholderPage title="Calendrier des Villas" />} />
+              <Route path="motos" element={<Motos />} />
+              <Route path="calendrier" element={<Calendrier />} />
               <Route path="villas" element={<Villas />} />
               <Route path="reservations" element={<Reservations />} />
               <Route path="commandes" element={<Commandes />} />
               <Route path="menu" element={<Menu />} />
+              <Route path="affiliation" element={<AffiliateDashboard />} />
             </Route>
             </Routes>
           </Router>

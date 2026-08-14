@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
+import { Plus, Search, Edit2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const Stock = () => {
     const { selectedBusiness } = useBusiness();
@@ -41,14 +43,18 @@ export const Stock = () => {
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setIsAddProductOpen(true)}
-                        className="btn-primary px-5 py-2.5 text-sm"
+                        className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-premium"
                     >
-                        + Nouvel Article
+                        <Plus className="w-5 h-5" /> Nouvel Article
                     </button>
                 </div>
             </div>
 
-            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden"
+            >
                 <div className="p-6 border-b border-slate-100 dark:border-border-theme relative">
                     <input 
                         type="text" 
@@ -57,7 +63,7 @@ export const Stock = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full max-w-md bg-surface border border-slate-200 dark:border-border-theme rounded-full py-3 px-5 pl-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary placeholder:text-slate-400"
                     />
-                    <span className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                    <Search className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -107,7 +113,7 @@ export const Stock = () => {
                                                     className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
                                                     title="Modifier"
                                                 >
-                                                    ✏️
+                                                    <Edit2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>
@@ -117,7 +123,7 @@ export const Stock = () => {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </motion.div>
 
             <AddProductModal 
                 isOpen={isAddProductOpen} 

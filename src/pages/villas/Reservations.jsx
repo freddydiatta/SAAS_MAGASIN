@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { Plus, X, Calendar, Home, Users, Search } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -100,56 +102,74 @@ export const Reservations = () => {
                 <div className="flex gap-3">
                     <button 
                         onClick={() => setIsAddOpen(true)}
-                        className="btn-primary px-5 py-2.5 text-sm"
+                        className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-premium"
                     >
-                        + Nouvelle Réservation
+                        <Plus className="w-5 h-5" /> Nouvelle Réservation
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-premium overflow-hidden border border-slate-100">
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-panel rounded-3xl shadow-premium overflow-hidden border border-slate-100 dark:border-border-theme"
+            >
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-100 bg-slate-50/50">
-                                <th className="px-6 py-4">Client</th>
-                                <th className="px-6 py-4">Villa</th>
-                                <th className="px-6 py-4">Période</th>
-                                <th className="px-6 py-4">Montant Total</th>
-                                <th className="px-6 py-4">Statut</th>
+                            <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-secondary text-xs uppercase tracking-wider border-b border-slate-100 dark:border-border-theme">
+                                <th className="px-6 py-4 font-semibold">Client</th>
+                                <th className="px-6 py-4 font-semibold">Villa</th>
+                                <th className="px-6 py-4 font-semibold">Période</th>
+                                <th className="px-6 py-4 font-semibold">Montant Total</th>
+                                <th className="px-6 py-4 font-semibold text-center">Statut</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-8 text-center text-secondary">Chargement...</td>
+                                    <td colSpan="5" className="px-6 py-10 text-center">
+                                        <div className="flex justify-center">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
+                                        </div>
+                                    </td>
                                 </tr>
                             ) : bookings.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-8 text-center text-secondary">
-                                        Aucune réservation trouvée.
+                                    <td colSpan="5" className="px-6 py-16 text-center">
+                                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                                        </div>
+                                        <p className="text-secondary font-medium">Aucune réservation trouvée.</p>
                                     </td>
                                 </tr>
                             ) : (
                                 bookings.map((booking) => (
-                                    <tr key={booking.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-primary">
-                                            {booking.customer_name}
+                                    <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors group">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                    <Users className="w-5 h-5 text-slate-500" />
+                                                </div>
+                                                <span className="font-bold text-primary group-hover:text-accent transition-colors">{booking.customer_name}</span>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 text-secondary">
-                                            {booking.villas?.name || 'Villa Inconnue'}
+                                        <td className="px-6 py-4 text-secondary font-medium">
+                                            <div className="flex items-center gap-2">
+                                                <Home className="w-4 h-4 text-indigo-500" /> {booking.villas?.name || 'Villa Inconnue'}
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-secondary text-sm">
-                                            Du {new Date(booking.start_date).toLocaleDateString('fr-FR')} <br/>
-                                            Au {new Date(booking.end_date).toLocaleDateString('fr-FR')}
+                                            Du <span className="font-medium text-primary">{new Date(booking.start_date).toLocaleDateString('fr-FR')}</span> <br/>
+                                            Au <span className="font-medium text-primary">{new Date(booking.end_date).toLocaleDateString('fr-FR')}</span>
                                         </td>
-                                        <td className="px-6 py-4 font-semibold text-primary">
-                                            {booking.total_price.toLocaleString('fr-FR')} FCFA
+                                        <td className="px-6 py-4 font-bold text-accent">
+                                            {booking.total_price.toLocaleString('fr-FR')} F
                                         </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-                                                booking.status === 'confirmed' ? 'bg-indigo-100 text-indigo-800' : 
-                                                booking.status === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 
+                                                booking.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
                                             }`}>
                                                 {booking.status === 'confirmed' ? 'Confirmé' : booking.status}
                                             </span>
@@ -160,83 +180,97 @@ export const Reservations = () => {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Modal for adding a Booking */}
-            {isAddOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
-                        <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h2 className="text-xl font-bold text-primary">Nouvelle Réservation</h2>
-                            <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-600 p-2">✕</button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-primary mb-1">Villa</label>
-                                <select 
-                                    required
-                                    className="input-field" 
-                                    value={formData.villa_id}
-                                    onChange={e => setFormData({...formData, villa_id: e.target.value})}
-                                >
-                                    <option value="">Sélectionnez une villa</option>
-                                    {villas.map(v => (
-                                        <option key={v.id} value={v.id}>{v.name} ({v.price_per_night.toLocaleString()} F/nuit)</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-primary mb-1">Nom du Client</label>
-                                <input 
-                                    type="text" 
-                                    required
-                                    className="input-field" 
-                                    placeholder="Ex: M. Dupont"
-                                    value={formData.customer_name}
-                                    onChange={e => setFormData({...formData, customer_name: e.target.value})}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-primary mb-1">Arrivée</label>
-                                    <input 
-                                        type="date" 
-                                        required
-                                        className="input-field" 
-                                        value={formData.start_date}
-                                        onChange={e => setFormData({...formData, start_date: e.target.value})}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-primary mb-1">Départ</label>
-                                    <input 
-                                        type="date" 
-                                        required
-                                        className="input-field" 
-                                        value={formData.end_date}
-                                        onChange={e => setFormData({...formData, end_date: e.target.value})}
-                                    />
-                                </div>
-                            </div>
-                            
-                            {formData.villa_id && formData.start_date && formData.end_date && (
-                                <div className="p-4 bg-indigo-50 rounded-xl mt-4 border border-indigo-100">
-                                    <div className="flex justify-between items-center text-indigo-900">
-                                        <span className="font-medium">Total Estimé:</span>
-                                        <span className="text-xl font-bold">{getCalculatedPrice().toLocaleString('fr-FR')} FCFA</span>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="pt-4">
-                                <button type="submit" disabled={addBookingMutation.isPending} className="btn-primary w-full py-3">
-                                    {addBookingMutation.isPending ? 'Confirmation...' : 'Confirmer la réservation'}
+            <AnimatePresence>
+                {isAddOpen && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-panel rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-border-theme"
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+                                <h2 className="text-xl font-bold text-primary">Nouvelle Réservation</h2>
+                                <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-primary mb-1">Villa</label>
+                                    <select 
+                                        required
+                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
+                                        value={formData.villa_id}
+                                        onChange={e => setFormData({...formData, villa_id: e.target.value})}
+                                    >
+                                        <option value="">Sélectionnez une villa</option>
+                                        {villas.map(v => (
+                                            <option key={v.id} value={v.id}>{v.name} ({v.price_per_night.toLocaleString()} F/nuit)</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-primary mb-1">Nom du Client</label>
+                                    <input 
+                                        type="text" 
+                                        required
+                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
+                                        placeholder="Ex: M. Dupont"
+                                        value={formData.customer_name}
+                                        onChange={e => setFormData({...formData, customer_name: e.target.value})}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-primary mb-1">Arrivée</label>
+                                        <input 
+                                            type="date" 
+                                            required
+                                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
+                                            value={formData.start_date}
+                                            onChange={e => setFormData({...formData, start_date: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-primary mb-1">Départ</label>
+                                        <input 
+                                            type="date" 
+                                            required
+                                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
+                                            value={formData.end_date}
+                                            onChange={e => setFormData({...formData, end_date: e.target.value})}
+                                        />
+                                    </div>
+                                </div>
+                                
+                                {formData.villa_id && formData.start_date && formData.end_date && (
+                                    <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl mt-4 border border-indigo-100 dark:border-indigo-500/20">
+                                        <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-400">
+                                            <span className="font-medium text-sm">Total Estimé:</span>
+                                            <span className="text-xl font-bold">{getCalculatedPrice().toLocaleString('fr-FR')} F</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="pt-4">
+                                    <button type="submit" disabled={addBookingMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
+                                        {addBookingMutation.isPending ? 'Confirmation...' : 'Confirmer la réservation'}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

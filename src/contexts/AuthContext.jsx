@@ -37,10 +37,25 @@ export const AuthProvider = ({ children }) => {
         fetchSession();
 
         // Listen for auth state changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
+            
+            // Check for referral code in localStorage upon sign in
+            if (session?.user && _event === 'SIGNED_IN') {
+                const refCode = localStorage.getItem('gestionpro_ref');
+                if (refCode) {
+                    try {
+                        const { error } = await supabase.rpc('register_referral', { ref_code: refCode });
+                        if (!error) {
+                            localStorage.removeItem('gestionpro_ref');
+                        }
+                    } catch (e) {
+                        console.error('Error registering referral:', e);
+                    }
+                }
+            }
         });
 
         return () => subscription.unsubscribe();

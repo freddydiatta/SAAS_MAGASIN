@@ -43,6 +43,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
+                { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
         }
         
@@ -52,6 +53,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
+                { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
         }
         
@@ -67,6 +69,8 @@ export const DashboardLayout = () => {
         if (type === 'pieces_moto') {
             retail.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
         }
+        
+        retail.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
         
         return retail;
     };

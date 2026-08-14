@@ -4,6 +4,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { motion } from 'framer-motion';
+import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle } from 'lucide-react';
 
 // Schéma de validation avec Zod
 const loginSchema = z.object({
@@ -73,80 +75,177 @@ export const Login = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-            <div className="sm:mx-auto sm:w-full sm:max-w-md">
-                <Link to="/" className="flex items-center justify-center gap-3 mb-8">
-                    <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-md">
-                        <span className="text-white font-bold text-2xl">G</span>
-                    </div>
-                    <span className="font-bold text-3xl text-primary tracking-tight">Gestion<span className="text-accent">Pro</span></span>
-                </Link>
-                <h2 className="text-center text-2xl font-bold tracking-tight text-primary">
-                    Connectez-vous à votre compte
-                </h2>
-                <p className="mt-2 text-center text-sm text-secondary">
-                    Ou{' '}
-                    <Link to="/register" className="font-semibold text-accent hover:text-accentHover transition-colors">
-                        créez un essai gratuit de 14 jours
+        <div className="min-h-screen bg-surface flex">
+            {/* Colonne Gauche - Formulaire */}
+            <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-12 lg:px-24 xl:px-32 relative">
+                
+                {/* Logo */}
+                <div className="absolute top-8 left-8 sm:left-12 lg:left-24">
+                    <Link to="/" className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
+                            <span className="text-white font-bold text-2xl">G</span>
+                        </div>
+                        <span className="font-bold text-2xl text-primary tracking-tight">Gestion<span className="text-accent">Pro</span></span>
                     </Link>
-                </p>
-            </div>
+                </div>
 
-            <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-                <div className="bg-white py-8 px-4 shadow-sm border border-slate-200 sm:rounded-2xl sm:px-10">
+                <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="max-w-md w-full mx-auto mt-16 lg:mt-0"
+                >
+                    <div className="mb-10">
+                        <h2 className="text-4xl font-extrabold text-primary tracking-tight mb-3">
+                            Bon retour 👋
+                        </h2>
+                        <p className="text-secondary text-lg">
+                            Connectez-vous pour accéder à votre tableau de bord et gérer votre activité.
+                        </p>
+                    </div>
                     
                     {authError && (
-                        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm font-medium">
-                            {authError}
-                        </div>
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-100 flex items-start gap-3"
+                        >
+                            <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-red-700 text-sm font-medium">{authError}</p>
+                        </motion.div>
                     )}
 
                     <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
-                        <div>
-                            <label className="block text-sm font-semibold text-primary mb-1.5">Adresse email</label>
+                        <div className="space-y-1.5">
+                            <label className="block text-sm font-bold text-primary">Adresse email</label>
                             <input
                                 type="email"
                                 {...register('email')}
-                                className={`w-full bg-surface border ${errors.email ? 'border-red-400 focus:ring-red-500' : 'border-slate-300 focus:border-accent focus:ring-accent/50'} rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all`}
+                                className={`w-full bg-white border ${errors.email ? 'border-red-400 focus:ring-red-500' : 'border-slate-200 focus:border-accent focus:ring-accent/20'} rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-4 transition-all shadow-sm`}
                                 placeholder="vous@exemple.com"
                             />
-                            {errors.email && <p className="mt-1 text-sm text-red-500 font-medium">{errors.email.message}</p>}
+                            {errors.email && <p className="mt-1.5 text-sm text-red-500 font-bold">{errors.email.message}</p>}
                         </div>
 
-                        <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <label className="block text-sm font-semibold text-primary">Mot de passe</label>
-                                <a href="#" className="text-sm font-medium text-accent hover:text-accentHover">
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <label className="block text-sm font-bold text-primary">Mot de passe</label>
+                                <a href="#" className="text-sm font-bold text-accent hover:text-accentHover transition-colors">
                                     Mot de passe oublié ?
                                 </a>
                             </div>
                             <input
                                 type="password"
                                 {...register('password')}
-                                className={`w-full bg-surface border ${errors.password ? 'border-red-400 focus:ring-red-500' : 'border-slate-300 focus:border-accent focus:ring-accent/50'} rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition-all`}
+                                className={`w-full bg-white border ${errors.password ? 'border-red-400 focus:ring-red-500' : 'border-slate-200 focus:border-accent focus:ring-accent/20'} rounded-xl px-4 py-3.5 text-base focus:outline-none focus:ring-4 transition-all shadow-sm`}
                                 placeholder="••••••••"
                             />
-                            {errors.password && <p className="mt-1 text-sm text-red-500 font-medium">{errors.password.message}</p>}
+                            {errors.password && <p className="mt-1.5 text-sm text-red-500 font-bold">{errors.password.message}</p>}
                         </div>
 
                         <button
                             type="submit"
                             disabled={isLoading || lockoutCountdown > 0}
-                            className={`w-full py-3 mt-2 flex justify-center items-center font-bold rounded-xl text-white transition-all ${
+                            className={`w-full py-4 mt-4 flex justify-center items-center font-bold text-lg rounded-xl text-white transition-all ${
                                 lockoutCountdown > 0 
                                 ? 'bg-slate-400 cursor-not-allowed' 
-                                : 'bg-accent hover:bg-accentHover shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed'
+                                : 'bg-accent hover:bg-accentHover shadow-xl shadow-accent/25 hover:shadow-2xl hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none'
                             }`}
                         >
                             {lockoutCountdown > 0 ? (
                                 `Réessayez dans ${lockoutCountdown}s`
                             ) : isLoading ? (
-                                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                <Loader2 className="w-6 h-6 animate-spin" />
                             ) : (
                                 "Se connecter"
                             )}
                         </button>
                     </form>
+
+                    <p className="mt-10 text-center text-secondary font-medium">
+                        Vous n'avez pas encore de compte ?{' '}
+                        <Link to="/register" className="font-bold text-primary hover:text-accent transition-colors">
+                            Créer un essai gratuit
+                        </Link>
+                    </p>
+                </motion.div>
+            </div>
+
+            {/* Colonne Droite - Illustration */}
+            <div className="hidden lg:flex w-1/2 bg-panel relative overflow-hidden items-center justify-center p-12">
+                {/* Décoration de fond */}
+                <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg width=\\'60\\' height=\\'60\\' viewBox=\\'0 0 60 60\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'none\\' fill-rule=\\'evenodd\\'%3E%3Cg fill=\\'%23ffffff\\' fill-opacity=\\'1\\'%3E%3Cpath d=\\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')" }}></div>
+                <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-accent/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] translate-y-1/3 -translate-x-1/4 pointer-events-none"></div>
+
+                <div className="relative z-10 w-full max-w-lg">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, rotate: -2 }}
+                        animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                        transition={{ duration: 0.8, delay: 0.2 }}
+                        className="bg-surface/5 backdrop-blur-xl border border-white/10 rounded-[2rem] p-8 shadow-2xl relative"
+                    >
+                        <div className="flex gap-2 mb-8">
+                            <div className="w-3 h-3 rounded-full bg-red-400/80"></div>
+                            <div className="w-3 h-3 rounded-full bg-amber-400/80"></div>
+                            <div className="w-3 h-3 rounded-full bg-emerald-400/80"></div>
+                        </div>
+
+                        <div className="space-y-6">
+                            <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-4">
+                                <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center text-accent">
+                                    <TrendingUp className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <div className="text-white/60 text-sm font-medium">Chiffre d'affaires</div>
+                                    <div className="text-white text-2xl font-bold">+24.5%</div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-4">
+                                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
+                                    <Users className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <div className="text-white/60 text-sm font-medium">Nouveaux clients</div>
+                                    <div className="text-white text-2xl font-bold">1,204</div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 bg-white/5 border border-white/10 rounded-2xl p-4">
+                                <div className="w-12 h-12 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+                                    <ShieldCheck className="w-6 h-6" />
+                                </div>
+                                <div>
+                                    <div className="text-white/60 text-sm font-medium">Protection des données</div>
+                                    <div className="text-emerald-400 text-lg font-bold flex items-center gap-2">
+                                        Actif <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Floating Element */}
+                        <motion.div 
+                            animate={{ y: [0, -10, 0] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                            className="absolute -right-12 -bottom-12 bg-white rounded-2xl p-6 shadow-xl border border-slate-100 max-w-[200px]"
+                        >
+                            <p className="text-primary font-bold text-sm mb-2">Rejoignez 10,000+ gérants satisfaits</p>
+                            <div className="flex -space-x-2">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="w-8 h-8 rounded-full bg-slate-200 border-2 border-white flex items-center justify-center overflow-hidden">
+                                        <img src={`https://i.pravatar.cc/100?img=${i+10}`} alt="User" />
+                                    </div>
+                                ))}
+                            </div>
+                        </motion.div>
+                    </motion.div>
+
+                    <div className="mt-16 text-center">
+                        <h3 className="text-white text-3xl font-extrabold mb-4">La gestion simplifiée.</h3>
+                        <p className="text-white/60 text-lg">Retrouvez toutes vos données, stocks et statistiques au même endroit, en toute sécurité.</p>
+                    </div>
                 </div>
             </div>
         </div>

@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { InvoicePrint } from '../../components/InvoicePrint';
+import { ShoppingBag, Search, Package, Plus, Minus, X, FileText, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
@@ -18,6 +20,7 @@ export const Caisse = () => {
     const [isFacturing, setIsFacturing] = useState(false);
     const [lastSaleDetails, setLastSaleDetails] = useState(null);
     const [toastMessage, setToastMessage] = useState('');
+    const [amountReceived, setAmountReceived] = useState('');
 
     const showToast = (message) => {
         setToastMessage(message);
@@ -171,6 +174,7 @@ export const Caisse = () => {
             setCart([]);
             setCustomerName('');
             setCustomerPhone('');
+            setAmountReceived('');
             setIsFacturing(false);
             
         } catch (error) {
@@ -199,13 +203,26 @@ export const Caisse = () => {
             )}
 
             {/* Facturation Modal */}
-            {isFacturing && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-primary">Créer une facture</h2>
-                            <button onClick={() => setIsFacturing(false)} className="text-slate-400 hover:text-primary transition-colors">✕</button>
-                        </div>
+            <AnimatePresence>
+                {isFacturing && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-primary">Créer une facture</h2>
+                                <button onClick={() => setIsFacturing(false)} className="text-slate-400 hover:text-primary transition-colors">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
                         
                         <div className="space-y-4 mb-8">
                             <p className="text-sm text-secondary">Renseignez les informations du client pour la facture. Ces champs sont optionnels.</p>
@@ -231,13 +248,14 @@ export const Caisse = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-3">
-                            <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary py-3 text-center">Annuler</button>
-                            <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3 text-center">Encaisser & Facturer</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            <div className="flex gap-3">
+                                <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary py-3 text-center">Annuler</button>
+                                <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3 text-center shadow-premium">Encaisser & Facturer</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Left side: Products Grid */}
             <div className="flex-1 flex flex-col bg-transparent lg:min-h-0">
@@ -249,7 +267,7 @@ export const Caisse = () => {
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-panel shadow-premium-lg rounded-full py-4 px-6 pl-14 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border border-slate-100/50 dark:border-border-theme text-primary placeholder:text-slate-400"
                     />
-                    <span className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                 </div>
                 
                 <div className="flex-1 overflow-y-auto pb-6">
@@ -260,20 +278,22 @@ export const Caisse = () => {
                     ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                             {filteredProducts.map(product => (
-                                <button 
+                                <motion.button 
+                                    whileHover={product.stock_quantity > 0 ? { scale: 1.02, y: -2 } : {}}
+                                    whileTap={product.stock_quantity > 0 ? { scale: 0.98 } : {}}
                                     key={product.id}
                                     onClick={() => addToCart(product)}
                                     disabled={product.stock_quantity <= 0}
                                     className={`group flex flex-col relative rounded-2xl text-left transition-all overflow-hidden ${
                                         product.stock_quantity <= 0 
                                             ? 'opacity-50 cursor-not-allowed grayscale' 
-                                            : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer hover:-translate-y-1'
+                                            : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer border border-transparent hover:border-accent/30'
                                     }`}
                                 >
                                     {/* Image Placeholder */}
                                     <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-4">
                                         <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
-                                            <span className="text-4xl opacity-20">📦</span>
+                                            <Package className="w-8 h-8 text-orange-300 dark:text-accent/50 opacity-50" />
                                         </div>
                                     </div>
                                     <div className="p-4 flex flex-col flex-1">
@@ -285,7 +305,7 @@ export const Caisse = () => {
                                             </div>
                                         </div>
                                     </div>
-                                </button>
+                                </motion.button>
                             ))}
                         </div>
                     )}
@@ -294,51 +314,63 @@ export const Caisse = () => {
 
             {/* Right side: Cart / POS */}
             <div className="w-full lg:w-[400px] bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme flex flex-col overflow-hidden min-h-[500px] lg:min-h-0 shrink-0">
-                <div className="px-6 py-5 bg-accent text-white flex justify-between items-center">
-                    <h2 className="text-lg font-bold">Commande en cours</h2>
-                    <span className="text-sm bg-white/20 px-3 py-1 rounded-full font-medium">
+                <div className="px-6 py-5 bg-accent text-white flex justify-between items-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                    <h2 className="text-lg font-bold relative z-10 flex items-center gap-2">
+                        <ShoppingBag className="w-5 h-5" /> Commande en cours
+                    </h2>
+                    <span className="text-sm bg-white/20 px-3 py-1 rounded-full font-medium relative z-10">
                         {cart.length === 0 ? "Aucun article" : `${cart.length} article${cart.length > 1 ? 's' : ''}`}
                     </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-surface/50 dark:bg-panel">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-surface/50 dark:bg-panel custom-scrollbar">
                     {cart.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
+                        <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 space-y-4">
                             <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2">
-                                <span className="text-4xl grayscale opacity-50">🛍️</span>
+                                <ShoppingBag className="w-10 h-10 opacity-50" />
                             </div>
-                            <p className="font-medium text-secondary">Le panier est vide</p>
+                            <p className="font-medium">Le panier est vide</p>
                         </div>
                     ) : (
-                        cart.map(item => (
-                            <div key={item.id} className="flex flex-col gap-3 p-4 bg-panel rounded-2xl border border-slate-100 dark:border-border-theme shadow-sm">
-                                <div className="flex justify-between items-start gap-2">
-                                    <span className="font-bold text-primary leading-tight">{item.name}</span>
-                                    <button 
-                                        onClick={() => removeFromCart(item.id)}
-                                        className="text-slate-400 hover:text-red-500 transition-colors p-1"
-                                    >
-                                        ✕
-                                    </button>
-                                </div>
-                                <div className="flex justify-between items-end mt-1">
-                                    <div className="flex items-center gap-1 bg-surface dark:bg-slate-800 rounded-xl p-1 border border-slate-100 dark:border-border-theme">
+                        <AnimatePresence>
+                            {cart.map(item => (
+                                <motion.div 
+                                    layout
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: 0 }}
+                                    key={item.id} 
+                                    className="flex flex-col gap-3 p-4 bg-panel rounded-2xl border border-slate-100 dark:border-border-theme shadow-sm"
+                                >
+                                    <div className="flex justify-between items-start gap-2">
+                                        <span className="font-bold text-primary leading-tight">{item.name}</span>
                                         <button 
-                                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm text-secondary transition-all"
-                                        >-</button>
-                                        <span className="w-8 text-center font-bold text-primary">{item.quantity}</span>
-                                        <button 
-                                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                            className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm text-accent font-bold transition-all"
-                                        >+</button>
+                                            onClick={() => removeFromCart(item.id)}
+                                            className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    <span className="font-bold text-primary text-lg">
-                                        {(item.price * item.quantity).toLocaleString('fr-FR')} F
-                                    </span>
-                                </div>
-                            </div>
-                        ))
+                                    <div className="flex justify-between items-end mt-1">
+                                        <div className="flex items-center gap-1 bg-surface dark:bg-slate-800 rounded-xl p-1 border border-slate-100 dark:border-border-theme">
+                                            <button 
+                                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm text-secondary transition-all"
+                                            ><Minus className="w-4 h-4" /></button>
+                                            <span className="w-8 text-center font-bold text-primary">{item.quantity}</span>
+                                            <button 
+                                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm text-accent font-bold transition-all"
+                                            ><Plus className="w-4 h-4" /></button>
+                                        </div>
+                                        <span className="font-bold text-primary text-lg">
+                                            {(item.price * item.quantity).toLocaleString('fr-FR')} F
+                                        </span>
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
                     )}
                 </div>
 
@@ -359,11 +391,33 @@ export const Caisse = () => {
                         <div className="relative">
                             <input 
                                 type="number" 
+                                value={amountReceived}
+                                onChange={(e) => setAmountReceived(e.target.value)}
                                 placeholder="0"
-                                className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-lg font-bold text-primary focus:outline-none focus:border-accent transition-colors"
+                                className="w-full bg-panel dark:bg-slate-800 border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-xl font-bold text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
                             />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary font-medium">FCFA</span>
                         </div>
+                        
+                        {amountReceived && cartTotal > 0 && (
+                            <div className="mt-4 p-4 rounded-xl flex justify-between items-center bg-surface dark:bg-slate-800 border border-slate-100 dark:border-border-theme">
+                                {Number(amountReceived) >= cartTotal ? (
+                                    <>
+                                        <span className="font-semibold text-secondary">Monnaie à rendre :</span>
+                                        <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                                            {(Number(amountReceived) - cartTotal).toLocaleString('fr-FR')} FCFA
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="font-semibold text-secondary">Reste à payer :</span>
+                                        <span className="text-xl font-bold text-red-500">
+                                            {(cartTotal - Number(amountReceived)).toLocaleString('fr-FR')} FCFA
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                     
                     <div className="flex gap-3">
@@ -382,13 +436,13 @@ export const Caisse = () => {
                             onClick={() => setIsFacturing(true)}
                             disabled={cart.length === 0}
                             title="Générer une facture"
-                            className={`flex-[1] py-4 rounded-xl font-bold text-xl flex items-center justify-center transition-all ${
+                            className={`flex-[1] py-4 rounded-xl font-bold flex items-center justify-center transition-all ${
                                 cart.length === 0 
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
                                     : 'bg-surface dark:bg-slate-800 text-primary border border-slate-200 dark:border-border-theme hover:border-accent hover:text-accent shadow-sm active:scale-95'
                             }`}
                         >
-                            📄
+                            <FileText className="w-6 h-6" />
                         </button>
                     </div>
                 </div>

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { ShieldAlert, ArrowRight } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export const AuditLogs = () => {
     const { selectedBusiness } = useBusiness();
@@ -49,16 +51,17 @@ export const AuditLogs = () => {
         if (log.action === 'MODIFY_SALE') {
             return (
                 <div className="text-sm space-y-1">
-                    <div className="flex gap-2 text-secondary text-xs mb-1">
+                    <div className="flex gap-2 items-center text-secondary text-xs mb-2">
                         <span className="line-through">{details.old_total?.toLocaleString('fr-FR')} F</span>
-                        <span>➔</span>
-                        <strong className="text-indigo-600">{details.new_total?.toLocaleString('fr-FR')} F</strong>
+                        <ArrowRight className="w-3 h-3" />
+                        <strong className="text-indigo-600 dark:text-indigo-400">{details.new_total?.toLocaleString('fr-FR')} F</strong>
                     </div>
                     {details.changes?.map((change, idx) => (
-                        <div key={idx} className="bg-slate-50 p-2 rounded border border-slate-100">
-                            <span className="font-medium text-primary">{change.product}</span> : 
-                            <span className="ml-1 text-slate-500 line-through">{change.old_qty}</span> 
-                            <span className="mx-1">➔</span> 
+                        <div key={idx} className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme flex items-center gap-2">
+                            <span className="font-medium text-primary">{change.product}</span>
+                            <span className="text-slate-400 mx-1">|</span>
+                            <span className="text-slate-500 line-through">{change.old_qty}</span> 
+                            <ArrowRight className="w-3 h-3 text-slate-400" /> 
                             <strong className="text-amber-600">{change.new_qty}</strong>
                         </div>
                     ))}
@@ -73,7 +76,10 @@ export const AuditLogs = () => {
         <div className="max-w-7xl mx-auto space-y-6 animate-fade-in-up">
             <div>
                 <h1 className="text-3xl font-bold text-primary tracking-tight flex items-center gap-3">
-                    <span className="text-red-500">🛡️</span> Logs de Sécurité
+                    <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-500/10 flex items-center justify-center text-red-500">
+                        <ShieldAlert className="w-6 h-6" />
+                    </div>
+                    Logs de Sécurité
                 </h1>
                 <p className="text-secondary mt-1">
                     Trace complète des annulations et modifications pour prévenir les fraudes. 
@@ -81,7 +87,11 @@ export const AuditLogs = () => {
                 </p>
             </div>
 
-            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden"
+            >
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -130,7 +140,7 @@ export const AuditLogs = () => {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </motion.div>
         </div>
     );
 };

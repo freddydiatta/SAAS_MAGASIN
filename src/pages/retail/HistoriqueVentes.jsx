@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { InvoicePrint } from '../../components/InvoicePrint';
+import { FileText, Edit2, Ban, Calendar, AlertTriangle, Plus, Minus, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const HistoriqueVentes = () => {
     const { selectedBusiness } = useBusiness();
@@ -234,62 +236,86 @@ export const HistoriqueVentes = () => {
             )}
 
             {/* Cancel Confirmation Modal */}
-            {receiptToCancel && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
-                        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 text-2xl mb-4 mx-auto">
-                            ⚠️
-                        </div>
-                        <h2 className="text-xl font-bold text-primary text-center mb-2">Annuler la vente ?</h2>
+            <AnimatePresence>
+                {receiptToCancel && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium"
+                        >
+                            <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center text-red-600 dark:text-red-400 mb-6 mx-auto">
+                                <AlertTriangle className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-xl font-bold text-primary text-center mb-2">Annuler la vente ?</h2>
                         <p className="text-secondary text-center mb-8">
                             Êtes-vous sûr de vouloir annuler cette transaction de <strong>{receiptToCancel.total_amount.toLocaleString('fr-FR')} FCFA</strong> ?<br/><br/>
                             Le montant sera déduit de votre caisse et le stock des articles sera automatiquement restauré.
                         </p>
                         
-                        <div className="flex gap-3">
-                            <button onClick={() => setReceiptToCancel(null)} className="flex-1 btn-secondary bg-slate-100 py-3">Retour</button>
-                            <button 
-                                onClick={confirmCancel} 
-                                disabled={cancelReceiptMutation.isPending}
-                                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3 transition-colors disabled:opacity-50"
-                            >
-                                {cancelReceiptMutation.isPending ? 'Annulation...' : 'Oui, annuler'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            <div className="flex gap-3 mt-8">
+                                <button onClick={() => setReceiptToCancel(null)} className="flex-1 btn-secondary py-3">Retour</button>
+                                <button 
+                                    onClick={confirmCancel} 
+                                    disabled={cancelReceiptMutation.isPending}
+                                    className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3 transition-colors disabled:opacity-50 shadow-premium"
+                                >
+                                    {cancelReceiptMutation.isPending ? 'Annulation...' : 'Oui, annuler'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Modify Sale Modal */}
-            {receiptToModify && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-premium animate-fade-in-up">
-                        <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-primary">Modifier la Vente</h2>
-                            <button onClick={() => setReceiptToModify(null)} className="text-slate-400 hover:text-slate-600">✕</button>
-                        </div>
-                        
-                        <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2">
-                            {modifiedItems.map(item => (
-                                <div key={item.id} className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div>
-                                        <p className="font-semibold text-primary text-sm">{item.name}</p>
-                                        <p className="text-xs text-secondary">{item.price.toLocaleString('fr-FR')} F / unité</p>
+            <AnimatePresence>
+                {receiptToModify && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium"
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-primary">Modifier la Vente</h2>
+                                <button onClick={() => setReceiptToModify(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                    <X className="w-6 h-6" />
+                                </button>
+                            </div>
+                               <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+                                {modifiedItems.map(item => (
+                                    <div key={item.id} className="flex justify-between items-center bg-surface dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-border-theme">
+                                        <div>
+                                            <p className="font-semibold text-primary text-sm">{item.name}</p>
+                                            <p className="text-xs text-secondary">{item.price.toLocaleString('fr-FR')} F / unité</p>
+                                        </div>
+                                        <div className="flex items-center gap-1 bg-panel rounded-lg border border-slate-200 dark:border-border-theme p-1">
+                                            <button 
+                                                onClick={() => updateModifiedQty(item.id, item.new_qty - 1)}
+                                                className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-secondary transition-colors"
+                                            ><Minus className="w-4 h-4" /></button>
+                                            <span className="w-8 text-center font-bold text-primary">{item.new_qty}</span>
+                                            <button 
+                                                onClick={() => updateModifiedQty(item.id, item.new_qty + 1)}
+                                                className="w-8 h-8 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-accent font-bold shadow-sm transition-colors"
+                                            ><Plus className="w-4 h-4" /></button>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3 bg-white rounded-lg border border-slate-200 p-1">
-                                        <button 
-                                            onClick={() => updateModifiedQty(item.id, item.new_qty - 1)}
-                                            className="w-7 h-7 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium"
-                                        >-</button>
-                                        <span className="w-6 text-center font-bold text-primary">{item.new_qty}</span>
-                                        <button 
-                                            onClick={() => updateModifiedQty(item.id, item.new_qty + 1)}
-                                            className="w-7 h-7 flex items-center justify-center rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-medium"
-                                        >+</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
                         
                         <div className="flex justify-between items-center mb-6 px-2">
                             <span className="text-secondary font-medium">Nouveau Total</span>
@@ -298,19 +324,20 @@ export const HistoriqueVentes = () => {
                             </span>
                         </div>
 
-                        <div className="flex gap-3">
-                            <button onClick={() => setReceiptToModify(null)} className="flex-1 btn-secondary bg-slate-100 py-3">Annuler</button>
-                            <button 
-                                onClick={confirmModify} 
-                                disabled={modifyReceiptMutation.isPending}
-                                className="flex-1 btn-primary py-3"
-                            >
-                                {modifyReceiptMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+                            <div className="flex gap-3">
+                                <button onClick={() => setReceiptToModify(null)} className="flex-1 btn-secondary py-3">Annuler</button>
+                                <button 
+                                    onClick={confirmModify} 
+                                    disabled={modifyReceiptMutation.isPending}
+                                    className="flex-1 btn-primary py-3 shadow-premium"
+                                >
+                                    {modifyReceiptMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
                 <div>
@@ -325,7 +352,7 @@ export const HistoriqueVentes = () => {
                         30 jours
                     </button>
                     <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
-                        Période <span>📅</span>
+                        Période <Calendar className="w-4 h-4" />
                     </button>
                 </div>
             </div>
@@ -406,21 +433,21 @@ export const HistoriqueVentes = () => {
                                                             className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors"
                                                             title="Imprimer Facture"
                                                         >
-                                                            📄
+                                                            <FileText className="w-4 h-4" />
                                                         </button>
                                                         <button 
                                                             onClick={() => handleModify(receipt)}
                                                             className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
                                                             title="Modifier"
                                                         >
-                                                            ✏️
+                                                            <Edit2 className="w-4 h-4" />
                                                         </button>
                                                         <button 
                                                             onClick={() => setReceiptToCancel(receipt)}
                                                             className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
                                                             title="Annuler Vente"
                                                         >
-                                                            🚫
+                                                            <Ban className="w-4 h-4" />
                                                         </button>
                                                     </>
                                                 )}
