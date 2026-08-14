@@ -78,9 +78,9 @@ export const DashboardLayout = () => {
 
     const menuItems = getMenuItems();
 
-    const isExpired = selectedBusiness?.subscription_status !== 'active' && 
-                      selectedBusiness?.subscription_end_date && 
-                      new Date(selectedBusiness.subscription_end_date) < new Date();
+    const isExpired = selectedBusiness?.subscription_end_date 
+        ? new Date(selectedBusiness.subscription_end_date) < new Date()
+        : selectedBusiness?.subscription_status !== 'active';
 
     return (
         <div className="flex h-screen bg-surface font-sans text-primary transition-colors duration-200">
