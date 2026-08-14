@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 
-export const AddProductModal = ({ isOpen, onClose }) => {
+export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     
@@ -11,8 +11,7 @@ export const AddProductModal = ({ isOpen, onClose }) => {
     const [price, setPrice] = useState('');
     const [quantity, setQuantity] = useState('');
     
-    // Type could be specific to the business type, but let's just make it simple
-    const [type, setType] = useState('standard');
+    const [type, setType] = useState(defaultType);
     
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');

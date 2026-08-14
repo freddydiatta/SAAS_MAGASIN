@@ -2,15 +2,19 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
-import { Plus, Search, Edit2, Bike, Tag, Settings, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit2, Bike, Tag, Settings, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { AddProductModal } from '../../components/AddProductModal';
+import { EditProductModal } from '../../components/EditProductModal';
 
 export const Motos = () => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     const [searchTerm, setSearchTerm] = useState('');
-    // For a real app, you would have Modals for Add/Edit Moto, using the AddProductModal or a specific one.
+    const [isAddMotoOpen, setIsAddMotoOpen] = useState(false);
+    const [isEditMotoOpen, setIsEditMotoOpen] = useState(false);
+    const [motoToEdit, setMotoToEdit] = useState(null);
 
     const { data: motos = [], isLoading } = useQuery({
         queryKey: ['motos', selectedBusiness?.id],
@@ -31,6 +35,49 @@ export const Motos = () => {
         m.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const updateStockMutation = useMutation({
+        mutationFn: async ({ id, currentStock, change }) => {
+            const newStock = Math.max(0, currentStock + change);
+            const { error } = await supabase
+                .from('products')
+                .update({ stock_quantity: newStock })
+                .eq('id', id);
+            if (error) throw error;
+            return { id, newStock };
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['motos']);
+            toast.success('Stock de la moto mis à jour');
+        },
+        onError: () => {
+            toast.error('Erreur lors de la mise à jour du stock');
+        }
+    });
+
+    const deleteMotoMutation = useMutation({
+        mutationFn: async (id) => {
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            return id;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['motos']);
+            toast.success('Moto supprimée !');
+        },
+        onError: () => {
+            toast.error('Erreur lors de la suppression de la moto.');
+        }
+    });
+
+    const handleDelete = (id) => {
+        if (window.confirm('Voulez-vous vraiment supprimer cette moto ?')) {
+            deleteMotoMutation.mutate(id);
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up pb-10">
             {/* Header */}
@@ -45,7 +92,7 @@ export const Motos = () => {
                 <div className="flex gap-3">
                     <button 
                         className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-premium"
-                        onClick={() => toast.success("Fonctionnalité d'ajout de moto (Modal) à venir")}
+                        onClick={() => setIsAddMotoOpen(true)}
                     >
                         <Plus className="w-5 h-5" /> Nouvelle Moto
                     </button>
@@ -114,9 +161,25 @@ export const Motos = () => {
                                             </div>
                                         </td>
                                         <td className="p-4 text-center">
-                                            <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${moto.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                                                {moto.stock_quantity}
-                                            </span>
+                                            <div className="flex items-center justify-center gap-3">
+                                                <button 
+                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, currentStock: moto.stock_quantity, change: -1 })}
+                                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                                    title="Diminuer le stock"
+                                                >
+                                                    <MinusCircle className="w-5 h-5" />
+                                                </button>
+                                                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${moto.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
+                                                    {moto.stock_quantity}
+                                                </span>
+                                                <button 
+                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, currentStock: moto.stock_quantity, change: 1 })}
+                                                    className="text-slate-400 hover:text-emerald-500 transition-colors"
+                                                    title="Augmenter le stock"
+                                                >
+                                                    <PlusCircle className="w-5 h-5" />
+                                                </button>
+                                            </div>
                                         </td>
                                         <td className="p-4 text-right">
                                             <span className="font-bold text-accent">
@@ -136,10 +199,16 @@ export const Motos = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors">
+                                                <button 
+                                                    onClick={() => { setMotoToEdit(moto); setIsEditMotoOpen(true); }}
+                                                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                                                >
                                                     <Edit2 className="w-4 h-4" />
                                                 </button>
-                                                <button className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors">
+                                                <button 
+                                                    onClick={() => handleDelete(moto.id)}
+                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                                >
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
@@ -151,6 +220,17 @@ export const Motos = () => {
                     )}
                 </div>
             </motion.div>
+            
+            <AddProductModal 
+                isOpen={isAddMotoOpen} 
+                onClose={() => setIsAddMotoOpen(false)} 
+                defaultType="moto"
+            />
+            <EditProductModal 
+                isOpen={isEditMotoOpen} 
+                onClose={() => { setIsEditMotoOpen(false); setMotoToEdit(null); }} 
+                product={motoToEdit}
+            />
         </div>
     );
 };

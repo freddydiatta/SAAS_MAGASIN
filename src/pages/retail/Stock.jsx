@@ -4,7 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
-import { Plus, Search, Edit2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export const Stock = () => {
@@ -28,6 +29,49 @@ export const Stock = () => {
         },
         enabled: !!selectedBusiness
     });
+
+    const updateStockMutation = useMutation({
+        mutationFn: async ({ id, currentStock, change }) => {
+            const newStock = Math.max(0, currentStock + change);
+            const { error } = await supabase
+                .from('products')
+                .update({ stock_quantity: newStock })
+                .eq('id', id);
+            if (error) throw error;
+            return { id, newStock };
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['products']);
+            toast.success('Stock mis à jour');
+        },
+        onError: () => {
+            toast.error('Erreur lors de la mise à jour du stock');
+        }
+    });
+
+    const deleteProductMutation = useMutation({
+        mutationFn: async (id) => {
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            return id;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['products']);
+            toast.success('Produit supprimé !');
+        },
+        onError: () => {
+            toast.error('Erreur lors de la suppression.');
+        }
+    });
+
+    const handleDelete = (id) => {
+        if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
+            deleteProductMutation.mutate(id);
+        }
+    };
 
     const filteredProducts = products.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -96,15 +140,31 @@ export const Stock = () => {
                                             {product.price.toLocaleString('fr-FR')} F
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                                                product.stock_quantity > 10 
-                                                    ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' 
-                                                    : product.stock_quantity > 0 
-                                                        ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' 
-                                                        : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-                                            }`}>
-                                                {product.stock_quantity}
-                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <button 
+                                                    onClick={() => updateStockMutation.mutate({ id: product.id, currentStock: product.stock_quantity, change: -1 })}
+                                                    className="text-slate-400 hover:text-red-500 transition-colors"
+                                                    title="Diminuer de 1"
+                                                >
+                                                    <MinusCircle className="w-5 h-5" />
+                                                </button>
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                                                    product.stock_quantity > 10 
+                                                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' 
+                                                        : product.stock_quantity > 0 
+                                                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' 
+                                                            : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+                                                }`}>
+                                                    {product.stock_quantity}
+                                                </span>
+                                                <button 
+                                                    onClick={() => updateStockMutation.mutate({ id: product.id, currentStock: product.stock_quantity, change: 1 })}
+                                                    className="text-slate-400 hover:text-emerald-500 transition-colors"
+                                                    title="Ajouter 1"
+                                                >
+                                                    <PlusCircle className="w-5 h-5" />
+                                                </button>
+                                            </div>
                                         </td>
                                         <td className="py-4 px-6 text-right">
                                             <div className="flex justify-end gap-2">
@@ -114,6 +174,13 @@ export const Stock = () => {
                                                     title="Modifier"
                                                 >
                                                     <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDelete(product.id)}
+                                                    className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
+                                                    title="Supprimer"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
                                                 </button>
                                             </div>
                                         </td>

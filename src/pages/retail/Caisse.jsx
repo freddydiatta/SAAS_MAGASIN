@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { ShoppingCart, Plus, Minus, Trash2, Search, Package2, CreditCard, Banknote, Smartphone, HandCoins } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, Trash2, Search, Package2, CreditCard, Banknote, Smartphone, HandCoins, X, Package, ShoppingBag, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { saveOfflineSale } from '../../services/syncService';
