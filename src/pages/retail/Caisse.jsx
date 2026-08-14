@@ -525,9 +525,9 @@ export const Caisse = () => {
                     <div className="flex gap-3">
                         <button 
                             onClick={() => handleCheckout(false)}
-                            disabled={cart.length === 0}
+                            disabled={cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))}
                             className={`flex-[3] py-4 rounded-xl font-bold text-lg transition-all flex justify-center items-center ${
-                                cart.length === 0 
+                                cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
                                     : 'bg-primary text-white hover:opacity-90 shadow-premium active:scale-95'
                             }`}
@@ -536,10 +536,10 @@ export const Caisse = () => {
                         </button>
                         <button 
                             onClick={() => setIsFacturing(true)}
-                            disabled={cart.length === 0}
+                            disabled={cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))}
                             title="Générer une facture"
                             className={`flex-[1] py-4 rounded-xl font-bold flex items-center justify-center transition-all ${
-                                cart.length === 0 
+                                cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
                                     : 'bg-surface dark:bg-slate-800 text-primary border border-slate-200 dark:border-border-theme hover:border-accent hover:text-accent shadow-sm active:scale-95'
                             }`}
