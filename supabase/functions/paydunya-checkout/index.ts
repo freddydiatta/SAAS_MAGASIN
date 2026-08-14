@@ -15,15 +15,24 @@ serve(async (req) => {
     const { business_id } = await req.json()
 
     // 1. Check Auth
-    const authHeader = req.headers.get('Authorization')!
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Header Authorization manquant. Assurez-vous d\'être connecté.')
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     )
 
-    const { data: { user } } = await supabaseClient.auth.getUser()
-    if (!user) throw new Error('Non autorisé')
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    if (userError) throw new Error('Erreur getUser: ' + userError.message)
+    if (!user) throw new Error('Utilisateur introuvable (Non autorisé)')
+
+    // Retrieve plan to determine price
+    const plan = user.user_metadata?.subscription_plan || 'essential';
+    const amount = plan === 'business' ? 25000 : 15000;
 
     // 2. Setup Service Role Client for admin tasks
     const supabaseAdmin = createClient(
@@ -35,9 +44,6 @@ serve(async (req) => {
     const PAYDUNYA_MASTER_KEY = Deno.env.get('PAYDUNYA_MASTER_KEY')
     const PAYDUNYA_PRIVATE_KEY = Deno.env.get('PAYDUNYA_PRIVATE_KEY')
     const PAYDUNYA_TOKEN = Deno.env.get('PAYDUNYA_TOKEN')
-
-    // Amount for subscription
-    const amount = 15000;
 
     const payload = {
       invoice: {
@@ -67,7 +73,8 @@ serve(async (req) => {
     const paydunyaData = await paydunyaRes.json();
 
     if (paydunyaData.response_code !== "00") {
-      throw new Error("Erreur PayDunya: " + paydunyaData.response_text);
+      console.error("PayDunya Error:", paydunyaData);
+      throw new Error("Erreur PayDunya (" + paydunyaData.response_code + "): " + (paydunyaData.response_text || JSON.stringify(paydunyaData)));
     }
 
     // 4. Save Payment Intent to Supabase
