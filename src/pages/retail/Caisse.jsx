@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { InvoicePrint } from '../../components/InvoicePrint';
 import { ShoppingBag, Search, Package, Plus, Minus, X, FileText, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { saveOfflineSale } from '../../services/syncService';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
@@ -118,6 +119,51 @@ export const Caisse = () => {
         if (cart.length === 0) return;
         
         try {
+            if (!navigator.onLine) {
+                // HORS-LIGNE
+                const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal);
+                
+                // Mettre à jour le cache local des ventes
+                queryClient.setQueryData(['receipts', selectedBusiness.id], (old) => {
+                    return [newReceipt, ...(old || [])];
+                });
+                
+                // Décrémenter virtuellement le stock
+                queryClient.setQueryData(['products', selectedBusiness.id], (old) => {
+                    if (!old) return old;
+                    let newProducts = [...old];
+                    for (let item of cart) {
+                        const idx = newProducts.findIndex(p => p.id === item.id);
+                        if(idx !== -1) {
+                             newProducts[idx] = {...newProducts[idx], stock_quantity: newProducts[idx].stock_quantity - item.quantity};
+                        }
+                    }
+                    return newProducts;
+                });
+                
+                if (withInvoice) {
+                    setLastSaleDetails({
+                        items: [...cart],
+                        total: cartTotal,
+                        date: new Date(),
+                        customerName: customerName || 'Client Comptoir',
+                        customerPhone: customerPhone,
+                        receiptId: newReceipt.id
+                    });
+                    setShowInvoice(true);
+                } else {
+                    showToast('⏳ Vente enregistrée hors-ligne (sera synchronisée).');
+                }
+                
+                setCart([]);
+                setCustomerName('');
+                setCustomerPhone('');
+                setAmountReceived('');
+                setIsFacturing(false);
+                return;
+            }
+
+            // EN LIGNE
             // 1. Create the receipt
             const { data: receiptData, error: receiptError } = await supabase
                 .from('receipts')
