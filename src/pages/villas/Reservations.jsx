@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
-import { Plus, X, Calendar, Home, Users, Search } from 'lucide-react';
+import { Plus, X, Calendar, Home, Users, Search, Edit2, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
@@ -10,13 +10,15 @@ export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
+    const [editingBooking, setEditingBooking] = useState(null);
     
     // Form state
     const [formData, setFormData] = useState({ 
         villa_id: '', 
         customer_name: '', 
         start_date: '', 
-        end_date: '' 
+        end_date: '',
+        status: 'provisoire'
     });
 
     const { data: villas = [] } = useQuery({
@@ -74,6 +76,43 @@ export const Reservations = () => {
         }
     });
 
+    const updateBookingMutation = useMutation({
+        mutationFn: async ({ id, ...updates }) => {
+            const { data, error } = await supabase
+                .from('bookings')
+                .update(updates)
+                .eq('id', id)
+                .select();
+            if (error) throw error;
+            return data;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['bookings']);
+            setIsAddOpen(false);
+            setEditingBooking(null);
+            setFormData({ villa_id: '', customer_name: '', start_date: '', end_date: '', status: 'provisoire' });
+            toast.success('Réservation modifiée avec succès !');
+        }
+    });
+
+    const deleteBookingMutation = useMutation({
+        mutationFn: async (id) => {
+            const { error } = await supabase
+                .from('bookings')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+            return id;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries(['bookings']);
+            toast.success('Réservation supprimée avec succès !');
+        },
+        onError: () => {
+            toast.error('Erreur lors de la suppression.');
+        }
+    });
+
     const handleSubmit = (e) => {
         e.preventDefault();
         const totalPrice = getCalculatedPrice();
@@ -83,14 +122,44 @@ export const Reservations = () => {
             return;
         }
 
-        addBookingMutation.mutate({
-            villa_id: formData.villa_id,
-            customer_name: formData.customer_name,
-            start_date: formData.start_date,
-            end_date: formData.end_date,
-            total_price: totalPrice,
-            status: 'confirmed'
+        if (editingBooking) {
+            updateBookingMutation.mutate({
+                id: editingBooking.id,
+                villa_id: formData.villa_id,
+                customer_name: formData.customer_name,
+                start_date: formData.start_date,
+                end_date: formData.end_date,
+                total_price: totalPrice,
+                status: formData.status
+            });
+        } else {
+            addBookingMutation.mutate({
+                villa_id: formData.villa_id,
+                customer_name: formData.customer_name,
+                start_date: formData.start_date,
+                end_date: formData.end_date,
+                total_price: totalPrice,
+                status: formData.status
+            });
+        }
+    };
+
+    const handleEdit = (booking) => {
+        setEditingBooking(booking);
+        setFormData({
+            villa_id: booking.villa_id,
+            customer_name: booking.customer_name,
+            start_date: booking.start_date,
+            end_date: booking.end_date,
+            status: booking.status || 'provisoire'
         });
+        setIsAddOpen(true);
+    };
+
+    const handleDelete = (booking) => {
+        if (window.confirm(`Êtes-vous sûr de vouloir supprimer la réservation de ${booking.customer_name} ?`)) {
+            deleteBookingMutation.mutate(booking.id);
+        }
     };
 
     return (
@@ -102,7 +171,11 @@ export const Reservations = () => {
                 </div>
                 <div className="flex gap-3">
                     <button 
-                        onClick={() => setIsAddOpen(true)}
+                        onClick={() => {
+                            setEditingBooking(null);
+                            setFormData({ villa_id: '', customer_name: '', start_date: '', end_date: '', status: 'provisoire' });
+                            setIsAddOpen(true);
+                        }}
                         className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-premium"
                     >
                         <Plus className="w-5 h-5" /> Nouvelle Réservation
@@ -124,6 +197,7 @@ export const Reservations = () => {
                                 <th className="px-6 py-4 font-semibold">Période</th>
                                 <th className="px-6 py-4 font-semibold">Montant Total</th>
                                 <th className="px-6 py-4 font-semibold text-center">Statut</th>
+                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
@@ -137,7 +211,7 @@ export const Reservations = () => {
                                 </tr>
                             ) : bookings.length === 0 ? (
                                 <tr>
-                                    <td colSpan="5" className="px-6 py-16 text-center">
+                                    <td colSpan="6" className="px-6 py-16 text-center">
                                         <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
                                             <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                                         </div>
@@ -169,11 +243,29 @@ export const Reservations = () => {
                                         </td>
                                         <td className="px-6 py-4 text-center">
                                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 
-                                                booking.status === 'pending' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
+                                                booking.status === 'confirmed' || booking.status === 'confirmé' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 
+                                                booking.status === 'provisoire' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
                                             }`}>
                                                 {booking.status === 'confirmed' ? 'Confirmé' : booking.status}
                                             </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleEdit(booking); }}
+                                                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                                                    title="Modifier"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); handleDelete(booking); }}
+                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                                    title="Supprimer"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -199,7 +291,9 @@ export const Reservations = () => {
                             className="bg-panel rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-border-theme"
                         >
                             <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
-                                <h2 className="text-xl font-bold text-primary">Nouvelle Réservation</h2>
+                                <h2 className="text-xl font-bold text-primary">
+                                    {editingBooking ? 'Modifier la réservation' : 'Nouvelle Réservation'}
+                                </h2>
                                 <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
@@ -253,6 +347,19 @@ export const Reservations = () => {
                                     </div>
                                 </div>
                                 
+                                <div>
+                                    <label className="block text-sm font-medium text-primary mb-1">Statut</label>
+                                    <select 
+                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
+                                        value={formData.status}
+                                        onChange={e => setFormData({...formData, status: e.target.value})}
+                                    >
+                                        <option value="provisoire">Provisoire</option>
+                                        <option value="confirmé">Confirmé</option>
+                                        <option value="annulé">Annulé</option>
+                                    </select>
+                                </div>
+                                
                                 {formData.villa_id && formData.start_date && formData.end_date && (
                                     <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl mt-4 border border-indigo-100 dark:border-indigo-500/20">
                                         <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-400">
@@ -263,8 +370,8 @@ export const Reservations = () => {
                                 )}
 
                                 <div className="pt-4">
-                                    <button type="submit" disabled={addBookingMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
-                                        {addBookingMutation.isPending ? 'Confirmation...' : 'Confirmer la réservation'}
+                                    <button type="submit" disabled={addBookingMutation.isPending || updateBookingMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
+                                        {addBookingMutation.isPending || updateBookingMutation.isPending ? 'Confirmation...' : (editingBooking ? 'Enregistrer les modifications' : 'Confirmer la réservation')}
                                     </button>
                                 </div>
                             </form>
