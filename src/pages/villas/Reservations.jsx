@@ -197,7 +197,7 @@ export const Reservations = () => {
                                 <th className="px-6 py-4 font-semibold">Période</th>
                                 <th className="px-6 py-4 font-semibold">Montant Total</th>
                                 <th className="px-6 py-4 font-semibold text-center">Statut</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                                <th className="px-6 py-4 font-semibold text-center">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
@@ -249,8 +249,8 @@ export const Reservations = () => {
                                                 {booking.status === 'confirmed' ? 'Confirmé' : booking.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
+                                        <td className="px-6 py-4 text-center">
+                                            <div className="flex justify-center gap-2">
                                                 <button 
                                                     onClick={(e) => { e.stopPropagation(); handleEdit(booking); }}
                                                     className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"

@@ -173,25 +173,27 @@ export const Villas = () => {
                             <p className="text-secondary text-sm mb-4 flex-1 flex items-center gap-2">
                                 <MapPin className="w-4 h-4 text-slate-400" /> {villa.address || 'Aucune adresse renseignée'}
                             </p>
-                            <div className="pt-4 border-t border-slate-100 dark:border-border-theme flex justify-between items-center">
-                                <span className="text-secondary text-sm font-medium">Prix / Nuit</span>
-                                <span className="font-bold text-accent text-lg">{villa.price_per_night.toLocaleString('fr-FR')} F</span>
-                            </div>
-                            <div className="pt-4 mt-2 border-t border-slate-100 dark:border-border-theme flex justify-end gap-2">
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleEdit(villa); }}
-                                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                                    title="Modifier la villa"
-                                >
-                                    <Edit2 className="w-4 h-4" />
-                                </button>
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); handleDelete(villa); }}
-                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                    title="Supprimer la villa"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
+                            <div className="pt-4 border-t border-slate-100 dark:border-border-theme flex justify-between items-end">
+                                <div>
+                                    <span className="text-secondary text-xs font-medium block mb-1">Prix / Nuit</span>
+                                    <span className="font-bold text-accent text-lg leading-none">{villa.price_per_night.toLocaleString('fr-FR')} F</span>
+                                </div>
+                                <div className="flex gap-1">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleEdit(villa); }}
+                                        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                                        title="Modifier la villa"
+                                    >
+                                        <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(villa); }}
+                                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                        title="Supprimer la villa"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     ))
