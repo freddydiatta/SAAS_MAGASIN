@@ -14,11 +14,17 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
         try {
             const element = invoiceRef.current;
             const fileName = `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}.pdf`;
+            
+            // Force desktop width for consistent A4 formatting on mobile
+            element.classList.remove('w-full');
+            element.style.width = '800px';
+            element.style.maxWidth = 'none';
+
             const opt = {
                 margin:       10,
                 filename:     fileName,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
+                html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
 
@@ -47,6 +53,11 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
         } catch (error) {
             console.error('Erreur lors de la génération du PDF:', error);
         } finally {
+            if (invoiceRef.current) {
+                invoiceRef.current.style.width = '';
+                invoiceRef.current.style.maxWidth = '';
+                invoiceRef.current.classList.add('w-full');
+            }
             setIsGenerating(false);
         }
     };
