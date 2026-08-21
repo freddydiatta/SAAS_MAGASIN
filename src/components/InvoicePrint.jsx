@@ -1,23 +1,20 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useReactToPrint } from 'react-to-print';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
-    const invoiceRef = useRef(null);
     
     if (!invoiceDetails || !business) return null;
 
-    const handlePrint = useReactToPrint({
-        content: () => invoiceRef.current,
-        documentTitle: `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}`,
-    });
+    const handlePrint = () => {
+        window.print();
+    };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8">
-            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 print:static print:inset-auto print:bg-white print:p-0 print:block">
+            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative print:w-full print:max-w-none print:h-auto print:rounded-none print:shadow-none print:border-none print:block print:overflow-visible">
                 {/* Actions (Hidden on Print) */}
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-wrap gap-4">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-wrap gap-4 print:hidden">
                     <button onClick={onClose} className="btn-secondary px-5 py-2.5">
                         ← Fermer
                     </button>
@@ -27,11 +24,8 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                 </div>
 
                 {/* Printable Invoice Area */}
-                <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-slate-100 flex justify-center">
-                    <div 
-                        ref={invoiceRef} 
-                        className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:w-[800px] print:max-w-none print:shadow-none print:border-none print:m-0"
-                    >
+                <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-slate-100 flex justify-center print:overflow-visible print:bg-white print:p-0 print:block">
+                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:w-full print:max-w-none print:shadow-none print:border-none print:m-0 print:p-4">
                         {/* Header */}
                         <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                             <div>

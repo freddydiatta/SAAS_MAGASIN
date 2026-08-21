@@ -227,8 +227,8 @@ export const DashboardLayout = () => {
                 </header>
 
                 {/* Page Content (with top padding to account for absolute header) */}
-                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pt-28 md:pt-32">
-                    <div className="max-w-6xl mx-auto">
+                <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pt-28 md:pt-32 print:p-0 print:overflow-visible print:block">
+                    <div className="max-w-6xl mx-auto print:max-w-none">
                         <Outlet />
                     </div>
                 </main>
