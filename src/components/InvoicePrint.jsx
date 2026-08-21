@@ -2,6 +2,8 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useReactToPrint } from 'react-to-print';
+import { useRef } from 'react';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
@@ -10,10 +12,13 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
     const receiptIdStr = invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
 
-    // Native browser print (ideal for Desktop and receipt printers)
-    const handleNativePrint = () => {
-        window.print();
-    };
+    const componentRef = useRef();
+
+    // Native browser print via react-to-print (ideal for Desktop and receipt printers)
+    const handleNativePrint = useReactToPrint({
+        content: () => componentRef.current,
+        documentTitle: `Facture_${receiptIdStr}`,
+    });
 
     // PDF Generation (ideal for Mobile and sharing)
     const handlePDFGenerate = () => {
@@ -208,7 +213,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
                 {/* Printable Invoice Area (UI only) */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-16 bg-slate-100 flex justify-center print:overflow-visible print:bg-white print:p-0 print:block">
-                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10 print:w-full print:max-w-none print:shadow-none print:border-none print:m-0 print:p-4">
+                    <div ref={componentRef} className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10 print:w-full print:max-w-none print:shadow-none print:border-none print:m-0 print:p-4">
                         {/* Header */}
                         <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                             <div>
