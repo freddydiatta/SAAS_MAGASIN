@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
-    const [isGenerating, setIsGenerating] = useState(false);
     
     if (!invoiceDetails || !business) return null;
 
     const receiptIdStr = invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
 
-    const handlePrint = async () => {
-        setIsGenerating(true);
+    const handlePrint = () => {
         try {
             const doc = new jsPDF({ format: 'a4' });
             
@@ -147,37 +145,34 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             const fileName = `Facture_${receiptIdStr}.pdf`;
             const pdfBlob = doc.output('blob');
             
+            // 1. Try Native Share API (ideal for mobile)
             if (navigator.share && navigator.canShare) {
                 const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
                 if (navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            title: 'Facture',
-                            files: [file]
-                        });
-                        setIsGenerating(false);
-                        return;
-                    } catch (error) {
-                        console.log('Partage annule:', error);
-                        // continue to fallback if share was cancelled or failed
-                    }
+                    navigator.share({
+                        title: 'Facture',
+                        files: [file]
+                    }).catch(err => console.log('Partage annule:', err));
+                    return; // Stop here if share was triggered
                 }
             }
 
-            // Fallback download for mobile/desktop
+            // 2. Fallback for iOS Safari or Desktop
             const blobUrl = URL.createObjectURL(pdfBlob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+            
+            // We try to open in a new tab (bypasses popup blocker because it's synchronous)
+            const newWin = window.open(blobUrl, '_blank');
+            
+            if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
+                // 3. If popup was blocked, fallback to native save
+                doc.save(fileName);
+            }
+            
+            // Cleanup
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 
         } catch (error) {
             console.error('Erreur PDF:', error);
-        } finally {
-            setIsGenerating(false);
         }
     };
 
@@ -191,10 +186,9 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                     </button>
                     <button 
                         onClick={handlePrint} 
-                        disabled={isGenerating}
-                        className={`btn-primary px-5 py-2.5 flex items-center gap-2 ${isGenerating ? 'opacity-70 cursor-wait' : ''}`}
+                        className="btn-primary px-5 py-2.5 flex items-center gap-2"
                     >
-                        {isGenerating ? '⏳ Création du PDF...' : '📄 Télécharger / Partager en PDF'}
+                        📄 Télécharger / Partager en PDF
                     </button>
                 </div>
 
