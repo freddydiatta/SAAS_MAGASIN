@@ -1,5 +1,5 @@
 import { get, set } from 'idb-keyval';
-import { supabase } from '../lib/supabase';
+import { processSale } from './salesService';
 
 const OFFLINE_SALES_KEY = 'offline_sales';
 
@@ -44,37 +44,35 @@ export const syncOfflineSales = async (queryClient) => {
     
     console.log(`Synchronisation de ${offlineSales.length} ventes hors-ligne...`);
     let syncedCount = 0;
-    
+    const failedSales = [];
+
     for (const receipt of offlineSales) {
         try {
             // Créée via la même fonction transactionnelle que la caisse en ligne
             // (process_sale) : insertion du reçu, des lignes de vente et décrément
             // du stock en une seule opération atomique côté base de données.
-            const { error: saleError } = await supabase.rpc('process_sale', {
-                p_business_id: receipt.business_id,
-                p_customer_name: receipt.customer_name,
-                p_customer_phone: receipt.customer_phone,
-                p_payment_method: receipt.payment_method || 'cash',
-                p_items: receipt.sales.map(sale => ({ product_id: sale.product_id, quantity: sale.quantity })),
-                p_created_at: receipt.created_at
+            const { error: saleError } = await processSale({
+                businessId: receipt.business_id,
+                customerName: receipt.customer_name,
+                customerPhone: receipt.customer_phone,
+                paymentMethod: receipt.payment_method || 'cash',
+                items: receipt.sales.map(sale => ({ product_id: sale.product_id, quantity: sale.quantity })),
+                createdAt: receipt.created_at
             });
 
             if (saleError) throw saleError;
             syncedCount++;
         } catch (e) {
             console.error("Erreur lors de la synchronisation de la vente:", e);
+            failedSales.push(receipt);
         }
     }
-    
-    // Si toutes les ventes ont été synchronisées, on vide la file d'attente
-    if (syncedCount === offlineSales.length) {
-        await set(OFFLINE_SALES_KEY, []);
-    } else {
-        // Sinon, on garde seulement celles qui ont échoué
-        const remaining = offlineSales.slice(syncedCount);
-        await set(OFFLINE_SALES_KEY, remaining);
-    }
-    
+
+    // On ne garde en file d'attente que les ventes qui ont réellement échoué
+    // (l'ordre de la boucle n'a pas d'importance, contrairement à un slice
+    // basé sur le nombre de succès).
+    await set(OFFLINE_SALES_KEY, failedSales);
+
     if (syncedCount > 0 && queryClient) {
         // Rafraîchir le cache pour afficher les vraies IDs générées par Supabase
         queryClient.invalidateQueries(['receipts']);
