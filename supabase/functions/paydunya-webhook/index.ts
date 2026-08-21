@@ -22,7 +22,10 @@ serve(async (req) => {
     
     if (payload.hash !== expectedHash) {
        console.error("Invalid Hash!");
-       // return new Response("Invalid Hash", { status: 400 }); // Uncomment to enforce
+       return new Response(JSON.stringify({ error: "Invalid Hash" }), {
+         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+         status: 400
+       });
     }
 
     const transactionStatus = payload.status;

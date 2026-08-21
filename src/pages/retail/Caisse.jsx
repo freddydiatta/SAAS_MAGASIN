@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -44,49 +44,7 @@ export const Caisse = () => {
         enabled: !!selectedBusiness
     });
 
-    const createSaleMutation = useMutation({
-        mutationFn: async (saleData) => {
-            // In a real robust system, we would do this in a transaction or Edge Function
-            // 1. Create sale record
-            const { data: sale, error: saleError } = await supabase
-                .from('sales')
-                .insert([{
-                    business_id: selectedBusiness.id,
-                    product_id: saleData.items[0].id, // Simplified: assuming one item per sale for this MVP schema, or we map over items
-                    quantity: saleData.items[0].quantity,
-                    total_price: saleData.total
-                }])
-                .select()
-                .single();
-            
-            if (saleError) throw saleError;
-
-            // 2. Update stock for the first item
-            const item = saleData.items[0];
-            const product = products.find(p => p.id === item.id);
-            if (product) {
-                const { error: updateError } = await supabase
-                    .from('products')
-                    .update({ stock_quantity: product.stock_quantity - item.quantity })
-                    .eq('id', product.id);
-                if (updateError) throw updateError;
-            }
-
-            return sale;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['products']);
-            queryClient.invalidateQueries(['sales']);
-            setCart([]);
-            toast.success('Vente validée avec succès !');
-        },
-        onError: (error) => {
-            console.error('Erreur lors de la vente:', error.message);
-            toast.error('Erreur lors de la vente. Veuillez réessayer.');
-        }
-    });
-
-    const filteredProducts = products.filter(p => 
+    const filteredProducts = products.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -183,42 +141,22 @@ export const Caisse = () => {
             }
 
             // EN LIGNE
-            // 1. Create the receipt
-            const { data: receiptData, error: receiptError } = await supabase
-                .from('receipts')
-                .insert([{
-                    business_id: selectedBusiness.id,
-                    customer_name: withInvoice ? customerName : null,
-                    customer_phone: withInvoice ? customerPhone : null,
-                    total_amount: cartTotal,
-                    status: 'completed',
-                    payment_method: paymentMethod
-                }])
-                .select()
-                .single();
-                
+            // Création de la vente (reçu + lignes + décrément du stock) en une seule
+            // transaction côté base de données, pour éviter tout état incohérent si
+            // une étape échoue en cours de route, et pour empêcher la survente en cas
+            // de ventes concurrentes (voir supabase/patches/2026-08-21_critical_fixes.sql).
+            const { data: receiptData, error: receiptError } = await supabase.rpc('process_sale', {
+                p_business_id: selectedBusiness.id,
+                p_customer_name: withInvoice ? customerName : null,
+                p_customer_phone: withInvoice ? customerPhone : null,
+                p_payment_method: paymentMethod,
+                p_items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
+            });
+
             if (receiptError) throw receiptError;
-            
+
             const receiptId = receiptData.id;
 
-            // 2. Insert sales (line items) and update stock
-            for (const item of cart) {
-                await supabase.from('sales').insert([{
-                    business_id: selectedBusiness.id,
-                    receipt_id: receiptId,
-                    product_id: item.id,
-                    quantity: item.quantity,
-                    total_price: item.price * item.quantity
-                }]);
-                
-                const product = products.find(p => p.id === item.id);
-                if (product) {
-                    await supabase.from('products').update({ 
-                        stock_quantity: product.stock_quantity - item.quantity 
-                    }).eq('id', item.id);
-                }
-            }
-            
             // Optimistic update for immediate dashboard reflection
             const onlineNewSales = cart.map(item => ({
                 id: 'temp-sale-' + Date.now() + Math.random(),
@@ -242,7 +180,7 @@ export const Caisse = () => {
             if (withInvoice) {
                 setLastSaleDetails({
                     items: [...cart],
-                    total: cartTotal,
+                    total: receiptData.total_amount,
                     date: new Date(),
                     customerName: customerName || 'Client Comptoir',
                     customerPhone: customerPhone,
@@ -252,7 +190,7 @@ export const Caisse = () => {
             } else {
                 showToast('✅ Vente encaissée avec succès !');
             }
-            
+
             setCart([]);
             setCustomerName('');
             setCustomerPhone('');

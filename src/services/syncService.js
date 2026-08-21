@@ -47,37 +47,19 @@ export const syncOfflineSales = async (queryClient) => {
     
     for (const receipt of offlineSales) {
         try {
-            // 1. Insert Receipt
-            const { data: dbReceipt, error: receiptError } = await supabase.from('receipts').insert([{
-                 business_id: receipt.business_id,
-                 customer_name: receipt.customer_name,
-                 customer_phone: receipt.customer_phone,
-                 total_amount: receipt.total_amount,
-                 status: 'completed',
-                 payment_method: receipt.payment_method || 'cash',
-                 created_at: receipt.created_at
-            }]).select().single();
-            
-            if (receiptError) throw receiptError;
-            
-            // 2. Insert Sales
-            for (const sale of receipt.sales) {
-                 await supabase.from('sales').insert([{
-                     business_id: receipt.business_id,
-                     receipt_id: dbReceipt.id,
-                     product_id: sale.product_id,
-                     quantity: sale.quantity,
-                     total_price: sale.total_price
-                 }]);
-                 
-                 // 3. Update online stock
-                 const { data: p } = await supabase.from('products').select('stock_quantity').eq('id', sale.product_id).single();
-                 if (p) {
-                     await supabase.from('products')
-                        .update({ stock_quantity: p.stock_quantity - sale.quantity })
-                        .eq('id', sale.product_id);
-                 }
-            }
+            // Créée via la même fonction transactionnelle que la caisse en ligne
+            // (process_sale) : insertion du reçu, des lignes de vente et décrément
+            // du stock en une seule opération atomique côté base de données.
+            const { error: saleError } = await supabase.rpc('process_sale', {
+                p_business_id: receipt.business_id,
+                p_customer_name: receipt.customer_name,
+                p_customer_phone: receipt.customer_phone,
+                p_payment_method: receipt.payment_method || 'cash',
+                p_items: receipt.sales.map(sale => ({ product_id: sale.product_id, quantity: sale.quantity })),
+                p_created_at: receipt.created_at
+            });
+
+            if (saleError) throw saleError;
             syncedCount++;
         } catch (e) {
             console.error("Erreur lors de la synchronisation de la vente:", e);

@@ -39,53 +39,14 @@ export const HistoriqueVentes = () => {
 
     const cancelReceiptMutation = useMutation({
         mutationFn: async (receipt) => {
-            // Check if already cancelled
-            const { data: latestReceipt } = await supabase
-                .from('receipts')
-                .select('status')
-                .eq('id', receipt.id)
-                .single();
-                
-            if (latestReceipt?.status === 'cancelled') {
-                throw new Error("Cette vente est déjà annulée.");
-            }
-
-            // 1. Update receipt status
-            const { error: receiptError } = await supabase
-                .from('receipts')
-                .update({ status: 'cancelled' })
-                .eq('id', receipt.id);
-            if (receiptError) throw receiptError;
-
-            // 2. Restore stock for each item
-            for (const sale of receipt.sales) {
-                if (!sale.product_id) continue;
-                
-                // Fetch current stock first
-                const { data: productData, error: productFetchError } = await supabase
-                    .from('products')
-                    .select('stock_quantity')
-                    .eq('id', sale.product_id)
-                    .single();
-                    
-                if (productFetchError || !productData) continue;
-
-                // Update stock
-                await supabase
-                    .from('products')
-                    .update({ stock_quantity: productData.stock_quantity + sale.quantity })
-                    .eq('id', sale.product_id);
-            }
-
-            // 3. Log Audit
-            const { error: auditError } = await supabase.from('audit_logs').insert([{
-                business_id: receipt.business_id,
-                user_email: user?.email || 'unknown',
-                action: 'CANCEL_SALE',
-                receipt_id: receipt.id,
-                details: { total_amount: receipt.total_amount }
-            }]);
-            if (auditError) console.error("Audit log failed:", auditError.message);
+            // Annulation + restauration du stock + audit log en une seule
+            // transaction côté base de données (voir cancel_sale dans
+            // supabase/patches/2026-08-21_critical_fixes.sql).
+            const { error } = await supabase.rpc('cancel_sale', {
+                p_receipt_id: receipt.id,
+                p_user_email: user?.email || 'unknown'
+            });
+            if (error) throw error;
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['receipts']);
@@ -143,56 +104,22 @@ export const HistoriqueVentes = () => {
 
     const modifyReceiptMutation = useMutation({
         mutationFn: async ({ receipt, items }) => {
-            let newTotalAmount = 0;
-            const auditDetails = { changes: [] };
-
-            for (const item of items) {
-                const qtyDiff = item.new_qty - item.original_qty;
-                const itemTotal = item.new_qty * item.price;
-                newTotalAmount += itemTotal;
-
-                if (qtyDiff !== 0) {
-                    auditDetails.changes.push({
-                        product: item.name,
-                        old_qty: item.original_qty,
-                        new_qty: item.new_qty
-                    });
-
-                    // Update sale
-                    await supabase.from('sales').update({ 
-                        quantity: item.new_qty,
-                        total_price: itemTotal
-                    }).eq('id', item.id);
-
-                    // Update stock
-                    if (item.product_id) {
-                        const { data: pData } = await supabase.from('products').select('stock_quantity').eq('id', item.product_id).single();
-                        if (pData) {
-                            await supabase.from('products').update({
-                                stock_quantity: pData.stock_quantity - qtyDiff
-                            }).eq('id', item.product_id);
-                        }
-                    }
-                }
-            }
-
-            if (newTotalAmount !== receipt.total_amount) {
-                await supabase.from('receipts').update({
-                    total_amount: newTotalAmount
-                }).eq('id', receipt.id);
-                auditDetails.old_total = receipt.total_amount;
-                auditDetails.new_total = newTotalAmount;
-            }
-
-            if (auditDetails.changes.length > 0) {
-                await supabase.from('audit_logs').insert([{
-                    business_id: receipt.business_id,
-                    user_email: user?.email || 'unknown',
-                    action: 'MODIFY_SALE',
-                    receipt_id: receipt.id,
-                    details: auditDetails
-                }]);
-            }
+            // Mise à jour des lignes de vente + ajustement du stock + audit log
+            // en une seule transaction côté base de données (voir modify_sale
+            // dans supabase/patches/2026-08-21_critical_fixes.sql).
+            const { error } = await supabase.rpc('modify_sale', {
+                p_receipt_id: receipt.id,
+                p_user_email: user?.email || 'unknown',
+                p_items: items.map(item => ({
+                    sale_id: item.id,
+                    product_id: item.product_id,
+                    name: item.name,
+                    original_qty: item.original_qty,
+                    new_qty: item.new_qty,
+                    price: item.price
+                }))
+            });
+            if (error) throw error;
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['receipts']);

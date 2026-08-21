@@ -36,8 +36,8 @@ CREATE TABLE public.products (
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     type TEXT,
-    price DECIMAL(10, 2),
-    stock_quantity INTEGER DEFAULT 0,
+    price DECIMAL(10, 2) CHECK (price >= 0),
+    stock_quantity INTEGER DEFAULT 0 CHECK (stock_quantity >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -56,7 +56,7 @@ CREATE TABLE public.receipts (
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     customer_name TEXT,
     customer_phone TEXT,
-    total_amount DECIMAL(10, 2) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL CHECK (total_amount >= 0),
     status TEXT DEFAULT 'completed', -- 'completed', 'cancelled'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -75,8 +75,8 @@ CREATE TABLE public.sales (
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     receipt_id UUID REFERENCES public.receipts(id) ON DELETE CASCADE,
     product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
-    quantity INTEGER NOT NULL,
-    total_price DECIMAL(10, 2) NOT NULL,
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -101,7 +101,7 @@ CREATE TABLE public.villas (
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     address TEXT,
-    price_per_night DECIMAL(10, 2) NOT NULL,
+    price_per_night DECIMAL(10, 2) NOT NULL CHECK (price_per_night >= 0),
     status TEXT DEFAULT 'available', -- 'available', 'maintenance'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -122,7 +122,7 @@ CREATE TABLE public.bookings (
     customer_name TEXT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
-    total_price DECIMAL(10, 2) NOT NULL,
+    total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0),
     status TEXT DEFAULT 'confirmed', -- 'pending', 'confirmed', 'cancelled'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -148,7 +148,7 @@ CREATE TABLE public.menu_items (
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'plat', -- 'plat', 'boisson', 'dessert', etc.
-    price DECIMAL(10, 2) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
     is_available BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -166,7 +166,7 @@ CREATE TABLE public.restaurant_orders (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     table_number TEXT,
-    total_amount DECIMAL(10, 2) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL CHECK (total_amount >= 0),
     status TEXT DEFAULT 'pending', -- 'pending', 'served', 'paid', 'cancelled'
     items JSONB NOT NULL DEFAULT '[]'::jsonb, -- Array of { menu_item_id, name, quantity, price }
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -249,28 +249,30 @@ CREATE TABLE public.commissions (
 ALTER TABLE public.commissions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Affiliates can view their commissions"
 ON public.commissions FOR SELECT USING (affiliate_id = auth.uid());
-- -   = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
- - -   9 .   R P C   F u n c t i o n s   :   A f f i l i a t i o n  
- - -   = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =  
- C R E A T E   O R   R E P L A C E   F U N C T I O N   r e g i s t e r _ r e f e r r a l ( r e f _ c o d e   t e x t )  
- R E T U R N S   v o i d   A S   \ $ \ $  
- D E C L A R E  
-         a f f _ i d   u u i d ;  
- B E G I N  
-         S E L E C T   i d   I N T O   a f f _ i d   F R O M   p u b l i c . a f f i l i a t e s   W H E R E   r e f e r r a l _ c o d e   =   r e f _ c o d e ;  
-         I F   a f f _ i d   I S   N O T   N U L L   T H E N  
-                 I N S E R T   I N T O   p u b l i c . r e f e r r a l s   ( a f f i l i a t e _ i d ,   r e f e r r e d _ u s e r _ i d ,   s t a t u s )  
-                 V A L U E S   ( a f f _ i d ,   a u t h . u i d ( ) ,   ' a c t i v e ' )  
-                 O N   C O N F L I C T   ( r e f e r r e d _ u s e r _ i d )   D O   N O T H I N G ;  
-         E N D   I F ;  
- E N D ;  
- \ $ \ $   L A N G U A G E   p l p g s q l   S E C U R I T Y   D E F I N E R ;  
- 
 -- ==========================================
--- 10. Tables Sp�cifiques : PAIEMENTS & ABONNEMENTS (SaaS)
+-- 9. RPC Functions : Affiliation
+-- ==========================================
+CREATE OR REPLACE FUNCTION register_referral(ref_code text)
+RETURNS void AS $$
+DECLARE
+    aff_id uuid;
+BEGIN
+    SELECT id INTO aff_id FROM public.affiliates WHERE referral_code = ref_code;
+    IF aff_id IS NOT NULL THEN
+        INSERT INTO public.referrals (affiliate_id, referred_user_id, status)
+        VALUES (aff_id, auth.uid(), 'active')
+        ON CONFLICT (referred_user_id) DO NOTHING;
+    END IF;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+GRANT EXECUTE ON FUNCTION public.register_referral(text) TO authenticated;
+
+-- ==========================================
+-- 10. Tables Sp�cifiques : PAIEMENTS & ABONNEMENTS (SaaS)
 -- ==========================================
 
--- Mise � jour de la table businesses pour g�rer les abonnements
+-- Mise � jour de la table businesses pour g�rer les abonnements
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'; -- 'active', 'past_due', 'canceled'
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_end_date TIMESTAMP WITH TIME ZONE DEFAULT (timezone('utc'::text, now()) + interval '14 days');
 
@@ -278,7 +280,7 @@ ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_end_date TIM
 CREATE TABLE IF NOT EXISTS public.payments (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
-    amount DECIMAL(10, 2) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount >= 0),
     status TEXT DEFAULT 'pending', -- 'pending', 'successful', 'failed'
     provider TEXT DEFAULT 'paydunya',
     transaction_id TEXT,
@@ -296,3 +298,217 @@ FOR SELECT USING (
 );
 
 -- Note: L'insertion et la modification des paiements se feront via une Edge Function Supabase (Service Role)
+
+-- ==========================================
+-- 11. RPC Functions : Ventes atomiques
+-- Remplacent les écritures multi-étapes faites côté client (insert
+-- puis update stock séparément), qui ne sont pas transactionnelles et
+-- exposent à des incohérences stock/ventes en cas d'échec partiel ou
+-- de ventes concurrentes.
+-- ==========================================
+
+CREATE OR REPLACE FUNCTION public.process_sale(
+    p_business_id uuid,
+    p_customer_name text,
+    p_customer_phone text,
+    p_payment_method text,
+    p_items jsonb, -- [{ "product_id": uuid, "quantity": int }, ...]
+    p_created_at timestamptz DEFAULT NULL
+)
+RETURNS public.receipts
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+    v_receipt public.receipts;
+    v_item jsonb;
+    v_product public.products%ROWTYPE;
+    v_qty integer;
+    v_total numeric := 0;
+BEGIN
+    IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
+        RAISE EXCEPTION 'Le panier est vide';
+    END IF;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_qty := (v_item->>'quantity')::integer;
+
+        SELECT * INTO v_product FROM public.products
+            WHERE id = (v_item->>'product_id')::uuid
+            AND business_id = p_business_id
+            FOR UPDATE;
+
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Produit introuvable: %', v_item->>'product_id';
+        END IF;
+
+        IF v_product.stock_quantity < v_qty THEN
+            RAISE EXCEPTION 'Stock insuffisant pour "%": disponible %, demandé %', v_product.name, v_product.stock_quantity, v_qty;
+        END IF;
+
+        v_total := v_total + (v_product.price * v_qty);
+    END LOOP;
+
+    INSERT INTO public.receipts (business_id, customer_name, customer_phone, total_amount, status, payment_method, created_at)
+    VALUES (
+        p_business_id, p_customer_name, p_customer_phone, v_total, 'completed', p_payment_method,
+        COALESCE(p_created_at, timezone('utc'::text, now()))
+    )
+    RETURNING * INTO v_receipt;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_qty := (v_item->>'quantity')::integer;
+        SELECT * INTO v_product FROM public.products WHERE id = (v_item->>'product_id')::uuid;
+
+        INSERT INTO public.sales (business_id, receipt_id, product_id, quantity, total_price)
+        VALUES (p_business_id, v_receipt.id, v_product.id, v_qty, v_product.price * v_qty);
+
+        UPDATE public.products SET stock_quantity = stock_quantity - v_qty WHERE id = v_product.id;
+    END LOOP;
+
+    RETURN v_receipt;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.process_sale(uuid, text, text, text, jsonb, timestamptz) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.cancel_sale(
+    p_receipt_id uuid,
+    p_user_email text
+)
+RETURNS public.receipts
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+    v_receipt public.receipts;
+    v_sale RECORD;
+BEGIN
+    SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Vente introuvable';
+    END IF;
+
+    IF v_receipt.status = 'cancelled' THEN
+        RAISE EXCEPTION 'Cette vente est déjà annulée.';
+    END IF;
+
+    UPDATE public.receipts SET status = 'cancelled' WHERE id = p_receipt_id;
+
+    FOR v_sale IN SELECT * FROM public.sales WHERE receipt_id = p_receipt_id
+    LOOP
+        IF v_sale.product_id IS NOT NULL THEN
+            UPDATE public.products
+                SET stock_quantity = stock_quantity + v_sale.quantity
+                WHERE id = v_sale.product_id;
+        END IF;
+    END LOOP;
+
+    INSERT INTO public.audit_logs (business_id, user_email, action, receipt_id, details)
+    VALUES (v_receipt.business_id, p_user_email, 'CANCEL_SALE', p_receipt_id, jsonb_build_object('total_amount', v_receipt.total_amount));
+
+    SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id;
+    RETURN v_receipt;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.cancel_sale(uuid, text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.modify_sale(
+    p_receipt_id uuid,
+    p_user_email text,
+    p_items jsonb -- [{ "sale_id": uuid, "product_id": uuid|null, "name": text, "original_qty": int, "new_qty": int, "price": numeric }]
+)
+RETURNS public.receipts
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+    v_receipt public.receipts;
+    v_item jsonb;
+    v_qty_diff integer;
+    v_new_qty integer;
+    v_item_total numeric;
+    v_new_total numeric := 0;
+    v_old_total numeric;
+    v_changes jsonb := '[]'::jsonb;
+BEGIN
+    SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Vente introuvable';
+    END IF;
+    v_old_total := v_receipt.total_amount;
+
+    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+    LOOP
+        v_new_qty := (v_item->>'new_qty')::integer;
+        v_item_total := v_new_qty * (v_item->>'price')::numeric;
+        v_new_total := v_new_total + v_item_total;
+        v_qty_diff := v_new_qty - (v_item->>'original_qty')::integer;
+
+        IF v_qty_diff <> 0 THEN
+            UPDATE public.sales
+                SET quantity = v_new_qty, total_price = v_item_total
+                WHERE id = (v_item->>'sale_id')::uuid;
+
+            IF (v_item->>'product_id') IS NOT NULL THEN
+                UPDATE public.products
+                    SET stock_quantity = stock_quantity - v_qty_diff
+                    WHERE id = (v_item->>'product_id')::uuid;
+            END IF;
+
+            v_changes := v_changes || jsonb_build_object(
+                'product', v_item->>'name',
+                'old_qty', (v_item->>'original_qty')::integer,
+                'new_qty', v_new_qty
+            );
+        END IF;
+    END LOOP;
+
+    IF v_new_total <> v_old_total THEN
+        UPDATE public.receipts SET total_amount = v_new_total WHERE id = p_receipt_id;
+    END IF;
+
+    IF jsonb_array_length(v_changes) > 0 THEN
+        INSERT INTO public.audit_logs (business_id, user_email, action, receipt_id, details)
+        VALUES (
+            v_receipt.business_id, p_user_email, 'MODIFY_SALE', p_receipt_id,
+            jsonb_build_object('changes', v_changes, 'old_total', v_old_total, 'new_total', v_new_total)
+        );
+    END IF;
+
+    SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id;
+    RETURN v_receipt;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.modify_sale(uuid, text, jsonb) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.adjust_stock(
+    p_product_id uuid,
+    p_change integer
+)
+RETURNS public.products
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+    v_product public.products;
+BEGIN
+    UPDATE public.products
+        SET stock_quantity = GREATEST(0, stock_quantity + p_change)
+        WHERE id = p_product_id
+        RETURNING * INTO v_product;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Produit introuvable';
+    END IF;
+
+    RETURN v_product;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.adjust_stock(uuid, integer) TO authenticated;

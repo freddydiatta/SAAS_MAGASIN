@@ -36,14 +36,17 @@ export const Motos = () => {
     );
 
     const updateStockMutation = useMutation({
-        mutationFn: async ({ id, currentStock, change }) => {
-            const newStock = Math.max(0, currentStock + change);
-            const { error } = await supabase
-                .from('products')
-                .update({ stock_quantity: newStock })
-                .eq('id', id);
+        mutationFn: async ({ id, change }) => {
+            // Ajustement atomique côté base de données (évite la race condition
+            // d'un "lire le stock puis écrire" fait depuis le client en cas de
+            // clics concurrents, voir adjust_stock dans
+            // supabase/patches/2026-08-21_critical_fixes.sql).
+            const { data, error } = await supabase.rpc('adjust_stock', {
+                p_product_id: id,
+                p_change: change
+            });
             if (error) throw error;
-            return { id, newStock };
+            return { id, newStock: data.stock_quantity };
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['motos']);
@@ -163,7 +166,7 @@ export const Motos = () => {
                                         <td className="p-4 text-center">
                                             <div className="flex items-center justify-center gap-3">
                                                 <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, currentStock: moto.stock_quantity, change: -1 })}
+                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, change: -1 })}
                                                     className="text-slate-400 hover:text-red-500 transition-colors"
                                                     title="Diminuer le stock"
                                                 >
@@ -173,7 +176,7 @@ export const Motos = () => {
                                                     {moto.stock_quantity}
                                                 </span>
                                                 <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, currentStock: moto.stock_quantity, change: 1 })}
+                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, change: 1 })}
                                                     className="text-slate-400 hover:text-emerald-500 transition-colors"
                                                     title="Augmenter le stock"
                                                 >
