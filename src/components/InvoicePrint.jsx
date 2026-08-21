@@ -1,88 +1,37 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import html2pdf from 'html2pdf.js';
+import { useReactToPrint } from 'react-to-print';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
     const invoiceRef = useRef(null);
-    const [isGenerating, setIsGenerating] = useState(false);
     
     if (!invoiceDetails || !business) return null;
 
-    const handleDownloadPDF = async () => {
-        setIsGenerating(true);
-        try {
-            const element = invoiceRef.current;
-            const fileName = `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}.pdf`;
-            
-            // Force desktop width for consistent A4 formatting on mobile
-            element.classList.remove('w-full');
-            element.style.width = '800px';
-            element.style.maxWidth = 'none';
-
-            const opt = {
-                margin:       10,
-                filename:     fileName,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: 800 },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-
-            const pdfWorker = html2pdf().set(opt).from(element);
-            
-            // Web Share API for mobile devices
-            if (navigator.share && navigator.canShare) {
-                const pdfBlob = await pdfWorker.output('blob');
-                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-                if (navigator.canShare({ files: [file] })) {
-                    try {
-                        await navigator.share({
-                            title: 'Facture',
-                            files: [file]
-                        });
-                        setIsGenerating(false);
-                        return;
-                    } catch (error) {
-                        console.log('Partage annulé ou échoué:', error);
-                    }
-                }
-            }
-            
-            // Fallback for desktop or if Web Share API fails
-            await pdfWorker.save();
-        } catch (error) {
-            console.error('Erreur lors de la génération du PDF:', error);
-        } finally {
-            if (invoiceRef.current) {
-                invoiceRef.current.style.width = '';
-                invoiceRef.current.style.maxWidth = '';
-                invoiceRef.current.classList.add('w-full');
-            }
-            setIsGenerating(false);
-        }
-    };
+    const handlePrint = useReactToPrint({
+        content: () => invoiceRef.current,
+        documentTitle: `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}`,
+    });
 
     return (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 print:p-0 print:block">
-            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative print:fixed print:inset-0 print:h-screen print:w-screen print:z-[100] print:rounded-none print:border-none print:bg-white">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8">
+            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative">
                 {/* Actions (Hidden on Print) */}
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center print:hidden bg-slate-50 flex-wrap gap-4">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-wrap gap-4">
                     <button onClick={onClose} className="btn-secondary px-5 py-2.5">
                         ← Fermer
                     </button>
-                    <div className="flex gap-2">
-                        <button onClick={handleDownloadPDF} disabled={isGenerating} className={`btn-primary px-5 py-2.5 flex items-center gap-2 ${isGenerating ? 'opacity-70 cursor-wait' : ''}`}>
-                            {isGenerating ? '⏳ Création...' : '📄 Télécharger PDF'}
-                        </button>
-                        <button onClick={() => window.print()} className="btn-secondary px-5 py-2.5 flex items-center gap-2">
-                            🖨️ Imprimer
-                        </button>
-                    </div>
+                    <button onClick={handlePrint} className="btn-primary px-5 py-2.5 flex items-center gap-2">
+                        🖨️ Imprimer / Sauvegarder en PDF
+                    </button>
                 </div>
 
                 {/* Printable Invoice Area */}
-                <div className="flex-1 overflow-y-auto p-8 md:p-16 print:p-10 print:overflow-visible bg-slate-100 print:bg-white flex justify-center">
-                    <div ref={invoiceRef} className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:border-none print:shadow-none print:p-0 print:w-full">
+                <div className="flex-1 overflow-y-auto p-8 md:p-16 bg-slate-100 flex justify-center">
+                    <div 
+                        ref={invoiceRef} 
+                        className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:w-[800px] print:max-w-none print:shadow-none print:border-none print:m-0"
+                    >
                         {/* Header */}
                         <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                             <div>
