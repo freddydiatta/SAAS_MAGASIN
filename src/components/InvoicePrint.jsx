@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
@@ -16,6 +16,9 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
         try {
             const doc = new jsPDF({ format: 'a4' });
             
+            // Set default font
+            doc.setFont('helvetica');
+
             // Header
             doc.setFontSize(22);
             doc.setTextColor(30, 41, 59); // text-primary
@@ -23,9 +26,9 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             
             doc.setFontSize(10);
             doc.setTextColor(100, 116, 139); // text-secondary
-            const bizType = business?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin';
+            const bizType = business?.type === 'pieces_moto' ? 'Pieces detachees et Accessoires' : 'Boutique / Magasin';
             doc.text(bizType, 14, 28);
-            if (business?.address) doc.text(`Localisation: ${business.address}`, 14, 34);
+            if (business?.address) doc.text(`Adresse: ${business.address}`, 14, 34);
             if (business?.phone) doc.text(`Tel: ${business.phone}`, 14, 40);
 
             // Facture info (Right side)
@@ -45,7 +48,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             // Customer Info
             doc.setFontSize(9);
             doc.setTextColor(148, 163, 184);
-            doc.text('FACTURE À', 14, 55);
+            doc.text('FACTURE A', 14, 55);
             doc.setFontSize(12);
             doc.setTextColor(30, 41, 59);
             doc.text(invoiceDetails.customerName || 'Client Comptoir', 14, 62);
@@ -80,7 +83,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                 ]);
             });
 
-            doc.autoTable({
+            autoTable(doc, {
                 startY: 80,
                 head: [tableColumn],
                 body: tableRows,
@@ -117,6 +120,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             doc.setTextColor(30, 41, 59);
             doc.text(`${Number(invoiceDetails.total).toLocaleString('fr-FR')} F`, 196, finalY + 10, { align: 'right' });
 
+            doc.setDrawColor(226, 232, 240);
             doc.line(140, finalY + 14, 196, finalY + 14);
 
             doc.setFontSize(12);
@@ -131,6 +135,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             doc.setTextColor(148, 163, 184);
             
             doc.text('Signature du Client', 40, finalY + 45, { align: 'center' });
+            doc.setDrawColor(203, 213, 225);
             doc.line(14, finalY + 65, 66, finalY + 65); 
 
             doc.text('Cachet / Signature Magasin', 160, finalY + 45, { align: 'center' });
@@ -140,9 +145,9 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
             // Save / Share
             const fileName = `Facture_${receiptIdStr}.pdf`;
+            const pdfBlob = doc.output('blob');
             
             if (navigator.share && navigator.canShare) {
-                const pdfBlob = doc.output('blob');
                 const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
                 if (navigator.canShare({ files: [file] })) {
                     try {
@@ -153,15 +158,22 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                         setIsGenerating(false);
                         return;
                     } catch (error) {
-                        console.log('Partage annulé:', error);
-                        // fallback to save if share is cancelled? maybe not necessary
+                        console.log('Partage annule:', error);
+                        // continue to fallback if share was cancelled or failed
                     }
-                } else {
-                    doc.save(fileName);
                 }
-            } else {
-                doc.save(fileName);
             }
+
+            // Fallback download for mobile/desktop
+            const blobUrl = URL.createObjectURL(pdfBlob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+
         } catch (error) {
             console.error('Erreur PDF:', error);
         } finally {
