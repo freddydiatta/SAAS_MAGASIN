@@ -4,9 +4,12 @@ import { supabase } from '../lib/supabase';
 
 const BusinessContext = createContext({});
 
-// Session propriétaire mise de côté pendant qu'un caissier est actif, pour
-// pouvoir "revenir" sans ressaisir email/mot de passe. En sessionStorage :
-// effacée à la fermeture de l'onglet, pas persistée entre appareils.
+// Email du propriétaire mis de côté pendant qu'un caissier est actif, pour
+// pré-remplir/valider le retour au compte propriétaire (qui redemande le
+// mot de passe — cf. switchBackToOwner). En sessionStorage : effacé à la
+// fermeture de l'onglet, pas persisté entre appareils. On ne stocke plus
+// les jetons de session ici : le retour au propriétaire ré-authentifie
+// réellement plutôt que de restaurer un jeton en mémoire.
 const OWNER_SESSION_KEY = 'gestionpro_owner_session';
 
 export const BusinessProvider = ({ children }) => {
@@ -88,33 +91,41 @@ export const BusinessProvider = ({ children }) => {
     };
 
     // Bascule la session vers le vrai compte du caissier (obtenu via
-    // cashierLogin) après vérification du PIN côté serveur. La session
-    // propriétaire en cours est mise de côté pour permettre d'y revenir.
+    // cashierLogin) après vérification du PIN côté serveur. L'email du
+    // propriétaire est mis de côté pour permettre le retour (qui redemande
+    // le mot de passe, cf. switchBackToOwner). La tentative de connexion
+    // (succès/échec de PIN) est déjà journalisée côté Edge Function
+    // cashier-login, pas besoin de le refaire ici.
     const switchToCashier = async ({ email, password }) => {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-            sessionStorage.setItem(OWNER_SESSION_KEY, JSON.stringify({
-                access_token: session.access_token,
-                refresh_token: session.refresh_token,
-            }));
+        if (session?.user?.email) {
+            sessionStorage.setItem(OWNER_SESSION_KEY, session.user.email);
         }
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
     };
 
-    const switchBackToOwner = async () => {
-        const stored = sessionStorage.getItem(OWNER_SESSION_KEY);
-        sessionStorage.removeItem(OWNER_SESSION_KEY);
-        if (!stored) {
+    // Redemande le mot de passe du propriétaire : ré-authentification
+    // réelle (pas de restauration silencieuse d'un jeton mis de côté), pour
+    // qu'un appareil laissé en mode caissier ne permette pas de revenir au
+    // compte propriétaire sans preuve d'identité.
+    const switchBackToOwner = async (password) => {
+        const ownerEmail = sessionStorage.getItem(OWNER_SESSION_KEY);
+        if (!ownerEmail) {
             await supabase.auth.signOut();
             return;
         }
-        const { access_token, refresh_token } = JSON.parse(stored);
-        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-        if (error) throw error;
+        const { error } = await supabase.auth.signInWithPassword({ email: ownerEmail, password });
+        if (error) {
+            await supabase.rpc('log_failed_login', { p_email: ownerEmail });
+            throw error;
+        }
+        sessionStorage.removeItem(OWNER_SESSION_KEY);
+        await supabase.rpc('log_login_success');
     };
 
     const hasOwnerSessionStashed = () => !!sessionStorage.getItem(OWNER_SESSION_KEY);
+    const getStashedOwnerEmail = () => sessionStorage.getItem(OWNER_SESSION_KEY);
 
     return (
         <BusinessContext.Provider value={{
@@ -127,7 +138,8 @@ export const BusinessProvider = ({ children }) => {
             isCashier: currentMember?.role === 'cashier',
             switchToCashier,
             switchBackToOwner,
-            hasOwnerSessionStashed
+            hasOwnerSessionStashed,
+            getStashedOwnerEmail
         }}>
             {children}
         </BusinessContext.Provider>

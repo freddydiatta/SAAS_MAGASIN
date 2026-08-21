@@ -4,10 +4,12 @@ import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
 import { BillingModal } from '../components/BillingModal';
 import { SwitchUserModal } from '../components/SwitchUserModal';
+import { ReturnToOwnerModal } from '../components/ReturnToOwnerModal';
 
 export const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isSwitchUserOpen, setIsSwitchUserOpen] = useState(false);
+    const [isReturnToOwnerOpen, setIsReturnToOwnerOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
         return localStorage.getItem('sidebarCollapsed') === 'true';
     });
@@ -16,17 +18,9 @@ export const DashboardLayout = () => {
     });
 
     const location = useLocation();
-    const { selectedBusiness, currentMember, isCashier, switchBackToOwner } = useBusiness();
+    const { selectedBusiness, currentMember, isCashier } = useBusiness();
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
-
-    const handleReturnToOwner = async () => {
-        try {
-            await switchBackToOwner();
-        } catch (error) {
-            console.error('Erreur lors du retour au compte propriétaire:', error.message);
-        }
-    };
 
     // Toggle Dark Mode
     useEffect(() => {
@@ -72,7 +66,6 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '🛒' },
                 { path: '/dashboard/stock', label: 'Stock / Articles', icon: '📦' },
                 { path: '/dashboard/historique', label: 'Historique', icon: '🕒' },
-                { path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' },
             ];
             if (type === 'pieces_moto') {
                 items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
@@ -80,8 +73,11 @@ export const DashboardLayout = () => {
             items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
         }
 
-        // Réservé au propriétaire : gestion du commerce et de l'équipe.
+        // Réservé au propriétaire : logs de sécurité et gestion du commerce/équipe.
         if (!isCashier) {
+            if (type !== 'villa' && type !== 'restaurant') {
+                items.push({ path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' });
+            }
             items.push({ path: '/dashboard/parametres', label: 'Paramètres', icon: '⚙️' });
         }
 
@@ -187,7 +183,7 @@ export const DashboardLayout = () => {
                                     Changer de magasin
                                 </Link>
                                 {isCashier ? (
-                                    <button onClick={handleReturnToOwner} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
+                                    <button onClick={() => setIsReturnToOwnerOpen(true)} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
                                         Revenir au propriétaire
                                     </button>
                                 ) : (
@@ -205,6 +201,7 @@ export const DashboardLayout = () => {
             </aside>
 
             <SwitchUserModal isOpen={isSwitchUserOpen} onClose={() => setIsSwitchUserOpen(false)} />
+            <ReturnToOwnerModal isOpen={isReturnToOwnerOpen} onClose={() => setIsReturnToOwnerOpen(false)} />
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible relative">

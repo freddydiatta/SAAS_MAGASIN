@@ -59,9 +59,10 @@ export const Login = () => {
             });
 
             if (error) {
+                supabase.rpc('log_failed_login', { p_email: data.email }).catch(() => {});
                 const newAttempts = failedAttempts + 1;
                 setFailedAttempts(newAttempts);
-                
+
                 if (newAttempts >= 5) {
                     setLockoutCountdown(60);
                     setAuthError("Trop de tentatives échouées. Veuillez patienter 60 secondes.");
@@ -70,6 +71,7 @@ export const Login = () => {
                 }
             } else {
                 setFailedAttempts(0);
+                supabase.rpc('log_login_success').catch(() => {});
                 navigate('/dashboard');
             }
         } catch (err) {

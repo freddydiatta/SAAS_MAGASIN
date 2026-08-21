@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
-import { ShieldAlert, ArrowRight } from 'lucide-react';
+import { ShieldAlert, ArrowRight, LogIn, XCircle, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const AuditLogs = () => {
@@ -31,6 +31,14 @@ export const AuditLogs = () => {
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Vente Annulée</span>;
             case 'MODIFY_SALE':
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Vente Modifiée</span>;
+            case 'LOGIN_SUCCESS':
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"><LogIn className="w-3 h-3" /> Connexion réussie</span>;
+            case 'LOGIN_FAILED':
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3" /> Connexion échouée</span>;
+            case 'LOGIN_FAILED_PIN':
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><XCircle className="w-3 h-3" /> Code PIN incorrect</span>;
+            case 'ACCOUNT_LOCKED':
+                return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-white"><Lock className="w-3 h-3" /> Compte verrouillé</span>;
             default:
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">{action}</span>;
         }
@@ -44,6 +52,28 @@ export const AuditLogs = () => {
             return (
                 <div className="text-sm">
                     Total annulé : <strong className="text-red-600">{details.total_amount?.toLocaleString('fr-FR')} FCFA</strong>
+                </div>
+            );
+        }
+
+        if (log.action === 'LOGIN_SUCCESS') {
+            return (
+                <div className="text-sm text-secondary">
+                    Connecté en tant que <strong className="text-primary">{details.role === 'owner' ? 'propriétaire' : 'caissier'}</strong>
+                </div>
+            );
+        }
+
+        if (log.action === 'LOGIN_FAILED') {
+            return <div className="text-sm text-secondary">Mot de passe incorrect.</div>;
+        }
+
+        if (log.action === 'LOGIN_FAILED_PIN' || log.action === 'ACCOUNT_LOCKED') {
+            return (
+                <div className="text-sm text-secondary">
+                    {details.reason === 'locked'
+                        ? 'Tentative pendant un verrouillage temporaire.'
+                        : `Code PIN incorrect${details.attempts ? ` (tentative n°${details.attempts})` : ''}.`}
                 </div>
             );
         }

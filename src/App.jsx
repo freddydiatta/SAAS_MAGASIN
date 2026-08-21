@@ -115,7 +115,11 @@ function App() {
                 <Route path="caisse" element={<Caisse />} />
                 <Route path="stock" element={<Stock />} />
                 <Route path="historique" element={<HistoriqueVentes />} />
-                <Route path="securite" element={<AuditLogs />} />
+                <Route path="securite" element={
+                  <RequireOwner>
+                    <AuditLogs />
+                  </RequireOwner>
+                } />
                 <Route path="motos" element={<Motos />} />
                 <Route path="calendrier" element={<Calendrier />} />
                 <Route path="villas" element={<Villas />} />

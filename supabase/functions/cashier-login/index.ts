@@ -99,6 +99,19 @@ serve(async (req) => {
       .eq('id', member_id)
       .maybeSingle()
     if (memberError) throw memberError
+
+    // Journalise une tentative de connexion caissier dans audit_logs (lu
+    // uniquement par le propriétaire). service_role : ignore la RLS.
+    const logAttempt = (action: string, details: Record<string, unknown> = {}) => {
+      if (!member) return
+      supabaseAdmin.from('audit_logs').insert({
+        business_id: member.business_id,
+        user_email: member.name,
+        action,
+        details,
+      }).then(() => {}, () => {})
+    }
+
     if (!member || !member.is_active) throw new Error('PIN invalide.')
 
     // Le compte qui initie le changement d'utilisateur doit déjà appartenir
@@ -120,6 +133,7 @@ serve(async (req) => {
     if (!callerBusiness && !callerMembership) throw new Error('PIN invalide.')
 
     if (member.locked_until && new Date(member.locked_until) > new Date()) {
+      logAttempt('LOGIN_FAILED_PIN', { reason: 'locked' })
       throw new Error('Trop de tentatives. Réessayez dans quelques minutes.')
     }
 
@@ -131,6 +145,9 @@ serve(async (req) => {
       if (attempts >= MAX_ATTEMPTS) {
         update.locked_until = new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString()
         update.failed_pin_attempts = 0
+        logAttempt('ACCOUNT_LOCKED', { attempts })
+      } else {
+        logAttempt('LOGIN_FAILED_PIN', { reason: 'wrong_pin', attempts })
       }
       await supabaseAdmin.from('business_members').update(update).eq('id', member.id)
       throw new Error('PIN invalide.')
@@ -140,6 +157,7 @@ serve(async (req) => {
       .from('business_members')
       .update({ failed_pin_attempts: 0, locked_until: null })
       .eq('id', member.id)
+    logAttempt('LOGIN_SUCCESS', { role: 'cashier' })
 
     const { email, password } = JSON.parse(await decryptText(member.encrypted_credentials))
 

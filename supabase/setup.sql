@@ -264,7 +264,7 @@ CREATE TABLE public.audit_logs (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     user_email TEXT,
-    action TEXT NOT NULL, -- e.g., 'CANCEL_SALE', 'MODIFY_SALE'
+    action TEXT NOT NULL, -- e.g., 'CANCEL_SALE', 'MODIFY_SALE', 'LOGIN_SUCCESS', 'LOGIN_FAILED_PIN'
     receipt_id UUID,
     details JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
@@ -272,11 +272,81 @@ CREATE TABLE public.audit_logs (
 
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
+-- Journal immuable : les membres (caissiers inclus) peuvent uniquement
+-- ajouter des entrées (ex. annulation de vente qu'ils effectuent eux-mêmes),
+-- mais seul le propriétaire peut les consulter. Aucune policy UPDATE/DELETE
+-- n'est définie : personne ne peut modifier ou effacer le journal via l'API.
 DROP POLICY IF EXISTS "Users can view and insert audit logs of their businesses" ON public.audit_logs;
 DROP POLICY IF EXISTS "Members can view and insert audit logs of their businesses" ON public.audit_logs;
-CREATE POLICY "Members can view and insert audit logs of their businesses"
+DROP POLICY IF EXISTS "Members can insert audit logs of their businesses" ON public.audit_logs;
+DROP POLICY IF EXISTS "Owner can view audit logs of their business" ON public.audit_logs;
+CREATE POLICY "Members can insert audit logs of their businesses"
 ON public.audit_logs
-FOR ALL USING (public.is_business_member(business_id));
+FOR INSERT WITH CHECK (public.is_business_member(business_id));
+CREATE POLICY "Owner can view audit logs of their business"
+ON public.audit_logs
+FOR SELECT USING (public.is_business_owner(business_id));
+
+-- Traçabilité des connexions : auth.audit_log_entries n'est pas fiable sur
+-- ce projet (stockage Postgres désactivé côté plateforme par défaut), donc
+-- on journalise nous-mêmes dans audit_logs via ces deux fonctions.
+CREATE OR REPLACE FUNCTION public.log_login_success()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_email text;
+    v_business RECORD;
+BEGIN
+    IF auth.uid() IS NULL THEN
+        RETURN;
+    END IF;
+
+    SELECT email INTO v_email FROM auth.users WHERE id = auth.uid();
+
+    FOR v_business IN
+        SELECT b.id, 'owner' AS role FROM public.businesses b WHERE b.user_id = auth.uid()
+        UNION ALL
+        SELECT bm.business_id, 'cashier' FROM public.business_members bm
+            WHERE bm.user_id = auth.uid() AND bm.is_active
+    LOOP
+        INSERT INTO public.audit_logs (business_id, user_email, action, details)
+        VALUES (v_business.id, v_email, 'LOGIN_SUCCESS', jsonb_build_object('role', v_business.role));
+    END LOOP;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.log_login_success() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.log_login_success() TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.log_login_success() FROM anon;
+
+CREATE OR REPLACE FUNCTION public.log_failed_login(p_email text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_user_id uuid;
+    v_business RECORD;
+BEGIN
+    SELECT id INTO v_user_id FROM auth.users WHERE email = lower(p_email) LIMIT 1;
+    IF v_user_id IS NULL THEN
+        RETURN;
+    END IF;
+
+    FOR v_business IN SELECT id FROM public.businesses WHERE user_id = v_user_id
+    LOOP
+        INSERT INTO public.audit_logs (business_id, user_email, action, details)
+        VALUES (v_business.id, p_email, 'LOGIN_FAILED', jsonb_build_object('role', 'owner'));
+    END LOOP;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.log_failed_login(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.log_failed_login(text) TO authenticated, anon;
 
 -- ==========================================
 -- 8. Tables Spécifiques : AFFILIATION
