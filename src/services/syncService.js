@@ -1,4 +1,5 @@
 import { get, set } from 'idb-keyval';
+import toast from 'react-hot-toast';
 import { processSale } from './salesService';
 
 const OFFLINE_SALES_KEY = 'offline_sales';
@@ -78,5 +79,17 @@ export const syncOfflineSales = async (queryClient) => {
         queryClient.invalidateQueries(['receipts']);
         queryClient.invalidateQueries(['products']);
         queryClient.invalidateQueries(['sales']);
+    }
+
+    if (syncedCount > 0) {
+        toast.success(`${syncedCount} vente${syncedCount > 1 ? 's' : ''} hors-ligne synchronisée${syncedCount > 1 ? 's' : ''}.`);
+    }
+    // Échec réel (ex. stock épuisé entre-temps) : sans ce message, la vente
+    // reste en attente indéfiniment sans que personne ne s'en aperçoive.
+    if (failedSales.length > 0) {
+        toast.error(
+            `${failedSales.length} vente${failedSales.length > 1 ? 's' : ''} hors-ligne n'a/n'ont pas pu être synchronisée${failedSales.length > 1 ? 's' : ''}. Nouvelle tentative au prochain retour en ligne.`,
+            { duration: 8000 }
+        );
     }
 };

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { BillingModal } from '../components/BillingModal';
 import { SwitchUserModal } from '../components/SwitchUserModal';
 import { ReturnToOwnerModal } from '../components/ReturnToOwnerModal';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 export const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -251,7 +252,13 @@ export const DashboardLayout = () => {
                 {/* Page Content (with top padding to account for absolute header) */}
                 <main className="flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-8 pt-28 md:pt-32 print:p-0 print:overflow-visible print:block">
                     <div className="max-w-6xl mx-auto print:max-w-none">
-                        <Outlet />
+                        {/* key={pathname} : si une page plante et qu'on répare en
+                            naviguant ailleurs, on ne reste pas coincé sur l'écran
+                            d'erreur (une frontière d'erreur ne se réinitialise pas
+                            toute seule quand son contenu change). */}
+                        <ErrorBoundary compact key={location.pathname}>
+                            <Outlet />
+                        </ErrorBoundary>
                     </div>
                 </main>
             </div>
