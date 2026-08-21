@@ -9,6 +9,7 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { BusinessProvider } from './contexts/BusinessContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { RequireOwner } from './components/RequireOwner';
 import { Landing } from './pages/Landing';
 import { DashboardLayout } from './layouts/DashboardLayout';
 import { Dashboard } from './pages/Dashboard';
@@ -27,6 +28,7 @@ import { Commandes } from './pages/restaurant/Commandes';
 import { Motos } from './pages/retail/Motos';
 import { Calendrier } from './pages/villas/Calendrier';
 import { AffiliateDashboard } from './pages/affiliate/AffiliateDashboard';
+import { Parametres } from './pages/settings/Parametres';
 import { syncOfflineSales } from './services/syncService';
 
 const queryClient = new QueryClient({
@@ -121,6 +123,11 @@ function App() {
                 <Route path="commandes" element={<Commandes />} />
                 <Route path="menu" element={<Menu />} />
                 <Route path="affiliation" element={<AffiliateDashboard />} />
+                <Route path="parametres" element={
+                  <RequireOwner>
+                    <Parametres />
+                  </RequireOwner>
+                } />
               </Route>
               </Routes>
             </Router>

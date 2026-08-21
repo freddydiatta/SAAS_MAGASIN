@@ -37,3 +37,10 @@ REVOKE EXECUTE ON FUNCTION public.cancel_sale(uuid, text) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.modify_sale(uuid, text, jsonb) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.adjust_stock(uuid, integer) FROM anon;
 REVOKE EXECUTE ON FUNCTION public.register_referral(text) FROM anon;
+
+-- Ajouté après la mise en place des rôles caissier (RBAC) : mêmes fonctions
+-- de vérification d'appartenance, même raison (accordé par défaut à anon,
+-- sans risque réel ici car auth.uid() est NULL pour un anonyme donc ces
+-- fonctions renvoient toujours false, mais autant fermer l'accès).
+REVOKE EXECUTE ON FUNCTION public.is_business_owner(uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.is_business_member(uuid) FROM anon;

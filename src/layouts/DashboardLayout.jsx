@@ -3,20 +3,30 @@ import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
 import { BillingModal } from '../components/BillingModal';
+import { SwitchUserModal } from '../components/SwitchUserModal';
 
 export const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSwitchUserOpen, setIsSwitchUserOpen] = useState(false);
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
         return localStorage.getItem('sidebarCollapsed') === 'true';
     });
     const [isDarkMode, setIsDarkMode] = useState(() => {
         return localStorage.getItem('theme') === 'dark' || document.documentElement.classList.contains('dark');
     });
-    
+
     const location = useLocation();
-    const { selectedBusiness } = useBusiness();
+    const { selectedBusiness, currentMember, isCashier, switchBackToOwner } = useBusiness();
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
+
+    const handleReturnToOwner = async () => {
+        try {
+            await switchBackToOwner();
+        } catch (error) {
+            console.error('Erreur lors du retour au compte propriétaire:', error.message);
+        }
+    };
 
     // Toggle Dark Mode
     useEffect(() => {
@@ -37,43 +47,45 @@ export const DashboardLayout = () => {
     const getMenuItems = () => {
         const type = selectedBusiness?.type;
         const common = [{ path: '/dashboard', label: 'Aperçu', icon: '🏠' }];
-        
+        let items;
+
         if (type === 'villa') {
-            return [
+            items = [
                 ...common,
                 { path: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
                 { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
-        }
-        
-        if (type === 'restaurant') {
-            return [
+        } else if (type === 'restaurant') {
+            items = [
                 ...common,
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
                 { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
+        } else {
+            // Default (Retail: pieces_moto, quincaillerie, boutique)
+            items = [
+                ...common,
+                { path: '/dashboard/caisse', label: 'Caisse', icon: '🛒' },
+                { path: '/dashboard/stock', label: 'Stock / Articles', icon: '📦' },
+                { path: '/dashboard/historique', label: 'Historique', icon: '🕒' },
+                { path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' },
+            ];
+            if (type === 'pieces_moto') {
+                items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
+            }
+            items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
         }
-        
-        // Default (Retail: pieces_moto, quincaillerie, boutique)
-        const retail = [
-            ...common,
-            { path: '/dashboard/caisse', label: 'Caisse', icon: '🛒' },
-            { path: '/dashboard/stock', label: 'Stock / Articles', icon: '📦' },
-            { path: '/dashboard/historique', label: 'Historique', icon: '🕒' },
-            { path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' },
-        ];
-        
-        if (type === 'pieces_moto') {
-            retail.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
+
+        // Réservé au propriétaire : gestion du commerce et de l'équipe.
+        if (!isCashier) {
+            items.push({ path: '/dashboard/parametres', label: 'Paramètres', icon: '⚙️' });
         }
-        
-        retail.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
-        
-        return retail;
+
+        return items;
     };
 
     const menuItems = getMenuItems();
@@ -162,7 +174,9 @@ export const DashboardLayout = () => {
                                         {selectedBusiness?.name || "Boutique Almadies"}
                                     </div>
                                     <div className="text-xs text-secondary truncate">
-                                        {user?.user_metadata?.subscription_plan === 'business' ? 'Pack Business' : 'Pack Essentiel'}
+                                        {isCashier
+                                            ? `Caissier · ${currentMember?.name || ''}`
+                                            : (user?.user_metadata?.subscription_plan === 'business' ? 'Pack Business' : 'Pack Essentiel')}
                                     </div>
                                 </div>
                             )}
@@ -172,6 +186,15 @@ export const DashboardLayout = () => {
                                 <Link to="/businesses" className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
                                     Changer de magasin
                                 </Link>
+                                {isCashier ? (
+                                    <button onClick={handleReturnToOwner} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
+                                        Revenir au propriétaire
+                                    </button>
+                                ) : (
+                                    <button onClick={() => setIsSwitchUserOpen(true)} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
+                                        Changer d'utilisateur
+                                    </button>
+                                )}
                                 <button onClick={() => signOut()} className="text-xs text-center text-slate-400 hover:text-red-500 mt-1 transition-colors">
                                     Se déconnecter
                                 </button>
@@ -180,6 +203,8 @@ export const DashboardLayout = () => {
                     </div>
                 </div>
             </aside>
+
+            <SwitchUserModal isOpen={isSwitchUserOpen} onClose={() => setIsSwitchUserOpen(false)} />
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible relative">

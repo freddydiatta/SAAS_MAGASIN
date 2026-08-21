@@ -24,6 +24,89 @@ CREATE POLICY "Users can manage their own businesses"
 ON public.businesses
 FOR ALL USING (auth.uid() = user_id);
 
+-- ==========================================
+-- 1bis. Caissiers (business_members) & fonctions d'autorisation
+-- Un caissier a un vrai compte Supabase Auth distinct (créé par l'Edge
+-- Function create-cashier), lié à son commerce ici. Le propriétaire garde
+-- tous les droits (businesses.user_id) ; un caissier a accès à tout SAUF
+-- la gestion du commerce lui-même (Paramètres : infos, abonnement, équipe).
+-- Ces fonctions sont utilisées par toutes les policies définies plus bas.
+-- ==========================================
+CREATE TABLE IF NOT EXISTS public.business_members (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'cashier',
+    pin_hash TEXT NOT NULL,
+    encrypted_credentials TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    failed_pin_attempts INTEGER NOT NULL DEFAULT 0,
+    locked_until TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT timezone('utc'::text, now()),
+    UNIQUE (business_id, user_id)
+);
+
+ALTER TABLE public.business_members ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.is_business_owner(p_business_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.businesses b
+        WHERE b.id = p_business_id AND b.user_id = auth.uid()
+    );
+$$;
+
+CREATE OR REPLACE FUNCTION public.is_business_member(p_business_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT public.is_business_owner(p_business_id)
+        OR EXISTS (
+            SELECT 1 FROM public.business_members m
+            WHERE m.business_id = p_business_id
+              AND m.user_id = auth.uid()
+              AND m.is_active = true
+        );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_business_owner(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_business_member(uuid) TO authenticated;
+
+DROP POLICY IF EXISTS "Owners manage their business members" ON public.business_members;
+CREATE POLICY "Owners manage their business members"
+ON public.business_members
+FOR ALL
+USING (public.is_business_owner(business_id))
+WITH CHECK (public.is_business_owner(business_id));
+
+DROP POLICY IF EXISTS "Members can read their own membership row" ON public.business_members;
+CREATE POLICY "Members can read their own membership row"
+ON public.business_members
+FOR SELECT
+USING (user_id = auth.uid());
+
+CREATE OR REPLACE VIEW public.business_members_safe
+WITH (security_invoker = true) AS
+SELECT id, business_id, user_id, name, role, is_active, created_at
+FROM public.business_members;
+
+GRANT SELECT ON public.business_members_safe TO authenticated;
+
+DROP POLICY IF EXISTS "Members can view their business" ON public.businesses;
+CREATE POLICY "Members can view their business"
+ON public.businesses
+FOR SELECT
+USING (public.is_business_member(id));
+
 -- 2. Mise à jour de la table Products
 -- Ajouter business_id (si la table existe, on ajoute la colonne. Attention si des données existent, 
 -- il faudra les assigner manuellement ou faire un drop. Pour ce script, on recrée proprement).
@@ -44,11 +127,10 @@ CREATE TABLE public.products (
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage products of their businesses" ON public.products;
-CREATE POLICY "Users can manage products of their businesses"
+DROP POLICY IF EXISTS "Members can manage products of their businesses" ON public.products;
+CREATE POLICY "Members can manage products of their businesses"
 ON public.products
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 -- 3. Mise à jour des Ventes (Receipts & Sales)
 CREATE TABLE public.receipts (
@@ -64,11 +146,10 @@ CREATE TABLE public.receipts (
 ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage receipts of their businesses" ON public.receipts;
-CREATE POLICY "Users can manage receipts of their businesses"
+DROP POLICY IF EXISTS "Members can manage receipts of their businesses" ON public.receipts;
+CREATE POLICY "Members can manage receipts of their businesses"
 ON public.receipts
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 CREATE TABLE public.sales (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -83,11 +164,10 @@ CREATE TABLE public.sales (
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage sales of their businesses" ON public.sales;
-CREATE POLICY "Users can manage sales of their businesses"
+DROP POLICY IF EXISTS "Members can manage sales of their businesses" ON public.sales;
+CREATE POLICY "Members can manage sales of their businesses"
 ON public.sales
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 -- ==========================================
 -- 4. Tables Spécifiques : VILLAS
@@ -109,11 +189,10 @@ CREATE TABLE public.villas (
 ALTER TABLE public.villas ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage villas of their businesses" ON public.villas;
-CREATE POLICY "Users can manage villas of their businesses"
+DROP POLICY IF EXISTS "Members can manage villas of their businesses" ON public.villas;
+CREATE POLICY "Members can manage villas of their businesses"
 ON public.villas
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 CREATE TABLE public.bookings (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -130,11 +209,10 @@ CREATE TABLE public.bookings (
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage bookings of their businesses" ON public.bookings;
-CREATE POLICY "Users can manage bookings of their businesses"
+DROP POLICY IF EXISTS "Members can manage bookings of their businesses" ON public.bookings;
+CREATE POLICY "Members can manage bookings of their businesses"
 ON public.bookings
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 -- ==========================================
 -- 5. Tables Spécifiques : RESTAURANT
@@ -156,11 +234,10 @@ CREATE TABLE public.menu_items (
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage menu items of their businesses" ON public.menu_items;
-CREATE POLICY "Users can manage menu items of their businesses"
+DROP POLICY IF EXISTS "Members can manage menu items of their businesses" ON public.menu_items;
+CREATE POLICY "Members can manage menu items of their businesses"
 ON public.menu_items
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 CREATE TABLE public.restaurant_orders (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -175,11 +252,10 @@ CREATE TABLE public.restaurant_orders (
 ALTER TABLE public.restaurant_orders ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can manage restaurant orders of their businesses" ON public.restaurant_orders;
-CREATE POLICY "Users can manage restaurant orders of their businesses"
+DROP POLICY IF EXISTS "Members can manage restaurant orders of their businesses" ON public.restaurant_orders;
+CREATE POLICY "Members can manage restaurant orders of their businesses"
 ON public.restaurant_orders
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 -- ==========================================
 -- AUDIT LOGS (Security & Traceability)
@@ -197,11 +273,10 @@ CREATE TABLE public.audit_logs (
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view and insert audit logs of their businesses" ON public.audit_logs;
-CREATE POLICY "Users can view and insert audit logs of their businesses"
+DROP POLICY IF EXISTS "Members can view and insert audit logs of their businesses" ON public.audit_logs;
+CREATE POLICY "Members can view and insert audit logs of their businesses"
 ON public.audit_logs
-FOR ALL USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR ALL USING (public.is_business_member(business_id));
 
 -- ==========================================
 -- 8. Tables Spécifiques : AFFILIATION
@@ -291,11 +366,10 @@ CREATE TABLE IF NOT EXISTS public.payments (
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Users can view their payments" ON public.payments;
-CREATE POLICY "Users can view their payments"
+DROP POLICY IF EXISTS "Owners can view their payments" ON public.payments;
+CREATE POLICY "Owners can view their payments"
 ON public.payments
-FOR SELECT USING (
-    business_id IN (SELECT id FROM public.businesses WHERE user_id = auth.uid())
-);
+FOR SELECT USING (public.is_business_owner(business_id));
 
 -- Note: L'insertion et la modification des paiements se feront via une Edge Function Supabase (Service Role)
 
