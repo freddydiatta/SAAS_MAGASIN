@@ -193,13 +193,15 @@ export const Commandes = () => {
                                         <div className="text-xs text-accent font-bold mt-0.5">{item.price.toLocaleString('fr-FR')} F</div>
                                     </div>
                                     <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-1">
-                                        <button 
+                                        <button
                                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                            aria-label="Diminuer la quantité"
                                             className="w-7 h-7 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-primary flex items-center justify-center shadow-sm transition-colors"
                                         ><Minus className="w-3 h-3" /></button>
                                         <span className="w-4 text-center font-bold text-primary text-sm">{item.quantity}</span>
-                                        <button 
+                                        <button
                                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                            aria-label="Augmenter la quantité"
                                             className="w-7 h-7 rounded-lg bg-accent text-white hover:bg-accent-hover flex items-center justify-center shadow-sm transition-colors"
                                         ><Plus className="w-3 h-3" /></button>
                                     </div>

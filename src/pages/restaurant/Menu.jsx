@@ -133,7 +133,7 @@ export const Menu = () => {
                         >
                             <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
                                 <h2 className="text-xl font-bold text-primary">Ajouter au Menu</h2>
-                                <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
+                                <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>

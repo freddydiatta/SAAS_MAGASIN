@@ -178,14 +178,16 @@ export const Motos = () => {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <div className="flex items-center justify-end gap-2">
-                                                <button 
+                                                <button
                                                     onClick={() => { setMotoToEdit(moto); setIsEditMotoOpen(true); }}
+                                                    aria-label="Modifier la moto"
                                                     className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
                                                 >
                                                     <Edit2 className="w-4 h-4" />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleDelete(moto.id)}
+                                                    aria-label="Supprimer la moto"
                                                     className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                                                 >
                                                     <Trash2 className="w-4 h-4" />

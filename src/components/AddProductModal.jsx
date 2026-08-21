@@ -56,6 +56,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                     <h3 className="text-xl font-bold text-primary">Nouveau Produit</h3>
                     <button 
                         onClick={onClose}
+                        aria-label="Fermer"
                         className="text-slate-400 hover:text-slate-600 transition-colors"
                     >
                         ✕

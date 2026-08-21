@@ -31,8 +31,9 @@ export const ContactModal = ({ isOpen, onClose }) => {
                 {/* Decoration */}
                 <div className="absolute top-0 right-0 w-40 h-40 bg-accent/5 rounded-full blur-3xl -mr-16 -mt-16 z-0"></div>
 
-                <button 
+                <button
                     onClick={onClose}
+                    aria-label="Fermer"
                     className="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 text-secondary hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-primary flex items-center justify-center transition-colors z-20 border border-slate-200 dark:border-slate-700"
                 >
                     <X className="w-5 h-5" />

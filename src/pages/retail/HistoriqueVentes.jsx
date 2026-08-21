@@ -222,7 +222,7 @@ export const HistoriqueVentes = () => {
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold text-primary">Modifier la Vente</h2>
-                                <button onClick={() => setReceiptToModify(null)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                <button onClick={() => setReceiptToModify(null)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
@@ -234,13 +234,15 @@ export const HistoriqueVentes = () => {
                                             <p className="text-xs text-secondary">{item.price.toLocaleString('fr-FR')} F / unité</p>
                                         </div>
                                         <div className="flex items-center gap-1 bg-panel rounded-lg border border-slate-200 dark:border-border-theme p-1">
-                                            <button 
+                                            <button
                                                 onClick={() => updateModifiedQty(item.id, item.new_qty - 1)}
+                                                aria-label="Diminuer la quantité"
                                                 className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-secondary transition-colors"
                                             ><Minus className="w-4 h-4" /></button>
                                             <span className="w-8 text-center font-bold text-primary">{item.new_qty}</span>
-                                            <button 
+                                            <button
                                                 onClick={() => updateModifiedQty(item.id, item.new_qty + 1)}
+                                                aria-label="Augmenter la quantité"
                                                 className="w-8 h-8 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-accent font-bold shadow-sm transition-colors"
                                             ><Plus className="w-4 h-4" /></button>
                                         </div>

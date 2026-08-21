@@ -118,8 +118,9 @@ export const DashboardLayout = () => {
                     </Link>
                     
                     {/* Floating Toggle Button */}
-                    <button 
-                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                    <button
+                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        aria-label={isSidebarCollapsed ? "Déployer le menu" : "Réduire le menu"}
                         className={`absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-border-theme shadow-sm text-slate-400 hover:text-accent hover:border-accent transition-all hidden md:flex z-50`}
                     >
                         {isSidebarCollapsed ? (
@@ -212,9 +213,10 @@ export const DashboardLayout = () => {
                 <header className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center print:hidden pointer-events-none">
                     {/* Mobile Menu Trigger & Search */}
                     <div className="flex items-center gap-4 pointer-events-auto w-full max-w-[400px]">
-                        <button 
+                        <button
                             className="md:hidden w-12 h-12 bg-panel shadow-premium rounded-full flex items-center justify-center text-secondary hover:text-primary transition-colors focus:outline-none"
                             onClick={() => setIsMobileMenuOpen(true)}
+                            aria-label="Ouvrir le menu"
                         >
                             <span className="text-xl">☰</span>
                         </button>
@@ -244,6 +246,7 @@ export const DashboardLayout = () => {
                             onClick={() => setIsDarkMode(!isDarkMode)}
                             className="px-3 py-2 rounded-full text-secondary hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ml-1 focus:outline-none"
                             title={isDarkMode ? "Passer au thème clair" : "Passer au thème sombre"}
+                            aria-label={isDarkMode ? "Passer au thème clair" : "Passer au thème sombre"}
                         >
                             {isDarkMode ? '☀️' : '🌙'}
                         </button>

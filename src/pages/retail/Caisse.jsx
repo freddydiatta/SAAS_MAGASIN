@@ -228,7 +228,7 @@ export const Caisse = () => {
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold text-primary">Créer une facture</h2>
-                                <button onClick={() => setIsFacturing(false)} className="text-slate-400 hover:text-primary transition-colors">
+                                <button onClick={() => setIsFacturing(false)} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>
@@ -354,8 +354,9 @@ export const Caisse = () => {
                                 >
                                     <div className="flex justify-between items-start gap-2">
                                         <span className="font-bold text-primary leading-tight">{item.name}</span>
-                                        <button 
+                                        <button
                                             onClick={() => removeFromCart(item.id)}
+                                            aria-label="Retirer du panier"
                                             className="text-slate-400 hover:text-red-500 transition-colors p-1"
                                         >
                                             <X className="w-4 h-4" />
@@ -363,13 +364,15 @@ export const Caisse = () => {
                                     </div>
                                     <div className="flex justify-between items-end mt-1">
                                         <div className="flex items-center gap-1 bg-surface dark:bg-slate-800 rounded-xl p-1 border border-slate-100 dark:border-border-theme">
-                                            <button 
+                                            <button
                                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                aria-label="Diminuer la quantité"
                                                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm text-secondary transition-all"
                                             ><Minus className="w-4 h-4" /></button>
                                             <span className="w-8 text-center font-bold text-primary">{item.quantity}</span>
-                                            <button 
+                                            <button
                                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                aria-label="Augmenter la quantité"
                                                 className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm text-accent font-bold transition-all"
                                             ><Plus className="w-4 h-4" /></button>
                                         </div>

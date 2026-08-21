@@ -219,7 +219,7 @@ export const Villas = () => {
                             <h2 className="text-xl font-bold text-primary">
                                 {editingVilla ? 'Modifier la villa' : 'Ajouter un bien'}
                             </h2>
-                            <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
+                            <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>

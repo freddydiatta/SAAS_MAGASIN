@@ -64,6 +64,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                     <h3 className="text-xl font-bold text-primary">Modifier Produit</h3>
                     <button 
                         onClick={onClose}
+                        aria-label="Fermer"
                         className="text-slate-400 hover:text-slate-600 transition-colors"
                     >
                         ✕

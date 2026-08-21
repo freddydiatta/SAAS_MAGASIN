@@ -49,8 +49,9 @@ export const Navbar = () => {
 
                     {/* Mobile menu button */}
                     <div className="md:hidden flex items-center">
-                        <button 
-                            onClick={() => setIsOpen(!isOpen)} 
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            aria-label={isOpen ? "Fermer le menu" : "Ouvrir le menu"}
                             className="text-primary hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none p-2 rounded-xl transition-colors"
                         >
                             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

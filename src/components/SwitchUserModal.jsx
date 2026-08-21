@@ -72,7 +72,7 @@ export const SwitchUserModal = ({ isOpen, onClose }) => {
                 >
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-primary">Changer d'utilisateur</h2>
-                        <button onClick={handleClose} className="text-slate-400 hover:text-primary transition-colors">
+                        <button onClick={handleClose} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
                             <X className="w-6 h-6" />
                         </button>
                     </div>
@@ -145,6 +145,7 @@ export const SwitchUserModal = ({ isOpen, onClose }) => {
                                 <button
                                     onClick={() => setPin(pin.slice(0, -1))}
                                     disabled={isSubmitting}
+                                    aria-label="Effacer le dernier chiffre"
                                     className="py-4 rounded-xl flex items-center justify-center text-secondary hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
                                 >
                                     <Delete className="w-5 h-5" />

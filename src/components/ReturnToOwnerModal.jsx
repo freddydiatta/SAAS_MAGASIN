@@ -50,7 +50,7 @@ export const ReturnToOwnerModal = ({ isOpen, onClose }) => {
                 >
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-bold text-primary">Revenir au propriétaire</h2>
-                        <button onClick={handleClose} className="text-slate-400 hover:text-primary transition-colors">
+                        <button onClick={handleClose} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
                             <X className="w-6 h-6" />
                         </button>
                     </div>

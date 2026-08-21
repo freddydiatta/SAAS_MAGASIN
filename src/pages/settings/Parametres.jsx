@@ -134,7 +134,7 @@ export const Parametres = () => {
                         >
                             <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-xl font-bold text-primary">Nouveau caissier</h2>
-                                <button onClick={() => setIsAddOpen(false)} className="text-slate-400 hover:text-primary transition-colors">
+                                <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
                                     <X className="w-6 h-6" />
                                 </button>
                             </div>

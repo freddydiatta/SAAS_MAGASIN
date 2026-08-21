@@ -78,10 +78,10 @@ export const Calendrier = () => {
                         {format(currentDate, 'MMMM yyyy', { locale: fr })}
                     </h2>
                     <div className="flex gap-2">
-                        <button onClick={prevMonth} className="p-2 rounded-lg border border-slate-200 dark:border-border-theme hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <button onClick={prevMonth} aria-label="Mois précédent" className="p-2 rounded-lg border border-slate-200 dark:border-border-theme hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <button onClick={nextMonth} className="p-2 rounded-lg border border-slate-200 dark:border-border-theme hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                        <button onClick={nextMonth} aria-label="Mois suivant" className="p-2 rounded-lg border border-slate-200 dark:border-border-theme hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                             <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
