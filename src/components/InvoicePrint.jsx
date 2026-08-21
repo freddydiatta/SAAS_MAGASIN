@@ -1,24 +1,54 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import html2pdf from 'html2pdf.js';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
     const invoiceRef = useRef(null);
+    const [isGenerating, setIsGenerating] = useState(false);
     
     if (!invoiceDetails || !business) return null;
 
-    const handleDownloadPDF = () => {
-        const element = invoiceRef.current;
-        const opt = {
-            margin:       10,
-            filename:     `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+    const handleDownloadPDF = async () => {
+        setIsGenerating(true);
+        try {
+            const element = invoiceRef.current;
+            const fileName = `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}.pdf`;
+            const opt = {
+                margin:       10,
+                filename:     fileName,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
 
-        html2pdf().set(opt).from(element).save();
+            const pdfWorker = html2pdf().set(opt).from(element);
+            
+            // Web Share API for mobile devices
+            if (navigator.share && navigator.canShare) {
+                const pdfBlob = await pdfWorker.output('blob');
+                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+                if (navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({
+                            title: 'Facture',
+                            files: [file]
+                        });
+                        setIsGenerating(false);
+                        return;
+                    } catch (error) {
+                        console.log('Partage annulé ou échoué:', error);
+                    }
+                }
+            }
+            
+            // Fallback for desktop or if Web Share API fails
+            await pdfWorker.save();
+        } catch (error) {
+            console.error('Erreur lors de la génération du PDF:', error);
+        } finally {
+            setIsGenerating(false);
+        }
     };
 
     return (
@@ -30,8 +60,8 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                         ← Fermer
                     </button>
                     <div className="flex gap-2">
-                        <button onClick={handleDownloadPDF} className="btn-primary px-5 py-2.5 flex items-center gap-2">
-                            📄 Télécharger PDF
+                        <button onClick={handleDownloadPDF} disabled={isGenerating} className={`btn-primary px-5 py-2.5 flex items-center gap-2 ${isGenerating ? 'opacity-70 cursor-wait' : ''}`}>
+                            {isGenerating ? '⏳ Création...' : '📄 Télécharger PDF'}
                         </button>
                         <button onClick={() => window.print()} className="btn-secondary px-5 py-2.5 flex items-center gap-2">
                             🖨️ Imprimer
