@@ -2,8 +2,6 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useReactToPrint } from 'react-to-print';
-import { useRef } from 'react';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
@@ -12,13 +10,10 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
     const receiptIdStr = invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
 
-    const componentRef = useRef();
-
-    // Native browser print via react-to-print (ideal for Desktop and receipt printers)
-    const handleNativePrint = useReactToPrint({
-        content: () => componentRef.current,
-        documentTitle: `Facture_${receiptIdStr}`,
-    });
+    // Native browser print (ideal for Desktop and receipt printers)
+    const handleNativePrint = () => {
+        window.print();
+    };
 
     // PDF Generation (ideal for Mobile and sharing)
     const handlePDFGenerate = () => {
@@ -188,8 +183,8 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 print:static print:inset-auto print:bg-white print:p-0 print:block">
-            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative print:w-full print:max-w-none print:h-auto print:rounded-none print:shadow-none print:border-none print:block print:overflow-visible">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 print:p-0 print:block">
+            <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative print:fixed print:inset-0 print:h-screen print:w-screen print:z-[100] print:rounded-none print:border-none print:bg-white">
                 {/* Actions */}
                 <div className="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 flex-wrap gap-4 print:hidden">
                     <button onClick={onClose} className="btn-secondary px-4 md:px-5 py-2 md:py-2.5">
@@ -212,8 +207,8 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                 </div>
 
                 {/* Printable Invoice Area (UI only) */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-16 bg-slate-100 flex justify-center print:overflow-visible print:bg-white print:p-0 print:block">
-                    <div ref={componentRef} className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10 print:w-full print:max-w-none print:shadow-none print:border-none print:m-0 print:p-4">
+                <div className="flex-1 overflow-y-auto p-4 md:p-16 bg-slate-100 flex justify-center print:overflow-visible print:bg-white print:p-10">
+                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-6 md:p-10 print:w-full print:max-w-none print:shadow-none print:border-none print:m-0 print:p-0">
                         {/* Header */}
                         <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                             <div>
