@@ -1,4 +1,5 @@
 import React from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -179,6 +180,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
         } catch (error) {
             console.error('Erreur PDF:', error);
+            toast.error("Impossible de générer le PDF. Réessayez ou utilisez le bouton Imprimer.");
         }
     };
 
