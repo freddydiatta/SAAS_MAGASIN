@@ -31,9 +31,12 @@ serve(async (req) => {
     if (userError) throw new Error('Erreur getUser: ' + userError.message)
     if (!user) throw new Error('Utilisateur introuvable (Non autorisé)')
 
-    // Retrieve plan to determine price
-    const plan = user.user_metadata?.subscription_plan || 'essential';
-    const amount = plan === 'business' ? 25000 : 15000;
+    // Retrieve plan to determine price. Source de vérité canonique côté
+    // frontend : src/config/pricing.js — ce fichier tourne sur Deno et ne
+    // peut pas l'importer directement, donc les montants sont dupliqués ici
+    // volontairement et doivent être mis à jour ensemble.
+    const plan = user.user_metadata?.subscription_plan || 'essentiel';
+    const amount = plan === 'business' ? 9000 : 5000;
 
     // 2. Setup Service Role Client for admin tasks
     const supabaseAdmin = createClient(

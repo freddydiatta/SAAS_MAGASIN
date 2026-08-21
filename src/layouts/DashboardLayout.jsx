@@ -6,6 +6,7 @@ import { BillingModal } from '../components/BillingModal';
 import { SwitchUserModal } from '../components/SwitchUserModal';
 import { ReturnToOwnerModal } from '../components/ReturnToOwnerModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { getPlanLabel } from '../config/pricing';
 
 export const DashboardLayout = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -173,7 +174,7 @@ export const DashboardLayout = () => {
                                     <div className="text-xs text-secondary truncate">
                                         {isCashier
                                             ? `Caissier · ${currentMember?.name || ''}`
-                                            : (user?.user_metadata?.subscription_plan === 'business' ? 'Pack Business' : 'Pack Essentiel')}
+                                            : getPlanLabel(user?.user_metadata?.subscription_plan)}
                                     </div>
                                 </div>
                             )}

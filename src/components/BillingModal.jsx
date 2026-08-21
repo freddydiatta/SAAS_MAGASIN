@@ -2,14 +2,23 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CreditCard, ShieldCheck, Lock } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { getPlanPrice } from '../config/pricing';
 
 export const BillingModal = ({ isExpired }) => {
     const { selectedBusiness } = useBusiness();
+    const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
 
     if (!isExpired) return null;
+
+    // Le montant affiché doit correspondre au plan réel du compte : avant ce
+    // correctif, "15 000 FCFA" était codé en dur ici alors que le montant
+    // effectivement facturé (paydunya-checkout) dépend du plan et pouvait
+    // être différent.
+    const price = getPlanPrice(user?.user_metadata?.subscription_plan);
 
     const handlePayment = async () => {
         setIsLoading(true);
@@ -73,7 +82,7 @@ export const BillingModal = ({ isExpired }) => {
                         <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-2xl text-left space-y-4">
                             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-700 pb-4">
                                 <span className="text-secondary font-medium">Forfait Mensuel</span>
-                                <span className="text-lg font-bold text-primary">15 000 FCFA</span>
+                                <span className="text-lg font-bold text-primary">{price.toLocaleString('fr-FR')} FCFA</span>
                             </div>
                             
                             <ul className="space-y-3">

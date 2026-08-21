@@ -5,6 +5,7 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import { supabase } from '../../lib/supabase';
 import { Plus, ArrowRight, Store, Settings, Phone, MapPin, Wrench, Home, ShoppingCart, Coffee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DEFAULT_PLAN } from '../../config/pricing';
 
 
 const BUSINESS_TYPES = [
@@ -30,7 +31,7 @@ export const BusinessList = () => {
 
     // Si on a l'abonnement essentiel, on a le droit qu'à 1 magasin.
     // user_metadata est accessible via user.user_metadata
-    const plan = user?.user_metadata?.subscription_plan || 'essentiel';
+    const plan = user?.user_metadata?.subscription_plan || DEFAULT_PLAN;
     // Mode Admin temporaire pour permettre la création illimitée
     const canCreateMore = true; // plan === 'business' || businesses.length === 0;
 

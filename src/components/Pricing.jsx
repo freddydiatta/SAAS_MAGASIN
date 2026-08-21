@@ -8,6 +8,7 @@ export const Pricing = () => {
 
     const plans = [
         {
+            id: "essentiel",
             name: "Pack Essentiel",
             monthlyPrice: "5 000",
             annualPrice: "50 000",
@@ -20,6 +21,7 @@ export const Pricing = () => {
             popular: false
         },
         {
+            id: "business",
             name: "Pack Business",
             monthlyPrice: "9 000",
             annualPrice: "90 000",
@@ -106,7 +108,7 @@ export const Pricing = () => {
                                     ))}
                                 </ul>
 
-                                <Link to={`/register?plan=${plan.name === 'Pack Essentiel' ? 'essentiel' : 'business'}`} className={`relative z-10 w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 group/btn ${plan.popular ? 'bg-primary text-white shadow-lg hover:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50 text-primary border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                                <Link to={`/register?plan=${plan.id}`} className={`relative z-10 w-full py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 group/btn ${plan.popular ? 'bg-primary text-white shadow-lg hover:bg-slate-800' : 'bg-slate-50 dark:bg-slate-800/50 text-primary border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                                     Démarrer l'essai gratuit
                                     <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
                                 </Link>

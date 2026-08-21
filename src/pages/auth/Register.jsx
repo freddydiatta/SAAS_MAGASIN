@@ -6,6 +6,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { DEFAULT_PLAN } from '../../config/pricing';
 
 const registerSchema = z.object({
     email: z.string().email('Veuillez entrer une adresse email valide.'),
@@ -22,7 +23,7 @@ export const Register = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const selectedPlan = searchParams.get('plan') || 'essentiel';
+    const selectedPlan = searchParams.get('plan') || DEFAULT_PLAN;
     const refCodeFromUrl = searchParams.get('ref');
 
     // Store ref code in localStorage if present
