@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
+import { addProduct, productKeys } from '../services/productsService';
 
 export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) => {
     const { selectedBusiness } = useBusiness();
@@ -24,22 +24,16 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
         setError('');
 
         try {
-            const { error } = await supabase
-                .from('products')
-                .insert([
-                    {
-                        business_id: selectedBusiness.id,
-                        name,
-                        type,
-                        price: parseFloat(price),
-                        stock_quantity: parseInt(quantity, 10)
-                    }
-                ]);
-
-            if (error) throw error;
+            await addProduct({
+                businessId: selectedBusiness.id,
+                name,
+                type,
+                price: parseFloat(price),
+                stockQuantity: parseInt(quantity, 10)
+            });
 
             // Rafraîchir les produits
-            queryClient.invalidateQueries(['products', selectedBusiness.id]);
+            queryClient.invalidateQueries({ queryKey: productKeys.all(selectedBusiness.id) });
             
             // Fermer et reset
             setName('');

@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProducts } from '../../hooks/useProducts';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { ShoppingCart, Plus, Minus, Trash2, Search, Package2, CreditCard, Banknote, Smartphone, HandCoins, X, Package, ShoppingBag, FileText } from 'lucide-react';
+import { Plus, Minus, Search, X, Package, ShoppingBag, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
 import { saveOfflineSale } from '../../services/syncService';
+import { processSale } from '../../services/salesService';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
@@ -30,19 +30,7 @@ export const Caisse = () => {
         setTimeout(() => setToastMessage(''), 3000);
     };
 
-    const { data: products = [], isLoading } = useQuery({
-        queryKey: ['products', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .eq('business_id', selectedBusiness?.id)
-                .order('name');
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!selectedBusiness
-    });
+    const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
 
     const filteredProducts = products.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -145,12 +133,12 @@ export const Caisse = () => {
             // transaction côté base de données, pour éviter tout état incohérent si
             // une étape échoue en cours de route, et pour empêcher la survente en cas
             // de ventes concurrentes (voir supabase/patches/2026-08-21_critical_fixes.sql).
-            const { data: receiptData, error: receiptError } = await supabase.rpc('process_sale', {
-                p_business_id: selectedBusiness.id,
-                p_customer_name: withInvoice ? customerName : null,
-                p_customer_phone: withInvoice ? customerPhone : null,
-                p_payment_method: paymentMethod,
-                p_items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
+            const { data: receiptData, error: receiptError } = await processSale({
+                businessId: selectedBusiness.id,
+                customerName: withInvoice ? customerName : null,
+                customerPhone: withInvoice ? customerPhone : null,
+                paymentMethod,
+                items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
             });
 
             if (receiptError) throw receiptError;

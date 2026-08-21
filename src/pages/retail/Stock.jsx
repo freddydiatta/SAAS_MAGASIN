@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { useProducts } from '../../hooks/useProducts';
+import { adjustStock, deleteProduct, productKeys } from '../../services/productsService';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
 import { Plus, Search, Edit2, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
@@ -16,32 +17,18 @@ export const Stock = () => {
     const [productToEdit, setProductToEdit] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
-    const { data: products = [], isLoading } = useQuery({
-        queryKey: ['products', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .eq('business_id', selectedBusiness?.id)
-                .order('name');
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!selectedBusiness
-    });
+    const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
+
+    const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: productKeys.all(selectedBusiness?.id) });
 
     const updateStockMutation = useMutation({
-        mutationFn: async ({ id, currentStock, change }) => {
-            const newStock = Math.max(0, currentStock + change);
-            const { error } = await supabase
-                .from('products')
-                .update({ stock_quantity: newStock })
-                .eq('id', id);
-            if (error) throw error;
-            return { id, newStock };
-        },
+        // Ajustement atomique côté base de données (évite la race condition
+        // d'un "lire le stock puis écrire" fait depuis le client en cas de
+        // clics concurrents, voir adjust_stock dans
+        // supabase/patches/2026-08-21_critical_fixes.sql).
+        mutationFn: adjustStock,
         onSuccess: () => {
-            queryClient.invalidateQueries(['products']);
+            invalidateProducts();
             toast.success('Stock mis à jour');
         },
         onError: () => {
@@ -50,16 +37,9 @@ export const Stock = () => {
     });
 
     const deleteProductMutation = useMutation({
-        mutationFn: async (id) => {
-            const { error } = await supabase
-                .from('products')
-                .delete()
-                .eq('id', id);
-            if (error) throw error;
-            return id;
-        },
+        mutationFn: deleteProduct,
         onSuccess: () => {
-            queryClient.invalidateQueries(['products']);
+            invalidateProducts();
             toast.success('Produit supprimé !');
         },
         onError: () => {
@@ -142,7 +122,7 @@ export const Stock = () => {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: product.id, currentStock: product.stock_quantity, change: -1 })}
+                                                    onClick={() => updateStockMutation.mutate({ id: product.id, change: -1 })}
                                                     className="text-slate-400 hover:text-red-500 transition-colors"
                                                     title="Diminuer de 1"
                                                 >
@@ -158,7 +138,7 @@ export const Stock = () => {
                                                     {product.stock_quantity}
                                                 </span>
                                                 <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: product.id, currentStock: product.stock_quantity, change: 1 })}
+                                                    onClick={() => updateStockMutation.mutate({ id: product.id, change: 1 })}
                                                     className="text-slate-400 hover:text-emerald-500 transition-colors"
                                                     title="Ajouter 1"
                                                 >

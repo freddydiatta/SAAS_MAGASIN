@@ -4,13 +4,17 @@ import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { InvoicePrint } from '../../components/InvoicePrint';
+import { cancelSale, modifySale } from '../../services/salesService';
 import { FileText, Edit2, Ban, Calendar, AlertTriangle, Plus, Minus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const HistoriqueVentes = () => {
-    const { selectedBusiness } = useBusiness();
+    const { selectedBusiness, currentMember } = useBusiness();
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    // Un caissier a un compte auto-généré (email interne illisible) : on
+    // journalise son nom d'affichage plutôt que cet email quand disponible.
+    const actorLabel = currentMember?.name || user?.email || 'unknown';
     
     const [toastMessage, setToastMessage] = useState('');
     const [receiptToCancel, setReceiptToCancel] = useState(null);
@@ -42,9 +46,9 @@ export const HistoriqueVentes = () => {
             // Annulation + restauration du stock + audit log en une seule
             // transaction côté base de données (voir cancel_sale dans
             // supabase/patches/2026-08-21_critical_fixes.sql).
-            const { error } = await supabase.rpc('cancel_sale', {
-                p_receipt_id: receipt.id,
-                p_user_email: user?.email || 'unknown'
+            const { error } = await cancelSale({
+                receiptId: receipt.id,
+                userEmail: actorLabel
             });
             if (error) throw error;
         },
@@ -107,10 +111,10 @@ export const HistoriqueVentes = () => {
             // Mise à jour des lignes de vente + ajustement du stock + audit log
             // en une seule transaction côté base de données (voir modify_sale
             // dans supabase/patches/2026-08-21_critical_fixes.sql).
-            const { error } = await supabase.rpc('modify_sale', {
-                p_receipt_id: receipt.id,
-                p_user_email: user?.email || 'unknown',
-                p_items: items.map(item => ({
+            const { error } = await modifySale({
+                receiptId: receipt.id,
+                userEmail: actorLabel,
+                items: items.map(item => ({
                     sale_id: item.id,
                     product_id: item.product_id,
                     name: item.name,

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
-import { Plus, Search, Edit2, Bike, Tag, Settings, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { useProducts } from '../../hooks/useProducts';
+import { adjustStock, deleteProduct, productKeys } from '../../services/productsService';
+import { Plus, Search, Edit2, Bike, Tag, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { AddProductModal } from '../../components/AddProductModal';
@@ -16,40 +17,22 @@ export const Motos = () => {
     const [isEditMotoOpen, setIsEditMotoOpen] = useState(false);
     const [motoToEdit, setMotoToEdit] = useState(null);
 
-    const { data: motos = [], isLoading } = useQuery({
-        queryKey: ['motos', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .eq('business_id', selectedBusiness?.id)
-                .or('type.eq.moto,name.ilike.%moto%') // Just as an example filter
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!selectedBusiness
-    });
+    // Motos share the same `products` table/cache as Stock and Caisse — filtered
+    // client-side instead of via a separate server query + cache key, so a sale
+    // or stock edit made anywhere else is reflected here too without a stale cache.
+    const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
+    const motos = products.filter(p => p.type === 'moto' || p.name.toLowerCase().includes('moto'));
 
-    const filteredMotos = motos.filter(m => 
+    const filteredMotos = motos.filter(m =>
         m.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: productKeys.all(selectedBusiness?.id) });
+
     const updateStockMutation = useMutation({
-        mutationFn: async ({ id, change }) => {
-            // Ajustement atomique côté base de données (évite la race condition
-            // d'un "lire le stock puis écrire" fait depuis le client en cas de
-            // clics concurrents, voir adjust_stock dans
-            // supabase/patches/2026-08-21_critical_fixes.sql).
-            const { data, error } = await supabase.rpc('adjust_stock', {
-                p_product_id: id,
-                p_change: change
-            });
-            if (error) throw error;
-            return { id, newStock: data.stock_quantity };
-        },
+        mutationFn: adjustStock,
         onSuccess: () => {
-            queryClient.invalidateQueries(['motos']);
+            invalidateProducts();
             toast.success('Stock de la moto mis à jour');
         },
         onError: () => {
@@ -58,16 +41,9 @@ export const Motos = () => {
     });
 
     const deleteMotoMutation = useMutation({
-        mutationFn: async (id) => {
-            const { error } = await supabase
-                .from('products')
-                .delete()
-                .eq('id', id);
-            if (error) throw error;
-            return id;
-        },
+        mutationFn: deleteProduct,
         onSuccess: () => {
-            queryClient.invalidateQueries(['motos']);
+            invalidateProducts();
             toast.success('Moto supprimée !');
         },
         onError: () => {

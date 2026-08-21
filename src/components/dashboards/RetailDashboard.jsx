@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { useProducts } from '../../hooks/useProducts';
 import { AddProductModal } from '../AddProductModal';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -16,20 +17,7 @@ export const RetailDashboard = () => {
     const navigate = useNavigate();
 
     // Fetch Products (Stock)
-    const { data: products = [], isLoading: loadingProducts } = useQuery({
-        queryKey: ['products', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*')
-                .eq('business_id', selectedBusiness?.id)
-                .order('created_at', { ascending: false });
-            
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!user && !!selectedBusiness
-    });
+    const { data: products = [] } = useProducts(selectedBusiness?.id);
 
     // Fetch Sales (Last 30 days for better stats)
     const { data: sales = [], isLoading: loadingSales } = useQuery({
