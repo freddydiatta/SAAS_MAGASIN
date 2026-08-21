@@ -26,7 +26,8 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     )
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+    const token = authHeader.replace('Bearer ', '').trim()
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
     if (userError) throw new Error('Erreur getUser: ' + userError.message)
     if (!user) throw new Error('Utilisateur introuvable (Non autorisé)')
 

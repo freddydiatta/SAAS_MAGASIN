@@ -1,27 +1,47 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import html2pdf from 'html2pdf.js';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
+    const invoiceRef = useRef(null);
     
     if (!invoiceDetails || !business) return null;
+
+    const handleDownloadPDF = () => {
+        const element = invoiceRef.current;
+        const opt = {
+            margin:       10,
+            filename:     `Facture_${invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : 'Client'}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save();
+    };
 
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 print:p-0 print:block">
             <div className="bg-white w-full max-w-5xl h-full md:h-[90vh] rounded-3xl shadow-premium border border-slate-100 flex flex-col overflow-hidden relative print:fixed print:inset-0 print:h-screen print:w-screen print:z-[100] print:rounded-none print:border-none print:bg-white">
                 {/* Actions (Hidden on Print) */}
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center print:hidden bg-slate-50">
+                <div className="p-6 border-b border-slate-100 flex justify-between items-center print:hidden bg-slate-50 flex-wrap gap-4">
                     <button onClick={onClose} className="btn-secondary px-5 py-2.5">
                         ← Fermer
                     </button>
-                    <button onClick={() => window.print()} className="btn-primary px-5 py-2.5 flex items-center gap-2">
-                        🖨️ Imprimer la Facture
-                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={handleDownloadPDF} className="btn-primary px-5 py-2.5 flex items-center gap-2">
+                            📄 Télécharger PDF
+                        </button>
+                        <button onClick={() => window.print()} className="btn-secondary px-5 py-2.5 flex items-center gap-2">
+                            🖨️ Imprimer
+                        </button>
+                    </div>
                 </div>
 
                 {/* Printable Invoice Area */}
                 <div className="flex-1 overflow-y-auto p-8 md:p-16 print:p-10 print:overflow-visible bg-slate-100 print:bg-white flex justify-center">
-                    <div className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:border-none print:shadow-none print:p-0 print:w-full">
+                    <div ref={invoiceRef} className="bg-white w-full max-w-3xl rounded-2xl shadow-sm border border-slate-200 p-10 print:border-none print:shadow-none print:p-0 print:w-full">
                         {/* Header */}
                         <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                             <div>
