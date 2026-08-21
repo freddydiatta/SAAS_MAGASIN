@@ -339,7 +339,7 @@ export const HistoriqueVentes = () => {
                 )}
             </AnimatePresence>
 
-            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4 print:hidden">
                 <div>
                     <h1 className="text-3xl font-bold text-primary tracking-tight">Historique des ventes</h1>
                     <p className="text-secondary mt-1">Consultez vos transactions et gérez les annulations</p>
@@ -357,7 +357,7 @@ export const HistoriqueVentes = () => {
                 </div>
             </div>
 
-            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
+            <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden print:hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
