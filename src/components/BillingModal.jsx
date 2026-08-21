@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
 import { CreditCard, ShieldCheck, Lock } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { getPlanPrice } from '../config/pricing';
+import { Modal } from './Modal';
 
 export const BillingModal = ({ isExpired }) => {
     const { selectedBusiness } = useBusiness();
     const { user } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
-
-    if (!isExpired) return null;
 
     // Le montant affiché doit correspondre au plan réel du compte : avant ce
     // correctif, "15 000 FCFA" était codé en dur ici alors que le montant
@@ -60,13 +58,13 @@ export const BillingModal = ({ isExpired }) => {
     };
 
     return (
-        <AnimatePresence>
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                <motion.div 
-                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    className="bg-surface dark:bg-slate-900 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
-                >
+        <Modal
+            isOpen={isExpired}
+            onClose={() => {}}
+            zIndexClassName="z-[100]"
+            maxWidth="max-w-lg"
+            panelClassName="bg-surface dark:bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800"
+        >
                     <div className="p-8 text-center space-y-6">
                         <div className="w-20 h-20 bg-red-100 dark:bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner">
                             <Lock className="w-10 h-10" />
@@ -120,8 +118,6 @@ export const BillingModal = ({ isExpired }) => {
                             Paiement sécurisé via Wave, Orange Money ou Free Money.
                         </p>
                     </div>
-                </motion.div>
-            </div>
-        </AnimatePresence>
+        </Modal>
     );
 };

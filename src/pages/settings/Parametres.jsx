@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
-import { UserPlus, Users, X, Ban, RotateCcw } from 'lucide-react';
+import { UserPlus, Users, Ban, RotateCcw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { listCashiers, createCashier, setCashierActive } from '../../services/cashiersService';
+import { Modal } from '../../components/Modal';
 
 export const Parametres = () => {
     const { selectedBusiness } = useBusiness();
@@ -118,78 +118,55 @@ export const Parametres = () => {
                 </div>
             </div>
 
-            <AnimatePresence>
-                {isAddOpen && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                    >
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium"
+            <Modal isOpen={isAddOpen} onClose={() => setIsAddOpen(false)} title="Nouveau caissier">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {formError && (
+                        <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-100">
+                            {formError}
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Nom du caissier</label>
+                        <input
+                            type="text"
+                            required
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                            placeholder="Ex: Awa"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Code PIN (4 chiffres)</label>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            required
+                            maxLength={4}
+                            value={pin}
+                            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 tracking-[0.5em] font-bold text-lg"
+                            placeholder="••••"
+                        />
+                    </div>
+                    <div className="pt-2 flex gap-3">
+                        <button
+                            type="button"
+                            onClick={() => setIsAddOpen(false)}
+                            className="flex-1 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold text-primary">Nouveau caissier</h2>
-                                <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-
-                            <form onSubmit={handleSubmit} className="space-y-4">
-                                {formError && (
-                                    <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-100">
-                                        {formError}
-                                    </div>
-                                )}
-                                <div>
-                                    <label className="block text-sm font-semibold text-primary mb-1.5">Nom du caissier</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                                        placeholder="Ex: Awa"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-primary mb-1.5">Code PIN (4 chiffres)</label>
-                                    <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        required
-                                        maxLength={4}
-                                        value={pin}
-                                        onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                                        className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 tracking-[0.5em] font-bold text-lg"
-                                        placeholder="••••"
-                                    />
-                                </div>
-                                <div className="pt-2 flex gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsAddOpen(false)}
-                                        className="flex-1 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-                                    >
-                                        Annuler
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={createMutation.isPending}
-                                        className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50"
-                                    >
-                                        {createMutation.isPending ? 'Création...' : 'Créer'}
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            Annuler
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={createMutation.isPending}
+                            className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50"
+                        >
+                            {createMutation.isPending ? 'Création...' : 'Créer'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };

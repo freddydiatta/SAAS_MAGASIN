@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Plus, X, Utensils, Coffee, Pizza, IceCream } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { Modal } from '../../components/Modal';
 
 export const Menu = () => {
     const { selectedBusiness } = useBusiness();
@@ -117,75 +118,63 @@ export const Menu = () => {
             </div>
 
             {/* Modal for adding Menu Item */}
-            <AnimatePresence>
-                {isAddOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-panel rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-border-theme"
-                        >
-                            <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
-                                <h2 className="text-xl font-bold text-primary">Ajouter au Menu</h2>
-                                <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-primary mb-1">Nom (Plat, Boisson...)</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                        placeholder="Ex: Poulet Yassa"
-                                        value={formData.name}
-                                        onChange={e => setFormData({...formData, name: e.target.value})}
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-primary mb-1">Catégorie</label>
-                                        <select 
-                                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
-                                            value={formData.category}
-                                            onChange={e => setFormData({...formData, category: e.target.value})}
-                                        >
-                                            <option value="entree">Entrée</option>
-                                            <option value="plat">Plat</option>
-                                            <option value="dessert">Dessert</option>
-                                            <option value="boisson">Boisson</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-primary mb-1">Prix (FCFA)</label>
-                                        <input 
-                                            type="number" 
-                                            required
-                                            min="0"
-                                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                            placeholder="Ex: 3500"
-                                            value={formData.price}
-                                            onChange={e => setFormData({...formData, price: e.target.value})}
-                                        />
-                                    </div>
-                                </div>
-                                <div className="pt-4">
-                                    <button type="submit" disabled={addMenuItemMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
-                                        {addMenuItemMutation.isPending ? 'Ajout...' : 'Ajouter au menu'}
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <Modal
+                isOpen={isAddOpen}
+                onClose={() => setIsAddOpen(false)}
+                panelClassName="bg-panel rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-border-theme"
+            >
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+                    <h2 className="text-xl font-bold text-primary">Ajouter au Menu</h2>
+                    <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Nom (Plat, Boisson...)</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            placeholder="Ex: Poulet Yassa"
+                            value={formData.name}
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-primary mb-1">Catégorie</label>
+                            <select
+                                className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                                value={formData.category}
+                                onChange={e => setFormData({...formData, category: e.target.value})}
+                            >
+                                <option value="entree">Entrée</option>
+                                <option value="plat">Plat</option>
+                                <option value="dessert">Dessert</option>
+                                <option value="boisson">Boisson</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-primary mb-1">Prix (FCFA)</label>
+                            <input
+                                type="number"
+                                required
+                                min="0"
+                                className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                                placeholder="Ex: 3500"
+                                value={formData.price}
+                                onChange={e => setFormData({...formData, price: e.target.value})}
+                            />
+                        </div>
+                    </div>
+                    <div className="pt-4">
+                        <button type="submit" disabled={addMenuItemMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
+                            {addMenuItemMutation.isPending ? 'Ajout...' : 'Ajouter au menu'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };

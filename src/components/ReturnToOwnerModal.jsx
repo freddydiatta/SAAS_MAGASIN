@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
+import { Modal } from './Modal';
 
 export const ReturnToOwnerModal = ({ isOpen, onClose }) => {
     const { switchBackToOwner, getStashedOwnerEmail } = useBusiness();
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
-
-    if (!isOpen) return null;
 
     const ownerEmail = getStashedOwnerEmail();
 
@@ -35,58 +33,37 @@ export const ReturnToOwnerModal = ({ isOpen, onClose }) => {
     };
 
     return (
-        <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            >
-                <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.95, opacity: 0 }}
-                    className="bg-panel rounded-3xl p-8 max-w-sm w-full shadow-premium"
+        <Modal isOpen={isOpen} onClose={handleClose} title="Revenir au propriétaire" maxWidth="max-w-sm">
+            <div className="flex flex-col items-center text-center mb-6">
+                <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-secondary mb-3">
+                    <Lock className="w-5 h-5" />
+                </div>
+                <p className="text-sm text-secondary">
+                    Confirmez le mot de passe de <strong className="text-primary">{ownerEmail}</strong> pour reprendre l'accès complet.
+                </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <input
+                    type="password"
+                    autoFocus
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Mot de passe"
+                    className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                />
+                {error && (
+                    <p className="text-sm text-red-500 text-center font-medium">{error}</p>
+                )}
+                <button
+                    type="submit"
+                    disabled={isSubmitting || !password}
+                    className="w-full py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50"
                 >
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-primary">Revenir au propriétaire</h2>
-                        <button onClick={handleClose} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
-                            <X className="w-6 h-6" />
-                        </button>
-                    </div>
-
-                    <div className="flex flex-col items-center text-center mb-6">
-                        <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-secondary mb-3">
-                            <Lock className="w-5 h-5" />
-                        </div>
-                        <p className="text-sm text-secondary">
-                            Confirmez le mot de passe de <strong className="text-primary">{ownerEmail}</strong> pour reprendre l'accès complet.
-                        </p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <input
-                            type="password"
-                            autoFocus
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Mot de passe"
-                            className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
-                        />
-                        {error && (
-                            <p className="text-sm text-red-500 text-center font-medium">{error}</p>
-                        )}
-                        <button
-                            type="submit"
-                            disabled={isSubmitting || !password}
-                            className="w-full py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50"
-                        >
-                            {isSubmitting ? 'Vérification...' : 'Confirmer'}
-                        </button>
-                    </form>
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+                    {isSubmitting ? 'Vérification...' : 'Confirmer'}
+                </button>
+            </form>
+        </Modal>
     );
 };

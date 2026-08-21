@@ -8,6 +8,7 @@ import { Plus, Minus, Search, X, Package, ShoppingBag, FileText } from 'lucide-r
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveOfflineSale } from '../../services/syncService';
 import { processSale } from '../../services/salesService';
+import { Modal } from '../../components/Modal';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
@@ -212,59 +213,36 @@ export const Caisse = () => {
             )}
 
             {/* Facturation Modal */}
-            <AnimatePresence>
-                {isFacturing && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-panel rounded-3xl p-8 max-w-md w-full shadow-premium"
-                        >
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-bold text-primary">Créer une facture</h2>
-                                <button onClick={() => setIsFacturing(false)} aria-label="Fermer" className="text-slate-400 hover:text-primary transition-colors">
-                                    <X className="w-6 h-6" />
-                                </button>
-                            </div>
-                        
-                        <div className="space-y-4 mb-8">
-                            <p className="text-sm text-secondary">Renseignez les informations du client pour la facture. Ces champs sont optionnels.</p>
-                            <div>
-                                <label className="block text-sm font-semibold text-primary mb-2">Nom du client</label>
-                                <input 
-                                    type="text" 
-                                    value={customerName}
-                                    onChange={(e) => setCustomerName(e.target.value)}
-                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow text-primary"
-                                    placeholder="Ex: Jean Dupont"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-primary mb-2">Numéro de téléphone</label>
-                                <input 
-                                    type="text" 
-                                    value={customerPhone}
-                                    onChange={(e) => setCustomerPhone(e.target.value)}
-                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow text-primary"
-                                    placeholder="Ex: +221 77 123 45 67"
-                                />
-                            </div>
-                        </div>
+            <Modal isOpen={isFacturing} onClose={() => setIsFacturing(false)} title="Créer une facture">
+                <div className="space-y-4 mb-8">
+                    <p className="text-sm text-secondary">Renseignez les informations du client pour la facture. Ces champs sont optionnels.</p>
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-2">Nom du client</label>
+                        <input
+                            type="text"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow text-primary"
+                            placeholder="Ex: Jean Dupont"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-2">Numéro de téléphone</label>
+                        <input
+                            type="text"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50 transition-shadow text-primary"
+                            placeholder="Ex: +221 77 123 45 67"
+                        />
+                    </div>
+                </div>
 
-                            <div className="flex gap-3">
-                                <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary py-3 text-center">Annuler</button>
-                                <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3 text-center shadow-premium">Encaisser & Facturer</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                <div className="flex gap-3">
+                    <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary py-3 text-center">Annuler</button>
+                    <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3 text-center shadow-premium">Encaisser & Facturer</button>
+                </div>
+            </Modal>
 
             {/* Left side: Products Grid */}
             <div className="flex-1 flex flex-col bg-transparent lg:min-h-0">

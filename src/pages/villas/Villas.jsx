@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Home, MapPin, Plus, X, Edit2, Trash2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { Modal } from '../../components/Modal';
 
 export const Villas = () => {
     const { selectedBusiness } = useBusiness();
@@ -201,72 +202,60 @@ export const Villas = () => {
             </div>
 
             {/* Modal for adding a Villa */}
-            <AnimatePresence>
-                {isAddOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-panel rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-border-theme"
-                        >
-                        <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
-                            <h2 className="text-xl font-bold text-primary">
-                                {editingVilla ? 'Modifier la villa' : 'Ajouter un bien'}
-                            </h2>
-                            <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-primary mb-1">Nom du bien / Villa</label>
-                                <input 
-                                    type="text" 
-                                    required
-                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                    placeholder="Ex: Villa Saly Vue Mer"
-                                    value={formData.name}
-                                    onChange={e => setFormData({...formData, name: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-primary mb-1">Adresse</label>
-                                <input 
-                                    type="text" 
-                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                    placeholder="Ex: Quartier Ngaparou"
-                                    value={formData.address}
-                                    onChange={e => setFormData({...formData, address: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-primary mb-1">Prix par Nuit (FCFA)</label>
-                                <input 
-                                    type="number" 
-                                    required
-                                    min="0"
-                                    className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                    placeholder="Ex: 150000"
-                                    value={formData.price_per_night}
-                                    onChange={e => setFormData({...formData, price_per_night: e.target.value})}
-                                />
-                            </div>
-                            <div className="pt-4">
-                                <button type="submit" disabled={addVillaMutation.isPending || updateVillaMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
-                                    {addVillaMutation.isPending || updateVillaMutation.isPending ? 'Enregistrement...' : (editingVilla ? 'Enregistrer les modifications' : 'Enregistrer le bien')}
-                                </button>
-                            </div>
-                        </form>
-                    </motion.div>
-                </motion.div>
-            )}
-            </AnimatePresence>
+            <Modal
+                isOpen={isAddOpen}
+                onClose={() => setIsAddOpen(false)}
+                panelClassName="bg-panel rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-border-theme"
+            >
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+                    <h2 className="text-xl font-bold text-primary">
+                        {editingVilla ? 'Modifier la villa' : 'Ajouter un bien'}
+                    </h2>
+                    <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Nom du bien / Villa</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            placeholder="Ex: Villa Saly Vue Mer"
+                            value={formData.name}
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Adresse</label>
+                        <input
+                            type="text"
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            placeholder="Ex: Quartier Ngaparou"
+                            value={formData.address}
+                            onChange={e => setFormData({...formData, address: e.target.value})}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Prix par Nuit (FCFA)</label>
+                        <input
+                            type="number"
+                            required
+                            min="0"
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            placeholder="Ex: 150000"
+                            value={formData.price_per_night}
+                            onChange={e => setFormData({...formData, price_per_night: e.target.value})}
+                        />
+                    </div>
+                    <div className="pt-4">
+                        <button type="submit" disabled={addVillaMutation.isPending || updateVillaMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
+                            {addVillaMutation.isPending || updateVillaMutation.isPending ? 'Enregistrement...' : (editingVilla ? 'Enregistrer les modifications' : 'Enregistrer le bien')}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };

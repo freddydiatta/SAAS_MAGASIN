@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Plus, X, Calendar, Home, Users, Search, Edit2, Trash2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { Modal } from '../../components/Modal';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -276,109 +277,97 @@ export const Reservations = () => {
             </motion.div>
 
             {/* Modal for adding a Booking */}
-            <AnimatePresence>
-                {isAddOpen && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-                    >
-                        <motion.div 
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-panel rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-border-theme"
+            <Modal
+                isOpen={isAddOpen}
+                onClose={() => setIsAddOpen(false)}
+                panelClassName="bg-panel rounded-3xl shadow-2xl overflow-hidden border border-slate-100 dark:border-border-theme"
+            >
+                <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
+                    <h2 className="text-xl font-bold text-primary">
+                        {editingBooking ? 'Modifier la réservation' : 'Nouvelle Réservation'}
+                    </h2>
+                    <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Villa</label>
+                        <select
+                            required
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            value={formData.villa_id}
+                            onChange={e => setFormData({...formData, villa_id: e.target.value})}
                         >
-                            <div className="px-6 py-4 border-b border-slate-100 dark:border-border-theme flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/20">
-                                <h2 className="text-xl font-bold text-primary">
-                                    {editingBooking ? 'Modifier la réservation' : 'Nouvelle Réservation'}
-                                </h2>
-                                <button onClick={() => setIsAddOpen(false)} aria-label="Fermer" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-2 transition-colors">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-                            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-primary mb-1">Villa</label>
-                                    <select 
-                                        required
-                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                        value={formData.villa_id}
-                                        onChange={e => setFormData({...formData, villa_id: e.target.value})}
-                                    >
-                                        <option value="">Sélectionnez une villa</option>
-                                        {villas.map(v => (
-                                            <option key={v.id} value={v.id}>{v.name} ({v.price_per_night.toLocaleString()} F/nuit)</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-primary mb-1">Nom du Client</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                        placeholder="Ex: M. Dupont"
-                                        value={formData.customer_name}
-                                        onChange={e => setFormData({...formData, customer_name: e.target.value})}
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-primary mb-1">Arrivée</label>
-                                        <input 
-                                            type="date" 
-                                            required
-                                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                            value={formData.start_date}
-                                            onChange={e => setFormData({...formData, start_date: e.target.value})}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-primary mb-1">Départ</label>
-                                        <input 
-                                            type="date" 
-                                            required
-                                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                            value={formData.end_date}
-                                            onChange={e => setFormData({...formData, end_date: e.target.value})}
-                                        />
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-primary mb-1">Statut</label>
-                                    <select 
-                                        className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary" 
-                                        value={formData.status}
-                                        onChange={e => setFormData({...formData, status: e.target.value})}
-                                    >
-                                        <option value="provisoire">Provisoire</option>
-                                        <option value="confirmé">Confirmé</option>
-                                        <option value="annulé">Annulé</option>
-                                    </select>
-                                </div>
-                                
-                                {formData.villa_id && formData.start_date && formData.end_date && (
-                                    <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl mt-4 border border-indigo-100 dark:border-indigo-500/20">
-                                        <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-400">
-                                            <span className="font-medium text-sm">Total Estimé:</span>
-                                            <span className="text-xl font-bold">{getCalculatedPrice().toLocaleString('fr-FR')} F</span>
-                                        </div>
-                                    </div>
-                                )}
+                            <option value="">Sélectionnez une villa</option>
+                            {villas.map(v => (
+                                <option key={v.id} value={v.id}>{v.name} ({v.price_per_night.toLocaleString()} F/nuit)</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Nom du Client</label>
+                        <input
+                            type="text"
+                            required
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            placeholder="Ex: M. Dupont"
+                            value={formData.customer_name}
+                            onChange={e => setFormData({...formData, customer_name: e.target.value})}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-primary mb-1">Arrivée</label>
+                            <input
+                                type="date"
+                                required
+                                className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                                value={formData.start_date}
+                                onChange={e => setFormData({...formData, start_date: e.target.value})}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-primary mb-1">Départ</label>
+                            <input
+                                type="date"
+                                required
+                                className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                                value={formData.end_date}
+                                onChange={e => setFormData({...formData, end_date: e.target.value})}
+                            />
+                        </div>
+                    </div>
 
-                                <div className="pt-4">
-                                    <button type="submit" disabled={addBookingMutation.isPending || updateBookingMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
-                                        {addBookingMutation.isPending || updateBookingMutation.isPending ? 'Confirmation...' : (editingBooking ? 'Enregistrer les modifications' : 'Confirmer la réservation')}
-                                    </button>
-                                </div>
-                            </form>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    <div>
+                        <label className="block text-sm font-medium text-primary mb-1">Statut</label>
+                        <select
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary"
+                            value={formData.status}
+                            onChange={e => setFormData({...formData, status: e.target.value})}
+                        >
+                            <option value="provisoire">Provisoire</option>
+                            <option value="confirmé">Confirmé</option>
+                            <option value="annulé">Annulé</option>
+                        </select>
+                    </div>
+
+                    {formData.villa_id && formData.start_date && formData.end_date && (
+                        <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl mt-4 border border-indigo-100 dark:border-indigo-500/20">
+                            <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-400">
+                                <span className="font-medium text-sm">Total Estimé:</span>
+                                <span className="text-xl font-bold">{getCalculatedPrice().toLocaleString('fr-FR')} F</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="pt-4">
+                        <button type="submit" disabled={addBookingMutation.isPending || updateBookingMutation.isPending} className="btn-primary w-full py-3 text-base shadow-premium">
+                            {addBookingMutation.isPending || updateBookingMutation.isPending ? 'Confirmation...' : (editingBooking ? 'Enregistrer les modifications' : 'Confirmer la réservation')}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };
