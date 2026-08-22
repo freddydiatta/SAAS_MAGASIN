@@ -366,8 +366,27 @@ CREATE TABLE public.affiliates (
 );
 
 ALTER TABLE public.affiliates ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can manage their own affiliate profile"
-ON public.affiliates FOR ALL USING (id = auth.uid());
+
+CREATE POLICY "Users can view their own affiliate profile"
+ON public.affiliates FOR SELECT USING (id = auth.uid());
+
+CREATE POLICY "Users can create their own affiliate profile"
+ON public.affiliates FOR INSERT WITH CHECK (id = auth.uid());
+
+CREATE POLICY "Users can update their own affiliate profile"
+ON public.affiliates FOR UPDATE USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+
+-- RLS protège la ligne (un affilié ne touche que la sienne) mais pas les
+-- colonnes : sans ceci, un affilié pourrait réécrire son propre
+-- commission_rate/total_earnings directement depuis le client. Ces deux
+-- colonnes ne sont donc accordées en écriture à aucun rôle client — seul
+-- un contexte serveur (service_role / une future fonction SECURITY
+-- DEFINER de calcul des commissions) pourra les modifier.
+REVOKE ALL ON public.affiliates FROM authenticated;
+REVOKE ALL ON public.affiliates FROM anon;
+GRANT SELECT ON public.affiliates TO authenticated;
+GRANT INSERT (id, referral_code, paypal_email) ON public.affiliates TO authenticated;
+GRANT UPDATE (paypal_email) ON public.affiliates TO authenticated;
 
 CREATE TABLE public.referrals (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
