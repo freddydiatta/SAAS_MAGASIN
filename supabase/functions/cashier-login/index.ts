@@ -6,9 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const MAX_ATTEMPTS = 5
-const LOCK_MINUTES = 15
-
 // --- Crypto helpers (mêmes primitives que create-cashier, dupliquées ici
 // car chaque Edge Function est déployée indépendamment). ---
 
@@ -95,7 +92,7 @@ serve(async (req) => {
 
     const { data: member, error: memberError } = await supabaseAdmin
       .from('business_members')
-      .select('id, business_id, user_id, name, is_active, pin_hash, encrypted_credentials, failed_pin_attempts, locked_until')
+      .select('id, business_id, user_id, name, is_active, pin_hash, encrypted_credentials')
       .eq('id', member_id)
       .maybeSingle()
     if (memberError) throw memberError
@@ -132,31 +129,35 @@ serve(async (req) => {
       .maybeSingle()
     if (!callerBusiness && !callerMembership) throw new Error('PIN invalide.')
 
-    if (member.locked_until && new Date(member.locked_until) > new Date()) {
-      logAttempt('LOGIN_FAILED_PIN', { reason: 'locked' })
+    const isValid = await verifyPin(pin, member.pin_hash)
+
+    // Compte + verrouillage gérés en une seule transaction SQL (voir
+    // record_pin_attempt dans supabase/patches/2026-08-23_atomic_pin_lockout.sql) :
+    // avant, le compteur était lu puis réécrit séparément depuis ce code
+    // (lire failed_pin_attempts, +1 en JS, écrire), ce qui permettait à des
+    // tentatives concurrentes de toutes lire la même valeur de départ et de
+    // ne jamais faire progresser le compteur jusqu'à 5 — le verrouillage
+    // anti brute-force pouvait donc être contourné en envoyant plusieurs
+    // requêtes en parallèle. Le FOR UPDATE de la fonction SQL sérialise ces
+    // appels sur la ligne du caissier.
+    const { data: attempt, error: attemptError } = await supabaseAdmin
+      .rpc('record_pin_attempt', { p_member_id: member.id, p_success: isValid })
+      .single()
+    if (attemptError) throw attemptError
+
+    if (attempt?.is_locked) {
+      logAttempt(
+        attempt.just_locked ? 'ACCOUNT_LOCKED' : 'LOGIN_FAILED_PIN',
+        attempt.just_locked ? {} : { reason: 'locked' }
+      )
       throw new Error('Trop de tentatives. Réessayez dans quelques minutes.')
     }
 
-    const isValid = await verifyPin(pin, member.pin_hash)
-
     if (!isValid) {
-      const attempts = (member.failed_pin_attempts || 0) + 1
-      const update: Record<string, unknown> = { failed_pin_attempts: attempts }
-      if (attempts >= MAX_ATTEMPTS) {
-        update.locked_until = new Date(Date.now() + LOCK_MINUTES * 60_000).toISOString()
-        update.failed_pin_attempts = 0
-        logAttempt('ACCOUNT_LOCKED', { attempts })
-      } else {
-        logAttempt('LOGIN_FAILED_PIN', { reason: 'wrong_pin', attempts })
-      }
-      await supabaseAdmin.from('business_members').update(update).eq('id', member.id)
+      logAttempt('LOGIN_FAILED_PIN', { reason: 'wrong_pin', attempts: attempt?.failed_pin_attempts })
       throw new Error('PIN invalide.')
     }
 
-    await supabaseAdmin
-      .from('business_members')
-      .update({ failed_pin_attempts: 0, locked_until: null })
-      .eq('id', member.id)
     logAttempt('LOGIN_SUCCESS', { role: 'cashier' })
 
     const { email, password } = JSON.parse(await decryptText(member.encrypted_credentials))

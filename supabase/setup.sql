@@ -81,6 +81,64 @@ $$;
 GRANT EXECUTE ON FUNCTION public.is_business_owner(uuid) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.is_business_member(uuid) TO authenticated;
 
+-- Compte + verrouille les tentatives de PIN caissier de façon atomique
+-- (FOR UPDATE sérialise les tentatives concurrentes sur la même ligne,
+-- au lieu d'un lire-modifier-écrire séparé côté Edge Function qui
+-- permettait de contourner le seuil de 5 tentatives sous concurrence).
+-- Appelée uniquement par cashier-login via service_role.
+CREATE OR REPLACE FUNCTION public.record_pin_attempt(p_member_id uuid, p_success boolean)
+RETURNS TABLE(failed_pin_attempts integer, locked_until timestamptz, is_locked boolean, just_locked boolean)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_current public.business_members%ROWTYPE;
+    v_new_attempts integer;
+    v_new_locked_until timestamptz;
+BEGIN
+    SELECT * INTO v_current FROM public.business_members WHERE id = p_member_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN;
+    END IF;
+
+    IF v_current.locked_until IS NOT NULL AND v_current.locked_until > now() THEN
+        RETURN QUERY SELECT v_current.failed_pin_attempts, v_current.locked_until, true, false;
+        RETURN;
+    END IF;
+
+    IF p_success THEN
+        UPDATE public.business_members
+        SET failed_pin_attempts = 0, locked_until = NULL
+        WHERE id = p_member_id;
+        RETURN QUERY SELECT 0, NULL::timestamptz, false, false;
+    ELSE
+        v_new_attempts := v_current.failed_pin_attempts + 1;
+        IF v_new_attempts >= 5 THEN
+            v_new_locked_until := now() + interval '15 minutes';
+            v_new_attempts := 0;
+        ELSE
+            v_new_locked_until := NULL;
+        END IF;
+
+        UPDATE public.business_members
+        SET failed_pin_attempts = v_new_attempts, locked_until = v_new_locked_until
+        WHERE id = p_member_id;
+
+        RETURN QUERY SELECT v_new_attempts, v_new_locked_until, (v_new_locked_until IS NOT NULL), (v_new_locked_until IS NOT NULL);
+    END IF;
+END;
+$$;
+
+-- REVOKE ALL FROM PUBLIC ne suffit pas : Supabase accorde automatiquement
+-- EXECUTE à anon/authenticated indépendamment de PUBLIC sur toute nouvelle
+-- fonction — sans ce second REVOKE, n'importe quel utilisateur connecté
+-- pourrait appeler cette fonction SECURITY DEFINER sur l'id de n'importe
+-- quel caissier pour verrouiller/déverrouiller son compte à volonté.
+REVOKE ALL ON FUNCTION public.record_pin_attempt(uuid, boolean) FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.record_pin_attempt(uuid, boolean) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.record_pin_attempt(uuid, boolean) FROM authenticated;
+
 DROP POLICY IF EXISTS "Owners manage their business members" ON public.business_members;
 CREATE POLICY "Owners manage their business members"
 ON public.business_members
