@@ -13,6 +13,7 @@ serve(async (req) => {
 
   try {
     const { business_id } = await req.json()
+    if (!business_id) throw new Error('business_id manquant.')
 
     // 1. Check Auth
     const authHeader = req.headers.get('Authorization')
@@ -31,18 +32,32 @@ serve(async (req) => {
     if (userError) throw new Error('Erreur getUser: ' + userError.message)
     if (!user) throw new Error('Utilisateur introuvable (Non autorisé)')
 
+    // 2. Setup Service Role Client for admin tasks
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Vérifie que l'appelant est bien le PROPRIÉTAIRE du commerce facturé
+    // (pas seulement un utilisateur authentifié quelconque, ex. un compte
+    // caissier) : sans ce contrôle, n'importe quel compte pouvait déclencher
+    // un paiement/prolongation d'abonnement pour n'importe quel business_id
+    // en le passant simplement dans le corps de la requête.
+    const { data: business, error: businessError } = await supabaseAdmin
+      .from('businesses')
+      .select('id')
+      .eq('id', business_id)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (businessError) throw businessError
+    if (!business) throw new Error('Commerce introuvable ou accès non autorisé.')
+
     // Retrieve plan to determine price. Source de vérité canonique côté
     // frontend : src/config/pricing.js — ce fichier tourne sur Deno et ne
     // peut pas l'importer directement, donc les montants sont dupliqués ici
     // volontairement et doivent être mis à jour ensemble.
     const plan = user.user_metadata?.subscription_plan || 'essentiel';
     const amount = plan === 'business' ? 9000 : 5000;
-
-    // 2. Setup Service Role Client for admin tasks
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
 
     // 3. Prepare PayDunya Invoice
     const PAYDUNYA_MASTER_KEY = Deno.env.get('PAYDUNYA_MASTER_KEY')
