@@ -59,7 +59,11 @@ export const Login = () => {
             });
 
             if (error) {
-                supabase.rpc('log_failed_login', { p_email: data.email }).catch(() => {});
+                // supabase-js query builders are "thenables" (.then only) —
+                // pas de vraie Promise, donc pas de .catch()/.finally(). Un
+                // .catch() direct ici plantait de façon synchrone et cassait
+                // TOUTE tentative de connexion (réussie ou non).
+                supabase.rpc('log_failed_login', { p_email: data.email }).then(undefined, () => {});
                 const newAttempts = failedAttempts + 1;
                 setFailedAttempts(newAttempts);
 
@@ -71,7 +75,7 @@ export const Login = () => {
                 }
             } else {
                 setFailedAttempts(0);
-                supabase.rpc('log_login_success').catch(() => {});
+                supabase.rpc('log_login_success').then(undefined, () => {});
                 navigate('/dashboard');
             }
         } catch (err) {
