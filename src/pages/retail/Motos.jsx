@@ -9,6 +9,7 @@ import { toast } from 'react-hot-toast';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
 import { DataTable } from '../../components/DataTable';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const Motos = () => {
     const { selectedBusiness } = useBusiness();
@@ -126,15 +127,10 @@ export const Motos = () => {
             headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center',
             cellClassName: 'p-4 text-center',
             render: (moto) => (
-                moto.stock_quantity > 0 ? (
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
-                        Disponible
-                    </span>
-                ) : (
-                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">
-                        Rupture
-                    </span>
-                )
+                <StatusBadge
+                    label={moto.stock_quantity > 0 ? 'Disponible' : 'Rupture'}
+                    tone={moto.stock_quantity > 0 ? 'emerald' : 'red'}
+                />
             ),
         },
         {

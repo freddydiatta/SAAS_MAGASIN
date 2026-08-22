@@ -8,13 +8,8 @@ import { ShoppingBag, Minus, Plus, Utensils, Receipt, ClipboardList, CheckCircle
 import { motion, AnimatePresence } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
 import { restaurantOrderSchema, firstZodError } from '../../lib/validation';
-
-const STATUS_BADGE = {
-    pending: { label: 'En attente', className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' },
-    served: { label: 'Servie', className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
-    paid: { label: 'Payée', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' },
-    cancelled: { label: 'Annulée', className: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' },
-};
+import { StatusBadge } from '../../components/StatusBadge';
+import { ORDER_STATUS } from '../../lib/orderStatus';
 
 export const Commandes = () => {
     const { selectedBusiness } = useBusiness();
@@ -149,8 +144,8 @@ export const Commandes = () => {
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-center',
             cellClassName: 'py-4 px-6 text-center',
             render: (order) => {
-                const status = STATUS_BADGE[order.status] || STATUS_BADGE.pending;
-                return <span className={`px-3 py-1 rounded-full text-xs font-bold ${status.className}`}>{status.label}</span>;
+                const status = ORDER_STATUS[order.status] || ORDER_STATUS.pending;
+                return <StatusBadge label={status.label} tone={status.tone} />;
             },
         },
         {

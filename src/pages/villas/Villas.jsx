@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
 import { villaSchema, firstZodError } from '../../lib/validation';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const Villas = () => {
     const { selectedBusiness } = useBusiness();
@@ -168,11 +169,13 @@ export const Villas = () => {
                                     </div>
                                     <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">{villa.name}</h3>
                                 </div>
-                                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
-                                    villa.status === 'available' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                                }`}>
-                                    {villa.status === 'available' ? 'Disponible' : 'En maintenance'}
-                                </span>
+                                <StatusBadge
+                                    label={villa.status === 'available' ? 'Disponible' : 'En maintenance'}
+                                    tone={villa.status === 'available' ? 'emerald' : 'amber'}
+                                    rounded="md"
+                                    uppercase
+                                    className="px-2 py-1 text-[10px]"
+                                />
                             </div>
                             <p className="text-secondary text-sm mb-4 flex-1 flex items-center gap-2">
                                 <MapPin className="w-4 h-4 text-slate-400" /> {villa.address || 'Aucune adresse renseignée'}

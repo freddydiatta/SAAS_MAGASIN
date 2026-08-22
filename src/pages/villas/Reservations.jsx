@@ -4,6 +4,7 @@ import { Plus, X, Calendar, Home, Users, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -76,12 +77,12 @@ export const Reservations = () => {
             headerClassName: 'px-6 py-4 font-semibold text-center',
             cellClassName: 'px-6 py-4 text-center',
             render: (booking) => (
-                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    booking.status === 'confirmed' || booking.status === 'confirmé' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
-                    booking.status === 'provisoire' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
-                }`}>
-                    {booking.status === 'confirmed' ? 'Confirmé' : booking.status}
-                </span>
+                <StatusBadge
+                    label={booking.status === 'confirmed' ? 'Confirmé' : booking.status}
+                    tone={booking.status === 'confirmed' || booking.status === 'confirmé' ? 'emerald' : booking.status === 'provisoire' ? 'amber' : 'red'}
+                    uppercase
+                    className="px-3 py-1 text-[10px]"
+                />
             ),
         },
         {

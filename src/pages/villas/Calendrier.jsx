@@ -6,6 +6,7 @@ import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Info } from 'lucid
 import { motion } from 'framer-motion';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const Calendrier = () => {
     const { selectedBusiness } = useBusiness();
@@ -127,16 +128,15 @@ export const Calendrier = () => {
                                         {/* Bookings for this day */}
                                         <div className="flex flex-col gap-1 overflow-y-auto max-h-[80px] custom-scrollbar">
                                             {dayBookings.map((booking, bIdx) => (
-                                                <div 
+                                                <StatusBadge
                                                     key={bIdx}
                                                     title={`${booking.villas?.name} - ${booking.customer_name} (${booking.status})`}
-                                                    className={`text-[10px] md:text-xs px-2 py-1 rounded truncate font-medium
-                                                        ${booking.status === 'confirmed' || booking.status === 'confirmé' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 
-                                                        booking.status === 'provisoire' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 
-                                                        'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400'}`}
-                                                >
-                                                    {booking.villas?.name}
-                                                </div>
+                                                    label={booking.villas?.name}
+                                                    tone={booking.status === 'confirmed' || booking.status === 'confirmé' ? 'emerald' : booking.status === 'provisoire' ? 'amber' : 'slate'}
+                                                    rounded="md"
+                                                    bold={false}
+                                                    className="text-[10px] md:text-xs px-2 py-1 truncate"
+                                                />
                                             ))}
                                         </div>
                                     </div>

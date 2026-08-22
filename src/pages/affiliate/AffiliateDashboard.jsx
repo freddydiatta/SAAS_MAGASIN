@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Copy, Users, DollarSign, TrendingUp, Link as LinkIcon, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const AffiliateDashboard = () => {
     const { user } = useAuth();
@@ -98,13 +99,10 @@ export const AffiliateDashboard = () => {
             headerClassName: 'pb-4 font-semibold',
             cellClassName: 'py-4',
             render: (ref) => (
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                    ref.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
-                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                }`}>
-                    {ref.status === 'active' ? 'Actif' : 'En attente'}
-                </span>
+                <StatusBadge
+                    label={ref.status === 'active' ? 'Actif' : 'En attente'}
+                    tone={ref.status === 'active' ? 'emerald' : 'amber'}
+                />
             ),
         },
         {

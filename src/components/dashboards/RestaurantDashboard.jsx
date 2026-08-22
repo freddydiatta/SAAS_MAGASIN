@@ -3,15 +3,10 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import { useRestaurantDashboardStats } from '../../hooks/useRestaurantDashboardStats';
 import { Utensils, DollarSign, Clock, Users, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { StatusBadge } from '../StatusBadge';
+import { ORDER_STATUS } from '../../lib/orderStatus';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
-
-const STATUS_LABELS = {
-    pending: { label: 'En attente', className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' },
-    served: { label: 'Servie', className: 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400' },
-    paid: { label: 'Payée', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' },
-    cancelled: { label: 'Annulée', className: 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400' },
-};
 
 export const RestaurantDashboard = () => {
     const { selectedBusiness } = useBusiness();
@@ -127,7 +122,7 @@ export const RestaurantDashboard = () => {
                 ) : (
                     <div className="divide-y divide-slate-100 dark:divide-border-theme">
                         {recentOrders.map(order => {
-                            const status = STATUS_LABELS[order.status] || STATUS_LABELS.pending;
+                            const status = ORDER_STATUS[order.status] || ORDER_STATUS.pending;
                             return (
                                 <div key={order.id} className="p-4 px-6 flex items-center justify-between">
                                     <div>
@@ -138,7 +133,7 @@ export const RestaurantDashboard = () => {
                                     </div>
                                     <div className="flex items-center gap-4">
                                         <span className="font-bold text-primary">{formatFCFA(order.total_amount)} F</span>
-                                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${status.className}`}>{status.label}</span>
+                                        <StatusBadge label={status.label} tone={status.tone} />
                                     </div>
                                 </div>
                             );

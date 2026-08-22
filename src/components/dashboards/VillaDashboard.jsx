@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { Home, Calendar, DollarSign, Users, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { StatusBadge } from '../StatusBadge';
 
 export const VillaDashboard = () => {
     const { user } = useAuth();
@@ -154,9 +155,13 @@ export const VillaDashboard = () => {
                                             <p className="text-sm font-medium text-primary">
                                                 {new Date(booking.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                                             </p>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${booking.status === 'confirmed' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                {booking.status}
-                                            </span>
+                                            <StatusBadge
+                                                label={booking.status}
+                                                tone={booking.status === 'confirmed' ? 'emerald' : 'amber'}
+                                                rounded="md"
+                                                uppercase
+                                                className="px-2 py-0.5 text-[10px]"
+                                            />
                                         </div>
                                         <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-accent transition-colors" />
                                     </div>

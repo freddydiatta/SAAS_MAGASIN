@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
 import { menuItemSchema, firstZodError } from '../../lib/validation';
+import { StatusBadge } from '../../components/StatusBadge';
 
 export const Menu = () => {
     const { selectedBusiness } = useBusiness();
@@ -110,7 +111,11 @@ export const Menu = () => {
                                                 <p className="font-medium text-primary text-sm group-hover/item:text-accent transition-colors">{item.name}</p>
                                                 <p className="text-xs text-secondary font-bold">{item.price.toLocaleString('fr-FR')} F</p>
                                             </div>
-                                            <div className={`w-3 h-3 rounded-full ${item.is_available ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'}`} title={item.is_available ? 'Disponible' : 'Indisponible'}></div>
+                                            <StatusBadge
+                                                label={item.is_available ? 'Disponible' : 'Indisponible'}
+                                                tone={item.is_available ? 'emerald' : 'red'}
+                                                className="px-2 py-0.5 text-[10px]"
+                                            />
                                         </div>
                                     ))
                                 )}
