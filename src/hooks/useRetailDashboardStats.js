@@ -1,0 +1,124 @@
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import { useProducts } from './useProducts';
+
+const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
+
+// Tous les calculs de KPI du tableau de bord commerce (caisse du jour,
+// variation vs hier, panier moyen, alertes stock, graphique 7 jours, top
+// produits) : sorti de RetailDashboard.jsx, qui mélangeait ces calculs avec
+// le rendu des cartes/graphique dans un seul fichier de 300+ lignes.
+export function useRetailDashboardStats(selectedBusiness) {
+    const { user } = useAuth();
+
+    const { data: products = [] } = useProducts(selectedBusiness?.id);
+
+    const { data: sales = [], isLoading: loadingSales } = useQuery({
+        queryKey: ['sales', selectedBusiness?.id],
+        queryFn: async () => {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const { data, error } = await supabase
+                .from('sales')
+                .select('*, products(name, type), receipts!inner(status, payment_method)')
+                .eq('business_id', selectedBusiness?.id)
+                .eq('receipts.status', 'completed')
+                .gte('created_at', thirtyDaysAgo.toISOString())
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!user && !!selectedBusiness
+    });
+
+    const today = new Date().setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const salesToday = sales.filter(s => new Date(s.created_at).getTime() >= today);
+    const salesYesterday = sales.filter(s => {
+        const time = new Date(s.created_at).getTime();
+        return time >= yesterday.getTime() && time < today;
+    });
+
+    const caisseDuJour = salesToday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+    const caisseHier = salesYesterday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+
+    const caisseDuJourCash = salesToday
+        .filter(sale => sale.receipts?.payment_method === 'cash')
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+
+    const caisseDuJourMobile = salesToday
+        .filter(sale => sale.receipts?.payment_method === 'mobile_money')
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+
+    // Calculate % change (prevent divide by zero)
+    const percentChange = caisseHier > 0
+        ? Math.round(((caisseDuJour - caisseHier) / caisseHier) * 100)
+        : (caisseDuJour > 0 ? 100 : 0);
+
+    const panierMoyen = salesToday.length > 0 ? Math.round(caisseDuJour / salesToday.length) : 0;
+    const transactions = salesToday.length;
+
+    const transactionsHier = salesYesterday.length;
+    const diffTransactions = transactions - transactionsHier;
+
+    const alertesStock = products.filter(p => p.stock_quantity <= 2).length;
+
+    // --- Chart Data (Last 7 Days) ---
+    const chartData = [];
+    let total7Days = 0;
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        d.setHours(0, 0, 0, 0);
+        const nextD = new Date(d);
+        nextD.setDate(d.getDate() + 1);
+
+        const daySales = sales.filter(s => {
+            const time = new Date(s.created_at).getTime();
+            return time >= d.getTime() && time < nextD.getTime();
+        });
+
+        const dayTotal = daySales.reduce((sum, s) => sum + Number(s.total_price), 0);
+        total7Days += dayTotal;
+
+        chartData.push({
+            name: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+            total: dayTotal
+        });
+    }
+
+    // --- Top Products ---
+    const productStats = {};
+    sales.forEach(sale => {
+        const name = sale.products?.name || 'Inconnu';
+        if (!productStats[name]) productStats[name] = { quantity: 0, revenue: 0 };
+        productStats[name].quantity += sale.quantity;
+        productStats[name].revenue += Number(sale.total_price);
+    });
+
+    const topProducts = Object.entries(productStats)
+        .map(([name, stats]) => ({ name, ...stats }))
+        .sort((a, b) => b.quantity - a.quantity)
+        .slice(0, 3);
+
+    return {
+        loadingSales,
+        caisseDuJour,
+        caisseDuJourCash,
+        caisseDuJourMobile,
+        percentChange,
+        panierMoyen,
+        transactions,
+        diffTransactions,
+        alertesStock,
+        chartData,
+        total7Days,
+        topProducts,
+        formatFCFA,
+    };
+}

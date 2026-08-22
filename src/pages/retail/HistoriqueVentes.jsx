@@ -1,10 +1,7 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSalesHistory } from '../../hooks/useSalesHistory';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { cancelSale, modifySale } from '../../services/salesService';
 import { FileText, Edit2, Ban, Calendar, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
@@ -12,138 +9,17 @@ import { DataTable } from '../../components/DataTable';
 export const HistoriqueVentes = () => {
     const { selectedBusiness, currentMember } = useBusiness();
     const { user } = useAuth();
-    const queryClient = useQueryClient();
     // Un caissier a un compte auto-généré (email interne illisible) : on
     // journalise son nom d'affichage plutôt que cet email quand disponible.
     const actorLabel = currentMember?.name || user?.email || 'unknown';
-    
-    const [toastMessage, setToastMessage] = useState('');
-    const [receiptToCancel, setReceiptToCancel] = useState(null);
-    const [receiptToPrint, setReceiptToPrint] = useState(null);
-    const [receiptToModify, setReceiptToModify] = useState(null);
-    const [modifiedItems, setModifiedItems] = useState([]);
 
-    const showToast = (message) => {
-        setToastMessage(message);
-        setTimeout(() => setToastMessage(''), 3000);
-    };
-
-    const { data: receipts = [], isLoading } = useQuery({
-        queryKey: ['receipts', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('receipts')
-                .select('*, sales(*, products(name, type))')
-                .eq('business_id', selectedBusiness?.id)
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!selectedBusiness
-    });
-
-    const cancelReceiptMutation = useMutation({
-        mutationFn: async (receipt) => {
-            // Annulation + restauration du stock + audit log en une seule
-            // transaction côté base de données (voir cancel_sale dans
-            // supabase/patches/2026-08-21_critical_fixes.sql).
-            const { error } = await cancelSale({
-                receiptId: receipt.id,
-                userEmail: actorLabel
-            });
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['receipts']);
-            queryClient.invalidateQueries(['products']);
-            queryClient.invalidateQueries(['sales']);
-            setReceiptToCancel(null);
-            showToast('✅ Vente annulée avec succès. Le stock a été restauré.');
-        },
-        onError: (error) => {
-            console.error("Erreur lors de l'annulation:", error.message);
-            showToast('❌ Une erreur est survenue lors de l\'annulation.');
-        }
-    });
-
-    const confirmCancel = () => {
-        if (receiptToCancel) {
-            cancelReceiptMutation.mutate(receiptToCancel);
-        }
-    };
-
-    const handlePrint = (receipt) => {
-        const invoiceDetails = {
-            receiptId: receipt.id,
-            date: receipt.created_at,
-            customerName: receipt.customer_name,
-            customerPhone: receipt.customer_phone,
-            items: receipt.sales.map(s => ({
-                name: s.products?.name,
-                quantity: s.quantity,
-                price: s.total_price / s.quantity
-            })),
-            total: receipt.total_amount
-        };
-        setReceiptToPrint(invoiceDetails);
-    };
-
-    const handleModify = (receipt) => {
-        setReceiptToModify(receipt);
-        setModifiedItems(receipt.sales.map(s => ({
-            id: s.id,
-            product_id: s.product_id,
-            name: s.products?.name || 'Produit',
-            original_qty: s.quantity,
-            new_qty: s.quantity,
-            price: s.total_price / s.quantity
-        })));
-    };
-
-    const updateModifiedQty = (saleId, newQty) => {
-        if (newQty < 0) return;
-        setModifiedItems(prev => prev.map(item => 
-            item.id === saleId ? { ...item, new_qty: newQty } : item
-        ));
-    };
-
-    const modifyReceiptMutation = useMutation({
-        mutationFn: async ({ receipt, items }) => {
-            // Mise à jour des lignes de vente + ajustement du stock + audit log
-            // en une seule transaction côté base de données (voir modify_sale
-            // dans supabase/patches/2026-08-21_critical_fixes.sql).
-            const { error } = await modifySale({
-                receiptId: receipt.id,
-                userEmail: actorLabel,
-                items: items.map(item => ({
-                    sale_id: item.id,
-                    product_id: item.product_id,
-                    name: item.name,
-                    original_qty: item.original_qty,
-                    new_qty: item.new_qty,
-                    price: item.price
-                }))
-            });
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries(['receipts']);
-            queryClient.invalidateQueries(['products']);
-            queryClient.invalidateQueries(['sales']);
-            setReceiptToModify(null);
-            showToast('✅ Vente modifiée avec succès.');
-        },
-        onError: (error) => {
-            console.error("Erreur modif:", error.message);
-            showToast('❌ Erreur lors de la modification.');
-        }
-    });
-
-    const confirmModify = () => {
-        if (receiptToModify) {
-            modifyReceiptMutation.mutate({ receipt: receiptToModify, items: modifiedItems });
-        }
-    };
+    const {
+        receipts, isLoading,
+        toastMessage,
+        receiptToCancel, setReceiptToCancel, confirmCancel, isCancelling,
+        receiptToPrint, setReceiptToPrint, handlePrint,
+        receiptToModify, setReceiptToModify, modifiedItems, handleModify, updateModifiedQty, confirmModify, isModifying,
+    } = useSalesHistory(selectedBusiness, actorLabel);
 
     if (isLoading) {
         return <div className="p-8 text-center text-secondary">Chargement de l'historique...</div>;
@@ -283,7 +159,7 @@ export const HistoriqueVentes = () => {
 
             {/* Print Invoice Modal */}
             {receiptToPrint && (
-                <InvoicePrint 
+                <InvoicePrint
                     invoiceDetails={receiptToPrint}
                     business={selectedBusiness}
                     onClose={() => setReceiptToPrint(null)}
@@ -304,10 +180,10 @@ export const HistoriqueVentes = () => {
                     <button onClick={() => setReceiptToCancel(null)} className="flex-1 btn-secondary py-3">Retour</button>
                     <button
                         onClick={confirmCancel}
-                        disabled={cancelReceiptMutation.isPending}
+                        disabled={isCancelling}
                         className="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3 transition-colors disabled:opacity-50 shadow-premium"
                     >
-                        {cancelReceiptMutation.isPending ? 'Annulation...' : 'Oui, annuler'}
+                        {isCancelling ? 'Annulation...' : 'Oui, annuler'}
                     </button>
                 </div>
             </Modal>
@@ -349,10 +225,10 @@ export const HistoriqueVentes = () => {
                     <button onClick={() => setReceiptToModify(null)} className="flex-1 btn-secondary py-3">Annuler</button>
                     <button
                         onClick={confirmModify}
-                        disabled={modifyReceiptMutation.isPending}
+                        disabled={isModifying}
                         className="flex-1 btn-primary py-3 shadow-premium"
                     >
-                        {modifyReceiptMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+                        {isModifying ? 'Enregistrement...' : 'Enregistrer'}
                     </button>
                 </div>
             </Modal>
