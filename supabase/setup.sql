@@ -330,6 +330,9 @@ CREATE TABLE public.audit_logs (
 
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
+CREATE INDEX IF NOT EXISTS idx_audit_logs_business_action_created_at
+    ON public.audit_logs (business_id, action, created_at DESC);
+
 -- Journal immuable : les membres (caissiers inclus) peuvent uniquement
 -- ajouter des entrées (ex. annulation de vente qu'ils effectuent eux-mêmes),
 -- mais seul le propriétaire peut les consulter. Aucune policy UPDATE/DELETE
@@ -389,6 +392,7 @@ AS $$
 DECLARE
     v_user_id uuid;
     v_business RECORD;
+    v_last_logged timestamptz;
 BEGIN
     SELECT id INTO v_user_id FROM auth.users WHERE email = lower(p_email) LIMIT 1;
     IF v_user_id IS NULL THEN
@@ -397,8 +401,18 @@ BEGIN
 
     FOR v_business IN SELECT id FROM public.businesses WHERE user_id = v_user_id
     LOOP
-        INSERT INTO public.audit_logs (business_id, user_email, action, details)
-        VALUES (v_business.id, p_email, 'LOGIN_FAILED', jsonb_build_object('role', 'owner'));
+        -- Anti-spam : au plus une entrée LOGIN_FAILED toutes les 10 secondes
+        -- par commerce — cette fonction reste accessible à `anon` (appelée
+        -- avant authentification), donc sans ce plafond n'importe qui peut
+        -- la boucler pour noyer l'audit log du propriétaire.
+        SELECT MAX(created_at) INTO v_last_logged
+        FROM public.audit_logs
+        WHERE business_id = v_business.id AND action = 'LOGIN_FAILED';
+
+        IF v_last_logged IS NULL OR v_last_logged < now() - interval '10 seconds' THEN
+            INSERT INTO public.audit_logs (business_id, user_email, action, details)
+            VALUES (v_business.id, p_email, 'LOGIN_FAILED', jsonb_build_object('role', 'owner'));
+        END IF;
     END LOOP;
 END;
 $$;
