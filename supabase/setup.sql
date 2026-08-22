@@ -474,27 +474,37 @@ ON public.commissions FOR SELECT USING (affiliate_id = auth.uid());
 -- ==========================================
 -- 9. RPC Functions : Affiliation
 -- ==========================================
+-- Le filleul est marqué 'pending' à l'inscription, pas 'active' : 'active'
+-- signifie désormais "a généré au moins une commission" (premier paiement
+-- réussi, voir le traitement dans supabase/functions/paydunya-webhook),
+-- pas juste "s'est inscrit". Avant ce correctif, tout filleul passait
+-- 'active' dès l'inscription, donc "Abonnements Actifs" == "Inscriptions
+-- Totales" dans le tableau de bord affilié, peu importe s'il payait ou non.
 CREATE OR REPLACE FUNCTION register_referral(ref_code text)
-RETURNS void AS $$
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
     aff_id uuid;
 BEGIN
     SELECT id INTO aff_id FROM public.affiliates WHERE referral_code = ref_code;
     IF aff_id IS NOT NULL THEN
         INSERT INTO public.referrals (affiliate_id, referred_user_id, status)
-        VALUES (aff_id, auth.uid(), 'active')
+        VALUES (aff_id, auth.uid(), 'pending')
         ON CONFLICT (referred_user_id) DO NOTHING;
     END IF;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 GRANT EXECUTE ON FUNCTION public.register_referral(text) TO authenticated;
 
 -- ==========================================
--- 10. Tables Sp�cifiques : PAIEMENTS & ABONNEMENTS (SaaS)
+-- 10. Tables Spécifiques : PAIEMENTS & ABONNEMENTS (SaaS)
 -- ==========================================
 
--- Mise � jour de la table businesses pour g�rer les abonnements
+-- Mise à jour de la table businesses pour gérer les abonnements
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_status TEXT DEFAULT 'active'; -- 'active', 'past_due', 'canceled'
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_end_date TIMESTAMP WITH TIME ZONE DEFAULT (timezone('utc'::text, now()) + interval '14 days');
 

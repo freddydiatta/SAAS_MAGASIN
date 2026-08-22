@@ -39,17 +39,21 @@ serve(async (req) => {
     )
 
     if (transactionStatus === "completed") {
-      // 1. Update payment status
-      await supabaseAdmin
+      // 1. Update payment status (on relit le montant réellement facturé
+      // depuis notre propre table plutôt que de reparser le payload
+      // PayDunya, pour le calcul de commission ci-dessous).
+      const { data: paymentRow } = await supabaseAdmin
         .from('payments')
         .update({ status: 'successful' })
-        .eq('transaction_id', token);
+        .eq('transaction_id', token)
+        .select('amount')
+        .maybeSingle();
 
       // 2. Extend subscription by 30 days
       // First, get the current end date
       const { data: business } = await supabaseAdmin
         .from('businesses')
-        .select('subscription_end_date')
+        .select('subscription_end_date, user_id')
         .eq('id', businessId)
         .single();
 
@@ -60,16 +64,60 @@ serve(async (req) => {
           newEndDate = currentEnd; // Start adding from current end date if not yet expired
         }
       }
-      
+
       newEndDate.setDate(newEndDate.getDate() + 30); // Add 30 days
 
       await supabaseAdmin
         .from('businesses')
-        .update({ 
+        .update({
           subscription_status: 'active',
           subscription_end_date: newEndDate.toISOString()
         })
         .eq('id', businessId);
+
+      // 3. Commission d'affiliation, si le propriétaire de ce commerce a été
+      // parrainé (table referrals). N'importe quel souci ici est journalisé
+      // mais ne doit jamais faire échouer la confirmation du paiement lui
+      // même — c'est un traitement annexe, pas le cœur du webhook.
+      try {
+        if (business?.user_id && paymentRow?.amount) {
+          const { data: referral } = await supabaseAdmin
+            .from('referrals')
+            .select('id, affiliate_id, status')
+            .eq('referred_user_id', business.user_id)
+            .maybeSingle();
+
+          if (referral) {
+            const { data: affiliate } = await supabaseAdmin
+              .from('affiliates')
+              .select('commission_rate, total_earnings')
+              .eq('id', referral.affiliate_id)
+              .maybeSingle();
+
+            if (affiliate) {
+              const commissionAmount = (Number(paymentRow.amount) * Number(affiliate.commission_rate)) / 100;
+
+              await supabaseAdmin.from('commissions').insert({
+                affiliate_id: referral.affiliate_id,
+                referral_id: referral.id,
+                amount: commissionAmount,
+                status: 'pending',
+              });
+
+              await supabaseAdmin
+                .from('affiliates')
+                .update({ total_earnings: Number(affiliate.total_earnings) + commissionAmount })
+                .eq('id', referral.affiliate_id);
+
+              if (referral.status !== 'active') {
+                await supabaseAdmin.from('referrals').update({ status: 'active' }).eq('id', referral.id);
+              }
+            }
+          }
+        }
+      } catch (commissionError) {
+        console.error('Erreur traitement commission affiliation:', commissionError);
+      }
     } else {
       // Payment failed or cancelled
       await supabaseAdmin
