@@ -1,17 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle } from 'lucide-react';
-
-// Schéma de validation avec Zod
-const loginSchema = z.object({
-    email: z.string().email('Veuillez entrer une adresse email valide.'),
-    password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères.')
-});
+import { loginSchema } from '../../lib/validation';
 
 export const Login = () => {
     const [authError, setAuthError] = useState('');

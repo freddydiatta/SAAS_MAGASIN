@@ -1,21 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { DEFAULT_PLAN } from '../../config/pricing';
-
-const registerSchema = z.object({
-    email: z.string().email('Veuillez entrer une adresse email valide.'),
-    password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères.'),
-    confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-    message: "Les mots de passe ne correspondent pas",
-    path: ["confirmPassword"]
-});
+import { registerSchema } from '../../lib/validation';
 
 export const Register = () => {
     const [authError, setAuthError] = useState('');

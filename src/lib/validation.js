@@ -6,6 +6,26 @@ import * as z from 'zod';
 // une date de départ antérieure à la date d'arrivée, car le calcul de prix
 // utilise une valeur absolue et ne s'en rend pas compte).
 
+// Login.jsx et Register.jsx définissaient chacun leur propre schéma
+// email/mot de passe, mot pour mot identique — le genre de duplication que
+// ce fichier existe justement pour éviter ailleurs.
+const emailSchema = z.string().email('Veuillez entrer une adresse email valide.');
+const passwordSchema = z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères.');
+
+export const loginSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+});
+
+export const registerSchema = z.object({
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: 'Les mots de passe ne correspondent pas',
+    path: ['confirmPassword'],
+});
+
 export const productSchema = z.object({
     name: z.string().trim().min(1, 'Le nom est requis.').max(200, 'Le nom est trop long.'),
     price: z.coerce.number({ invalid_type_error: 'Le prix doit être un nombre.' })
