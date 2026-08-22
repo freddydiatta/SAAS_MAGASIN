@@ -8,6 +8,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.js',
+    // Le défaut de 5000ms est trop juste pour les premiers tests de fichiers
+    // qui font beaucoup d'interactions userEvent (typing + click) : le coût
+    // d'import/transform à froid des dépendances (framer-motion,
+    // react-hook-form, zod...) empiète sur ce budget et faisait échouer ces
+    // tests systématiquement en CI (runners plus lents/à froid), pas juste
+    // occasionnellement.
+    testTimeout: 15000,
   },
   plugins: [
     react(),
