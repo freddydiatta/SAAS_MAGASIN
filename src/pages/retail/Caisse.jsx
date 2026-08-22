@@ -1,36 +1,30 @@
-import { useState, useMemo, useCallback, memo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useState, useMemo, memo } from 'react';
 import { useBusiness } from '../../contexts/BusinessContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useProducts } from '../../hooks/useProducts';
+import { useCaisseCart } from '../../hooks/useCaisseCart';
 import { InvoicePrint } from '../../components/InvoicePrint';
 import { Plus, Minus, Search, X, Package, ShoppingBag, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { saveOfflineSale } from '../../services/syncService';
-import { processSale } from '../../services/salesService';
 import { Modal } from '../../components/Modal';
-import { invoiceCustomerSchema, firstZodError } from '../../lib/validation';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
-    const { user } = useAuth();
-    const queryClient = useQueryClient();
-    
-    const [cart, setCart] = useState([]);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [customerName, setCustomerName] = useState('');
-    const [customerPhone, setCustomerPhone] = useState('');
-    const [showInvoice, setShowInvoice] = useState(false);
-    const [isFacturing, setIsFacturing] = useState(false);
-    const [lastSaleDetails, setLastSaleDetails] = useState(null);
-    const [toastMessage, setToastMessage] = useState('');
-    const [amountReceived, setAmountReceived] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' or 'mobile_money'
 
-    const showToast = (message) => {
-        setToastMessage(message);
-        setTimeout(() => setToastMessage(''), 3000);
-    };
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const {
+        cart, addToCart, removeFromCart, updateQuantity, cartTotal,
+        customerName, setCustomerName,
+        customerPhone, setCustomerPhone,
+        showInvoice, setShowInvoice,
+        isFacturing, setIsFacturing,
+        lastSaleDetails,
+        toastMessage,
+        amountReceived, setAmountReceived,
+        paymentMethod, setPaymentMethod,
+        handleCheckout,
+        handleFacturationSubmit,
+    } = useCaisseCart(selectedBusiness);
 
     const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
 
@@ -42,178 +36,9 @@ export const Caisse = () => {
         [products, searchTerm]
     );
 
-    // useCallback avec une dépendance vide : addToCart ne lit jamais `cart`
-    // directement (mise à jour fonctionnelle via setCart(prev => ...)), donc
-    // sa référence reste stable pour toujours — nécessaire pour que
-    // React.memo sur ProductCard serve à quelque chose.
-    const addToCart = useCallback((product) => {
-        setCart(prev => {
-            const existing = prev.find(item => item.id === product.id);
-            if (existing) {
-                return prev.map(item =>
-                    item.id === product.id
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            }
-            return [...prev, { ...product, quantity: 1 }];
-        });
-    }, []);
-
-    const removeFromCart = (productId) => {
-        setCart(prev => prev.filter(item => item.id !== productId));
-    };
-
-    const updateQuantity = (productId, newQuantity) => {
-        if (newQuantity < 1) return;
-        setCart(prev => prev.map(item => 
-            item.id === productId ? { ...item, quantity: newQuantity } : item
-        ));
-    };
-
-    const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-
-    const handleFacturationSubmit = () => {
-        const result = invoiceCustomerSchema.safeParse({ customerName, customerPhone });
-        if (!result.success) {
-            showToast(`❌ ${firstZodError(result)}`);
-            return;
-        }
-        handleCheckout(true);
-    };
-
-    const handleCheckout = async (withInvoice = false) => {
-        if (cart.length === 0) return;
-
-        try {
-            if (!navigator.onLine) {
-                // HORS-LIGNE
-                const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal, paymentMethod);
-                
-                // Mettre à jour le cache local des ventes
-                queryClient.setQueryData(['receipts', selectedBusiness.id], (old) => {
-                    return [newReceipt, ...(old || [])];
-                });
-
-                // Mettre à jour le cache local des lignes de ventes pour le dashboard
-                const newSales = cart.map(item => ({
-                    id: 'temp-sale-' + Date.now() + Math.random(),
-                    business_id: selectedBusiness.id,
-                    receipt_id: newReceipt.id,
-                    product_id: item.id,
-                    quantity: item.quantity,
-                    total_price: item.price * item.quantity,
-                    created_at: new Date().toISOString(),
-                    products: { name: item.name, type: item.type },
-                    receipts: { status: 'completed' }
-                }));
-                queryClient.setQueryData(['sales', selectedBusiness.id], (old) => {
-                    return [...newSales, ...(old || [])];
-                });
-                
-                // Décrémenter virtuellement le stock
-                queryClient.setQueryData(['products', selectedBusiness.id], (old) => {
-                    if (!old) return old;
-                    let newProducts = [...old];
-                    for (let item of cart) {
-                        const idx = newProducts.findIndex(p => p.id === item.id);
-                        if(idx !== -1) {
-                             newProducts[idx] = {...newProducts[idx], stock_quantity: newProducts[idx].stock_quantity - item.quantity};
-                        }
-                    }
-                    return newProducts;
-                });
-                
-                if (withInvoice) {
-                    setLastSaleDetails({
-                        items: [...cart],
-                        total: cartTotal,
-                        date: new Date(),
-                        customerName: customerName || 'Client Comptoir',
-                        customerPhone: customerPhone,
-                        receiptId: newReceipt.id
-                    });
-                    setShowInvoice(true);
-                } else {
-                    showToast('⏳ Vente enregistrée hors-ligne (sera synchronisée).');
-                }
-                
-                setCart([]);
-                setCustomerName('');
-                setCustomerPhone('');
-                setAmountReceived('');
-                setPaymentMethod('cash');
-                setIsFacturing(false);
-                return;
-            }
-
-            // EN LIGNE
-            // Création de la vente (reçu + lignes + décrément du stock) en une seule
-            // transaction côté base de données, pour éviter tout état incohérent si
-            // une étape échoue en cours de route, et pour empêcher la survente en cas
-            // de ventes concurrentes (voir supabase/patches/2026-08-21_critical_fixes.sql).
-            const { data: receiptData, error: receiptError } = await processSale({
-                businessId: selectedBusiness.id,
-                customerName: withInvoice ? customerName : null,
-                customerPhone: withInvoice ? customerPhone : null,
-                paymentMethod,
-                items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
-            });
-
-            if (receiptError) throw receiptError;
-
-            const receiptId = receiptData.id;
-
-            // Optimistic update for immediate dashboard reflection
-            const onlineNewSales = cart.map(item => ({
-                id: 'temp-sale-' + Date.now() + Math.random(),
-                business_id: selectedBusiness.id,
-                receipt_id: receiptId,
-                product_id: item.id,
-                quantity: item.quantity,
-                total_price: item.price * item.quantity,
-                created_at: new Date().toISOString(),
-                products: { name: item.name, type: item.type },
-                receipts: { status: 'completed', payment_method: paymentMethod }
-            }));
-            queryClient.setQueryData(['sales', selectedBusiness.id], (old) => {
-                return [...onlineNewSales, ...(old || [])];
-            });
-
-            queryClient.invalidateQueries(['products']);
-            queryClient.invalidateQueries(['sales']);
-            queryClient.invalidateQueries(['receipts']);
-            
-            if (withInvoice) {
-                setLastSaleDetails({
-                    items: [...cart],
-                    total: receiptData.total_amount,
-                    date: new Date(),
-                    customerName: customerName || 'Client Comptoir',
-                    customerPhone: customerPhone,
-                    receiptId: receiptId
-                });
-                setShowInvoice(true);
-            } else {
-                showToast('✅ Vente encaissée avec succès !');
-            }
-
-            setCart([]);
-            setCustomerName('');
-            setCustomerPhone('');
-            setAmountReceived('');
-            setPaymentMethod('cash');
-            setIsFacturing(false);
-            
-        } catch (error) {
-            console.error("Erreur lors de l'encaissement:", error.message);
-            showToast('❌ Erreur lors de l\'encaissement');
-        }
-    };
-
     if (showInvoice && lastSaleDetails) {
         return (
-            <InvoicePrint 
+            <InvoicePrint
                 invoiceDetails={lastSaleDetails}
                 business={selectedBusiness}
                 onClose={() => setShowInvoice(false)}
@@ -265,16 +90,16 @@ export const Caisse = () => {
             {/* Left side: Products Grid */}
             <div className="flex-1 flex flex-col bg-transparent lg:min-h-0">
                 <div className="mb-6 relative">
-                    <input 
-                        type="text" 
-                        placeholder="Scanner ou rechercher un article..." 
+                    <input
+                        type="text"
+                        placeholder="Scanner ou rechercher un article..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-panel shadow-premium-lg rounded-full py-4 px-6 pl-14 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border border-slate-100/50 dark:border-border-theme text-primary placeholder:text-slate-400"
                     />
                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto pb-6">
                     {isLoading ? (
                         <p className="text-secondary text-center py-8">Chargement du catalogue...</p>
@@ -313,12 +138,12 @@ export const Caisse = () => {
                     ) : (
                         <AnimatePresence>
                             {cart.map(item => (
-                                <motion.div 
+                                <motion.div
                                     layout
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: 0 }}
-                                    key={item.id} 
+                                    key={item.id}
                                     className="flex flex-col gap-3 p-4 bg-panel rounded-2xl border border-slate-100 dark:border-border-theme shadow-sm"
                                 >
                                     <div className="flex justify-between items-start gap-2">
@@ -370,13 +195,13 @@ export const Caisse = () => {
                     <div className="mb-4">
                         <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Mode de paiement</label>
                         <div className="flex gap-2">
-                            <button 
+                            <button
                                 onClick={() => { setPaymentMethod('cash'); setAmountReceived(''); }}
                                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 ${paymentMethod === 'cash' ? 'bg-blue-100 text-blue-600 border-blue-500' : 'bg-surface dark:bg-slate-800 text-secondary border-transparent hover:border-slate-300'}`}
                             >
                                 💵 Espèces
                             </button>
-                            <button 
+                            <button
                                 onClick={() => { setPaymentMethod('mobile_money'); setAmountReceived(''); }}
                                 className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 ${paymentMethod === 'mobile_money' ? 'bg-orange-100 text-orange-600 border-orange-500' : 'bg-surface dark:bg-slate-800 text-secondary border-transparent hover:border-slate-300'}`}
                             >
@@ -389,8 +214,8 @@ export const Caisse = () => {
                         <div className="mb-6 animate-fade-in-up">
                             <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Montant reçu du client</label>
                             <div className="relative">
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     value={amountReceived}
                                     onChange={(e) => setAmountReceived(e.target.value)}
                                     placeholder="0"
@@ -398,7 +223,7 @@ export const Caisse = () => {
                                 />
                                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-secondary font-medium">FCFA</span>
                             </div>
-                            
+
                             {amountReceived && cartTotal > 0 && (
                                 <div className="mt-4 p-4 rounded-xl flex justify-between items-center bg-surface dark:bg-slate-800 border border-slate-100 dark:border-border-theme">
                                     {Number(amountReceived) >= cartTotal ? (
@@ -420,26 +245,26 @@ export const Caisse = () => {
                             )}
                         </div>
                     )}
-                    
+
                     <div className="flex gap-3">
-                        <button 
+                        <button
                             onClick={() => handleCheckout(false)}
                             disabled={cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))}
                             className={`flex-[3] py-4 rounded-xl font-bold text-lg transition-all flex justify-center items-center ${
                                 cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
-                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                     : 'bg-primary text-white hover:opacity-90 shadow-premium active:scale-95'
                             }`}
                         >
                             Encaisser
                         </button>
-                        <button 
+                        <button
                             onClick={() => setIsFacturing(true)}
                             disabled={cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))}
                             title="Générer une facture"
                             className={`flex-[1] py-4 rounded-xl font-bold flex items-center justify-center transition-all ${
                                 cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
-                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' 
+                                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                     : 'bg-surface dark:bg-slate-800 text-primary border border-slate-200 dark:border-border-theme hover:border-accent hover:text-accent shadow-sm active:scale-95'
                             }`}
                         >
