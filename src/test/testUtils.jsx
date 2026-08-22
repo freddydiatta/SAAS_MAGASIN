@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render } from '@testing-library/react';
+import { render, renderHook } from '@testing-library/react';
 
 export const createTestQueryClient = () =>
     new QueryClient({
@@ -15,5 +15,16 @@ export const renderWithQueryClient = (ui, queryClient = createTestQueryClient())
         ...render(
             <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
         ),
+    };
+};
+
+export const renderHookWithQueryClient = (callback, queryClient = createTestQueryClient()) => {
+    return {
+        queryClient,
+        ...renderHook(callback, {
+            wrapper: ({ children }) => (
+                <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            ),
+        }),
     };
 };
