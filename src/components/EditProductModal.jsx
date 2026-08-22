@@ -3,6 +3,7 @@ import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateProduct, productKeys } from '../services/productsService';
 import { Modal } from './Modal';
+import { productSchema, firstZodError } from '../lib/validation';
 
 export const EditProductModal = ({ isOpen, onClose, product }) => {
     const { selectedBusiness } = useBusiness();
@@ -30,16 +31,22 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
         setError('');
 
+        const result = productSchema.safeParse({ name, price, quantity });
+        if (!result.success) {
+            setError(firstZodError(result));
+            return;
+        }
+
+        setIsLoading(true);
         try {
             await updateProduct({
                 id: product.id,
-                name,
+                name: result.data.name,
                 type,
-                price: parseFloat(price),
-                stockQuantity: parseInt(quantity, 10)
+                price: result.data.price,
+                stockQuantity: result.data.quantity
             });
 
             // Rafraîchir les produits

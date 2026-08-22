@@ -6,6 +6,7 @@ import { Plus, X, Utensils, Coffee, Pizza, IceCream } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
+import { menuItemSchema, firstZodError } from '../../lib/validation';
 
 export const Menu = () => {
     const { selectedBusiness } = useBusiness();
@@ -47,12 +48,14 @@ export const Menu = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        addMenuItemMutation.mutate({
-            name: formData.name,
-            category: formData.category,
-            price: parseFloat(formData.price),
-            is_available: true
-        });
+
+        const result = menuItemSchema.safeParse(formData);
+        if (!result.success) {
+            toast.error(firstZodError(result));
+            return;
+        }
+
+        addMenuItemMutation.mutate({ ...result.data, is_available: true });
     };
 
     const categories = {

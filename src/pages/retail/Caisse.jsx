@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { saveOfflineSale } from '../../services/syncService';
 import { processSale } from '../../services/salesService';
 import { Modal } from '../../components/Modal';
+import { invoiceCustomerSchema, firstZodError } from '../../lib/validation';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
@@ -63,6 +64,15 @@ export const Caisse = () => {
     };
 
     const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+
+    const handleFacturationSubmit = () => {
+        const result = invoiceCustomerSchema.safeParse({ customerName, customerPhone });
+        if (!result.success) {
+            showToast(`❌ ${firstZodError(result)}`);
+            return;
+        }
+        handleCheckout(true);
+    };
 
     const handleCheckout = async (withInvoice = false) => {
         if (cart.length === 0) return;
@@ -240,7 +250,7 @@ export const Caisse = () => {
 
                 <div className="flex gap-3">
                     <button onClick={() => setIsFacturing(false)} className="flex-1 btn-secondary py-3 text-center">Annuler</button>
-                    <button onClick={() => handleCheckout(true)} className="flex-[2] btn-primary py-3 text-center shadow-premium">Encaisser & Facturer</button>
+                    <button onClick={handleFacturationSubmit} className="flex-[2] btn-primary py-3 text-center shadow-premium">Encaisser & Facturer</button>
                 </div>
             </Modal>
 

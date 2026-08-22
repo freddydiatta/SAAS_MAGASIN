@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
+import { reservationSchema, firstZodError } from '../../lib/validation';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -117,32 +118,26 @@ export const Reservations = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        const result = reservationSchema.safeParse(formData);
+        if (!result.success) {
+            toast.error(firstZodError(result));
+            return;
+        }
+
+        // Filet de sécurité : le prix ne devrait jamais être <= 0 une fois
+        // l'ordre des dates validé ci-dessus, sauf si une villa existante a
+        // un price_per_night invalide (donnée antérieure à la contrainte).
         const totalPrice = getCalculatedPrice();
-        
         if (totalPrice <= 0) {
             toast.error('Veuillez vérifier les dates.');
             return;
         }
 
         if (editingBooking) {
-            updateBookingMutation.mutate({
-                id: editingBooking.id,
-                villa_id: formData.villa_id,
-                customer_name: formData.customer_name,
-                start_date: formData.start_date,
-                end_date: formData.end_date,
-                total_price: totalPrice,
-                status: formData.status
-            });
+            updateBookingMutation.mutate({ id: editingBooking.id, ...result.data, total_price: totalPrice });
         } else {
-            addBookingMutation.mutate({
-                villa_id: formData.villa_id,
-                customer_name: formData.customer_name,
-                start_date: formData.start_date,
-                end_date: formData.end_date,
-                total_price: totalPrice,
-                status: formData.status
-            });
+            addBookingMutation.mutate({ ...result.data, total_price: totalPrice });
         }
     };
 

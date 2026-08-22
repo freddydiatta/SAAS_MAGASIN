@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { listCashiers, createCashier, setCashierActive } from '../../services/cashiersService';
 import { Modal } from '../../components/Modal';
+import { cashierSchema, firstZodError } from '../../lib/validation';
 
 export const Parametres = () => {
     const { selectedBusiness } = useBusiness();
@@ -49,14 +50,13 @@ export const Parametres = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         setFormError('');
-        if (!name.trim()) {
-            setFormError('Le nom est requis.');
+
+        const result = cashierSchema.safeParse({ name, pin });
+        if (!result.success) {
+            setFormError(firstZodError(result));
             return;
         }
-        if (!/^\d{4}$/.test(pin)) {
-            setFormError('Le code PIN doit contenir exactement 4 chiffres.');
-            return;
-        }
+
         createMutation.mutate();
     };
 

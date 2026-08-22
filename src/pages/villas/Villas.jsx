@@ -6,6 +6,7 @@ import { Home, MapPin, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
+import { villaSchema, firstZodError } from '../../lib/validation';
 
 export const Villas = () => {
     const { selectedBusiness } = useBusiness();
@@ -13,6 +14,7 @@ export const Villas = () => {
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editingVilla, setEditingVilla] = useState(null);
     const [formData, setFormData] = useState({ name: '', address: '', price_per_night: '' });
+    const [formError, setFormError] = useState('');
 
     const { data: villas = [], isLoading } = useQuery({
         queryKey: ['villas', selectedBusiness?.id],
@@ -84,19 +86,18 @@ export const Villas = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setFormError('');
+
+        const result = villaSchema.safeParse(formData);
+        if (!result.success) {
+            setFormError(firstZodError(result));
+            return;
+        }
+
         if (editingVilla) {
-            updateVillaMutation.mutate({
-                id: editingVilla.id,
-                name: formData.name,
-                address: formData.address,
-                price_per_night: parseFloat(formData.price_per_night)
-            });
+            updateVillaMutation.mutate({ id: editingVilla.id, ...result.data });
         } else {
-            addVillaMutation.mutate({
-                name: formData.name,
-                address: formData.address,
-                price_per_night: parseFloat(formData.price_per_night)
-            });
+            addVillaMutation.mutate(result.data);
         }
     };
 
@@ -107,6 +108,7 @@ export const Villas = () => {
             address: villa.address || '',
             price_per_night: villa.price_per_night
         });
+        setFormError('');
         setIsAddOpen(true);
     };
 
@@ -124,10 +126,11 @@ export const Villas = () => {
                     <p className="text-secondary text-sm">Gérez les propriétés que vous louez.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button 
+                    <button
                         onClick={() => {
                             setEditingVilla(null);
                             setFormData({ name: '', address: '', price_per_night: '' });
+                            setFormError('');
                             setIsAddOpen(true);
                         }}
                         className="btn-primary px-5 py-2.5 text-sm"
@@ -216,6 +219,11 @@ export const Villas = () => {
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {formError && (
+                        <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm font-medium border border-red-100">
+                            {formError}
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-primary mb-1">Nom du bien / Villa</label>
                         <input
