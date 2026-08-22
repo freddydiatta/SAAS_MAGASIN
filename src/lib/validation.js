@@ -54,6 +54,21 @@ export const invoiceCustomerSchema = z.object({
         .or(z.literal('')),
 });
 
+export const businessSchema = z.object({
+    name: z.string().trim().min(1, "Le nom de l'entreprise est requis.").max(200, 'Le nom est trop long.'),
+    type: z.string().min(1, "Le type d'activité est requis."),
+    phone: z.string().trim()
+        .regex(/^[0-9+\s()-]*$/, 'Numéro de téléphone invalide.')
+        .max(30, 'Le numéro est trop long.')
+        .optional()
+        .or(z.literal('')),
+    address: z.string().trim().max(300, "L'adresse est trop longue.").optional().or(z.literal('')),
+});
+
+export const restaurantOrderSchema = z.object({
+    tableNumber: z.string().trim().max(50, 'Le numéro de table est trop long.').optional().or(z.literal('')),
+});
+
 // Extrait le premier message d'erreur d'un résultat zod.safeParse échoué,
 // pour l'afficher dans la bannière d'erreur déjà présente sur ces formulaires.
 export const firstZodError = (result) => result.error.issues[0]?.message || 'Formulaire invalide.';

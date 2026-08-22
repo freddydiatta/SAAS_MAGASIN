@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { Plus, ArrowRight, Store, Settings, Phone, MapPin, Wrench, Home, ShoppingCart, Coffee } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DEFAULT_PLAN } from '../../config/pricing';
+import { businessSchema, firstZodError } from '../../lib/validation';
 
 
 const BUSINESS_TYPES = [
@@ -38,6 +39,18 @@ export const BusinessList = () => {
     const handleCreateBusiness = async (e) => {
         e.preventDefault();
         setCreateError('');
+
+        const result = businessSchema.safeParse({
+            name: newBusinessName,
+            type: newBusinessType,
+            phone: newBusinessPhone,
+            address: newBusinessAddress,
+        });
+        if (!result.success) {
+            setCreateError(firstZodError(result));
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -46,10 +59,10 @@ export const BusinessList = () => {
                 .insert([
                     {
                         user_id: user.id,
-                        name: newBusinessName,
-                        type: newBusinessType,
-                        phone: newBusinessPhone,
-                        address: newBusinessAddress,
+                        name: result.data.name,
+                        type: result.data.type,
+                        phone: result.data.phone,
+                        address: result.data.address,
                         subscription_plan: plan
                     }
                 ])

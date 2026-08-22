@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useRestaurantOrders } from '../../hooks/useRestaurantOrders';
 import { ShoppingBag, Minus, Plus, Utensils, Receipt, ClipboardList, CheckCircle2, XCircle, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
+import { restaurantOrderSchema, firstZodError } from '../../lib/validation';
 
 const STATUS_BADGE = {
     pending: { label: 'En attente', className: 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' },
@@ -78,10 +80,16 @@ export const Commandes = () => {
     const handleCheckout = () => {
         if (cart.length === 0) return;
 
+        const result = restaurantOrderSchema.safeParse({ tableNumber });
+        if (!result.success) {
+            toast.error(firstZodError(result));
+            return;
+        }
+
         createOrder({
             items: cart.map(item => ({ menu_item_id: item.id, name: item.name, quantity: item.quantity, price: item.price })),
             total: cartTotal,
-            tableNumber
+            tableNumber: result.data.tableNumber
         }, {
             onSuccess: () => {
                 setCart([]);
