@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Copy, Users, DollarSign, TrendingUp, Link as LinkIcon, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { DataTable } from '../../components/DataTable';
 
 export const AffiliateDashboard = () => {
     const { user } = useAuth();
@@ -74,12 +75,49 @@ export const AffiliateDashboard = () => {
 
     const totalReferrals = referrals.length;
     const activeReferrals = referrals.filter(r => r.status === 'active').length;
-    
+
     // Calculate total commissions from referrals
     const totalCommissions = referrals.reduce((sum, ref) => {
         const comms = ref.commissions || [];
         return sum + comms.reduce((acc, c) => acc + Number(c.amount), 0);
     }, 0);
+
+    const columns = [
+        {
+            key: 'date',
+            header: "Date d'inscription",
+            headerClassName: 'pb-4 font-semibold',
+            cellClassName: 'py-4 text-primary font-medium',
+            render: (ref) => new Date(ref.created_at).toLocaleDateString('fr-FR', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            }),
+        },
+        {
+            key: 'status',
+            header: 'Statut',
+            headerClassName: 'pb-4 font-semibold',
+            cellClassName: 'py-4',
+            render: (ref) => (
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                    ref.status === 'active'
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400'
+                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                }`}>
+                    {ref.status === 'active' ? 'Actif' : 'En attente'}
+                </span>
+            ),
+        },
+        {
+            key: 'commissions',
+            header: 'Commissions',
+            headerClassName: 'pb-4 font-semibold text-right',
+            cellClassName: 'py-4 text-right font-bold text-accent',
+            render: (ref) => {
+                const refComms = (ref.commissions || []).reduce((acc, c) => acc + Number(c.amount), 0);
+                return `${refComms.toLocaleString('fr-FR')} FCFA`;
+            },
+        },
+    ];
 
     return (
         <div className="max-w-5xl mx-auto space-y-8 animate-fade-in-up pb-10 px-4 md:px-0">
@@ -170,53 +208,24 @@ export const AffiliateDashboard = () => {
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme mt-8">
                 <h3 className="text-xl font-bold text-primary mb-6">Vos filleuls</h3>
                 
-                {referrals.length === 0 ? (
-                    <div className="text-center py-12">
-                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Users className="w-8 h-8 text-slate-400" />
+                <DataTable
+                    columns={columns}
+                    data={referrals}
+                    tableClassName="w-full text-left"
+                    headerRowClassName="border-b border-slate-100 dark:border-border-theme text-secondary text-sm"
+                    tbodyClassName=""
+                    getRowClassName={() => 'border-b border-slate-50 dark:border-border-theme/50 last:border-0'}
+                    stateCellClassName="py-0"
+                    emptyContent={
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Users className="w-8 h-8 text-slate-400" />
+                            </div>
+                            <p className="text-secondary font-medium">Vous n'avez pas encore de filleuls.</p>
+                            <p className="text-sm text-slate-400 mt-1">Partagez votre lien pour commencer à gagner des commissions.</p>
                         </div>
-                        <p className="text-secondary font-medium">Vous n'avez pas encore de filleuls.</p>
-                        <p className="text-sm text-slate-400 mt-1">Partagez votre lien pour commencer à gagner des commissions.</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead>
-                                <tr className="border-b border-slate-100 dark:border-border-theme text-secondary text-sm">
-                                    <th className="pb-4 font-semibold">Date d'inscription</th>
-                                    <th className="pb-4 font-semibold">Statut</th>
-                                    <th className="pb-4 font-semibold text-right">Commissions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {referrals.map((ref) => {
-                                    const refComms = (ref.commissions || []).reduce((acc, c) => acc + Number(c.amount), 0);
-                                    return (
-                                        <tr key={ref.id} className="border-b border-slate-50 dark:border-border-theme/50 last:border-0">
-                                            <td className="py-4 text-primary font-medium">
-                                                {new Date(ref.created_at).toLocaleDateString('fr-FR', {
-                                                    day: 'numeric', month: 'long', year: 'numeric'
-                                                })}
-                                            </td>
-                                            <td className="py-4">
-                                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                                    ref.status === 'active' 
-                                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' 
-                                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
-                                                }`}>
-                                                    {ref.status === 'active' ? 'Actif' : 'En attente'}
-                                                </span>
-                                            </td>
-                                            <td className="py-4 text-right font-bold text-accent">
-                                                {refComms.toLocaleString('fr-FR')} FCFA
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                    }
+                />
             </div>
         </div>
     );

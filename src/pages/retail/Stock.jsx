@@ -8,6 +8,7 @@ import { EditProductModal } from '../../components/EditProductModal';
 import { Plus, Search, Edit2, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import { DataTable } from '../../components/DataTable';
 
 export const Stock = () => {
     const { selectedBusiness } = useBusiness();
@@ -53,9 +54,83 @@ export const Stock = () => {
         }
     };
 
-    const filteredProducts = products.filter(p => 
+    const filteredProducts = products.filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const columns = [
+        {
+            key: 'name',
+            header: 'Article',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'px-6 py-4 font-bold text-primary',
+            render: (product) => product.name,
+        },
+        {
+            key: 'price',
+            header: 'Prix Unitaire',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'px-6 py-4 text-secondary font-medium',
+            render: (product) => `${product.price.toLocaleString('fr-FR')} F`,
+        },
+        {
+            key: 'stock',
+            header: 'En Stock',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'px-6 py-4',
+            render: (product) => (
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => updateStockMutation.mutate({ id: product.id, change: -1 })}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Diminuer de 1"
+                    >
+                        <MinusCircle className="w-5 h-5" />
+                    </button>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                        product.stock_quantity > 10
+                            ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
+                            : product.stock_quantity > 0
+                                ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
+                                : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
+                    }`}>
+                        {product.stock_quantity}
+                    </span>
+                    <button
+                        onClick={() => updateStockMutation.mutate({ id: product.id, change: 1 })}
+                        className="text-slate-400 hover:text-emerald-500 transition-colors"
+                        title="Ajouter 1"
+                    >
+                        <PlusCircle className="w-5 h-5" />
+                    </button>
+                </div>
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
+            cellClassName: 'py-4 px-6 text-right',
+            render: (product) => (
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={() => { setProductToEdit(product); setIsEditProductOpen(true); }}
+                        className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
+                        title="Modifier"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => handleDelete(product.id)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
+                        title="Supprimer"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            ),
+        },
+    ];
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
@@ -89,87 +164,12 @@ export const Stock = () => {
                     />
                     <Search className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-100 dark:border-border-theme">
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Article</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Prix Unitaire</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">En Stock</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="4" className="px-6 py-12 text-center text-secondary">Chargement...</td>
-                                </tr>
-                            ) : filteredProducts.length === 0 ? (
-                                <tr>
-                                    <td colSpan="4" className="px-6 py-12 text-center text-secondary">
-                                        Aucun article trouvé. Ajoutez votre premier produit !
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredProducts.map((product) => (
-                                    <tr key={product.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
-                                        <td className="px-6 py-4 font-bold text-primary">
-                                            {product.name}
-                                        </td>
-                                        <td className="px-6 py-4 text-secondary font-medium">
-                                            {product.price.toLocaleString('fr-FR')} F
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: product.id, change: -1 })}
-                                                    className="text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Diminuer de 1"
-                                                >
-                                                    <MinusCircle className="w-5 h-5" />
-                                                </button>
-                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                                                    product.stock_quantity > 10 
-                                                        ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400' 
-                                                        : product.stock_quantity > 0 
-                                                            ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' 
-                                                            : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-                                                }`}>
-                                                    {product.stock_quantity}
-                                                </span>
-                                                <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: product.id, change: 1 })}
-                                                    className="text-slate-400 hover:text-emerald-500 transition-colors"
-                                                    title="Ajouter 1"
-                                                >
-                                                    <PlusCircle className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td className="py-4 px-6 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button 
-                                                    onClick={() => { setProductToEdit(product); setIsEditProductOpen(true); }}
-                                                    className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
-                                                    title="Modifier"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={() => handleDelete(product.id)}
-                                                    className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
-                                                    title="Supprimer"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    columns={columns}
+                    data={filteredProducts}
+                    isLoading={isLoading}
+                    emptyContent="Aucun article trouvé. Ajoutez votre premier produit !"
+                />
             </motion.div>
 
             <AddProductModal 

@@ -6,6 +6,7 @@ import { Plus, X, Calendar, Home, Users, Search, Edit2, Trash2 } from 'lucide-re
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
+import { DataTable } from '../../components/DataTable';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -163,6 +164,91 @@ export const Reservations = () => {
         }
     };
 
+    const columns = [
+        {
+            key: 'client',
+            header: 'Client',
+            headerClassName: 'px-6 py-4 font-semibold',
+            cellClassName: 'px-6 py-4',
+            render: (booking) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Users className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <span className="font-bold text-primary group-hover:text-accent transition-colors">{booking.customer_name}</span>
+                </div>
+            ),
+        },
+        {
+            key: 'villa',
+            header: 'Villa',
+            headerClassName: 'px-6 py-4 font-semibold',
+            cellClassName: 'px-6 py-4 text-secondary font-medium',
+            render: (booking) => (
+                <div className="flex items-center gap-2">
+                    <Home className="w-4 h-4 text-indigo-500" /> {booking.villas?.name || 'Villa Inconnue'}
+                </div>
+            ),
+        },
+        {
+            key: 'period',
+            header: 'Période',
+            headerClassName: 'px-6 py-4 font-semibold',
+            cellClassName: 'px-6 py-4 text-secondary text-sm',
+            render: (booking) => (
+                <>
+                    Du <span className="font-medium text-primary">{new Date(booking.start_date).toLocaleDateString('fr-FR')}</span> <br/>
+                    Au <span className="font-medium text-primary">{new Date(booking.end_date).toLocaleDateString('fr-FR')}</span>
+                </>
+            ),
+        },
+        {
+            key: 'total',
+            header: 'Montant Total',
+            headerClassName: 'px-6 py-4 font-semibold',
+            cellClassName: 'px-6 py-4 font-bold text-accent',
+            render: (booking) => `${booking.total_price.toLocaleString('fr-FR')} F`,
+        },
+        {
+            key: 'status',
+            header: 'Statut',
+            headerClassName: 'px-6 py-4 font-semibold text-center',
+            cellClassName: 'px-6 py-4 text-center',
+            render: (booking) => (
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                    booking.status === 'confirmed' || booking.status === 'confirmé' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' :
+                    booking.status === 'provisoire' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
+                }`}>
+                    {booking.status === 'confirmed' ? 'Confirmé' : booking.status}
+                </span>
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            headerClassName: 'px-6 py-4 font-semibold text-center',
+            cellClassName: 'px-6 py-4 text-center',
+            render: (booking) => (
+                <div className="flex justify-center gap-2">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleEdit(booking); }}
+                        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                        title="Modifier"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(booking); }}
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                        title="Supprimer"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            ),
+        },
+    ];
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -189,91 +275,26 @@ export const Reservations = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-panel rounded-3xl shadow-premium overflow-hidden border border-slate-100 dark:border-border-theme"
             >
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-secondary text-xs uppercase tracking-wider border-b border-slate-100 dark:border-border-theme">
-                                <th className="px-6 py-4 font-semibold">Client</th>
-                                <th className="px-6 py-4 font-semibold">Villa</th>
-                                <th className="px-6 py-4 font-semibold">Période</th>
-                                <th className="px-6 py-4 font-semibold">Montant Total</th>
-                                <th className="px-6 py-4 font-semibold text-center">Statut</th>
-                                <th className="px-6 py-4 font-semibold text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="5" className="px-6 py-10 text-center">
-                                        <div className="flex justify-center">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ) : bookings.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" className="px-6 py-16 text-center">
-                                        <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                            <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-                                        </div>
-                                        <p className="text-secondary font-medium">Aucune réservation trouvée.</p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                bookings.map((booking) => (
-                                    <tr key={booking.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors group">
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                                    <Users className="w-5 h-5 text-slate-500" />
-                                                </div>
-                                                <span className="font-bold text-primary group-hover:text-accent transition-colors">{booking.customer_name}</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-secondary font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <Home className="w-4 h-4 text-indigo-500" /> {booking.villas?.name || 'Villa Inconnue'}
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-secondary text-sm">
-                                            Du <span className="font-medium text-primary">{new Date(booking.start_date).toLocaleDateString('fr-FR')}</span> <br/>
-                                            Au <span className="font-medium text-primary">{new Date(booking.end_date).toLocaleDateString('fr-FR')}</span>
-                                        </td>
-                                        <td className="px-6 py-4 font-bold text-accent">
-                                            {booking.total_price.toLocaleString('fr-FR')} F
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                                                booking.status === 'confirmed' || booking.status === 'confirmé' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 
-                                                booking.status === 'provisoire' ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-red-100 text-red-800 dark:bg-red-500/20 dark:text-red-400'
-                                            }`}>
-                                                {booking.status === 'confirmed' ? 'Confirmé' : booking.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            <div className="flex justify-center gap-2">
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); handleEdit(booking); }}
-                                                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                                                    title="Modifier"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
-                                                <button 
-                                                    onClick={(e) => { e.stopPropagation(); handleDelete(booking); }}
-                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                                    title="Supprimer"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    columns={columns}
+                    data={bookings}
+                    isLoading={isLoading}
+                    loadingContent={
+                        <div className="flex justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-accent"></div>
+                        </div>
+                    }
+                    emptyContent={
+                        <>
+                            <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                            </div>
+                            <p className="text-secondary font-medium">Aucune réservation trouvée.</p>
+                        </>
+                    }
+                    headerRowClassName="bg-slate-50/50 dark:bg-slate-800/30 text-secondary text-xs uppercase tracking-wider border-b border-slate-100 dark:border-border-theme"
+                    stateCellClassName="px-6 py-16 text-center"
+                />
             </motion.div>
 
             {/* Modal for adding a Booking */}

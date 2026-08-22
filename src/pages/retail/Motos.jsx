@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
+import { DataTable } from '../../components/DataTable';
 
 export const Motos = () => {
     const { selectedBusiness } = useBusiness();
@@ -57,6 +58,119 @@ export const Motos = () => {
         }
     };
 
+    const columns = [
+        {
+            key: 'model',
+            header: 'Modèle',
+            headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme',
+            cellClassName: 'p-4',
+            render: (moto) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Bike className="w-5 h-5 text-slate-500" />
+                    </div>
+                    <div>
+                        <p className="font-bold text-primary">{moto.name}</p>
+                        <p className="text-xs text-secondary flex items-center gap-1">
+                            <Tag className="w-3 h-3" /> Moto
+                        </p>
+                    </div>
+                </div>
+            ),
+        },
+        {
+            key: 'stock',
+            header: 'Quantité (Stock)',
+            headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center',
+            cellClassName: 'p-4 text-center',
+            render: (moto) => (
+                <div className="flex items-center justify-center gap-3">
+                    <button
+                        onClick={() => updateStockMutation.mutate({ id: moto.id, change: -1 })}
+                        className="text-slate-400 hover:text-red-500 transition-colors"
+                        title="Diminuer le stock"
+                    >
+                        <MinusCircle className="w-5 h-5" />
+                    </button>
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${moto.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
+                        {moto.stock_quantity}
+                    </span>
+                    <button
+                        onClick={() => updateStockMutation.mutate({ id: moto.id, change: 1 })}
+                        className="text-slate-400 hover:text-emerald-500 transition-colors"
+                        title="Augmenter le stock"
+                    >
+                        <PlusCircle className="w-5 h-5" />
+                    </button>
+                </div>
+            ),
+        },
+        {
+            key: 'price',
+            header: 'Prix Unitaire',
+            headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-right',
+            cellClassName: 'p-4 text-right',
+            render: (moto) => (
+                <span className="font-bold text-accent">
+                    {Number(moto.price).toLocaleString('fr-FR')} FCFA
+                </span>
+            ),
+        },
+        {
+            key: 'status',
+            header: 'Statut',
+            headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center',
+            cellClassName: 'p-4 text-center',
+            render: (moto) => (
+                moto.stock_quantity > 0 ? (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
+                        Disponible
+                    </span>
+                ) : (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">
+                        Rupture
+                    </span>
+                )
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-right',
+            cellClassName: 'px-6 py-4 whitespace-nowrap text-right text-sm font-medium',
+            render: (moto) => (
+                <div className="flex items-center justify-end gap-2">
+                    <button
+                        onClick={() => { setMotoToEdit(moto); setIsEditMotoOpen(true); }}
+                        aria-label="Modifier la moto"
+                        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => handleDelete(moto.id)}
+                        aria-label="Supprimer la moto"
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
+            ),
+        },
+    ];
+
+    const emptyContent = (
+        <div className="text-center py-16">
+            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bike className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+            </div>
+            <p className="text-secondary font-medium">Aucune moto trouvée dans le parc.</p>
+            <button className="mt-4 text-accent font-medium hover:underline text-sm">
+                Ajoutez votre première moto
+            </button>
+        </div>
+    );
+
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up pb-10">
             {/* Header */}
@@ -97,109 +211,21 @@ export const Motos = () => {
                     </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                    {isLoading ? (
+                <DataTable
+                    columns={columns}
+                    data={filteredMotos}
+                    isLoading={isLoading}
+                    loadingContent={
                         <div className="p-10 flex justify-center">
                             <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-accent"></div>
                         </div>
-                    ) : filteredMotos.length === 0 ? (
-                        <div className="text-center py-16">
-                            <div className="w-20 h-20 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <Bike className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-                            </div>
-                            <p className="text-secondary font-medium">Aucune moto trouvée dans le parc.</p>
-                            <button className="mt-4 text-accent font-medium hover:underline text-sm">
-                                Ajoutez votre première moto
-                            </button>
-                        </div>
-                    ) : (
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/50 dark:bg-slate-800/30 text-secondary text-xs uppercase tracking-wider">
-                                    <th className="p-4 font-semibold border-b border-slate-100 dark:border-border-theme">Modèle</th>
-                                    <th className="p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center">Quantité (Stock)</th>
-                                    <th className="p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-right">Prix Unitaire</th>
-                                    <th className="p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center">Statut</th>
-                                    <th className="p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredMotos.map((moto) => (
-                                    <tr key={moto.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors border-b border-slate-50 dark:border-border-theme/50 last:border-0 group">
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                                    <Bike className="w-5 h-5 text-slate-500" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-primary">{moto.name}</p>
-                                                    <p className="text-xs text-secondary flex items-center gap-1">
-                                                        <Tag className="w-3 h-3" /> Moto
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <div className="flex items-center justify-center gap-3">
-                                                <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, change: -1 })}
-                                                    className="text-slate-400 hover:text-red-500 transition-colors"
-                                                    title="Diminuer le stock"
-                                                >
-                                                    <MinusCircle className="w-5 h-5" />
-                                                </button>
-                                                <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${moto.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                                                    {moto.stock_quantity}
-                                                </span>
-                                                <button 
-                                                    onClick={() => updateStockMutation.mutate({ id: moto.id, change: 1 })}
-                                                    className="text-slate-400 hover:text-emerald-500 transition-colors"
-                                                    title="Augmenter le stock"
-                                                >
-                                                    <PlusCircle className="w-5 h-5" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <span className="font-bold text-accent">
-                                                {Number(moto.price).toLocaleString('fr-FR')} FCFA
-                                            </span>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            {moto.stock_quantity > 0 ? (
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400">
-                                                    Disponible
-                                                </span>
-                                            ) : (
-                                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400">
-                                                    Rupture
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button
-                                                    onClick={() => { setMotoToEdit(moto); setIsEditMotoOpen(true); }}
-                                                    aria-label="Modifier la moto"
-                                                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(moto.id)}
-                                                    aria-label="Supprimer la moto"
-                                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
+                    }
+                    emptyContent={emptyContent}
+                    headerRowClassName="bg-slate-50/50 dark:bg-slate-800/30 text-secondary text-xs uppercase tracking-wider"
+                    tbodyClassName=""
+                    getRowClassName={() => 'hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors border-b border-slate-50 dark:border-border-theme/50 last:border-0 group'}
+                    stateCellClassName="p-0"
+                />
             </motion.div>
             
             <AddProductModal 

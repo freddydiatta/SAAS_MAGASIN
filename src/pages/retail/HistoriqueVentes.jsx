@@ -7,6 +7,7 @@ import { InvoicePrint } from '../../components/InvoicePrint';
 import { cancelSale, modifySale } from '../../services/salesService';
 import { FileText, Edit2, Ban, Calendar, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { Modal } from '../../components/Modal';
+import { DataTable } from '../../components/DataTable';
 
 export const HistoriqueVentes = () => {
     const { selectedBusiness, currentMember } = useBusiness();
@@ -148,6 +149,129 @@ export const HistoriqueVentes = () => {
         return <div className="p-8 text-center text-secondary">Chargement de l'historique...</div>;
     }
 
+    const columns = [
+        {
+            key: 'date',
+            header: 'Date & Heure',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'py-4 px-6',
+            render: (receipt) => (
+                <>
+                    <div className="font-bold text-primary">
+                        {new Date(receipt.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                    <div className="text-sm text-secondary">
+                        {new Date(receipt.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                </>
+            ),
+        },
+        {
+            key: 'client',
+            header: 'Client',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'py-4 px-6',
+            render: (receipt) => (
+                receipt.customer_name ? (
+                    <div>
+                        <div className="font-bold text-primary">{receipt.customer_name}</div>
+                        {receipt.customer_phone && <div className="text-sm text-secondary">{receipt.customer_phone}</div>}
+                    </div>
+                ) : (
+                    <div>
+                        <div className="font-bold text-primary">Client Comptoir</div>
+                        <div className="text-sm text-secondary italic">Passage en caisse</div>
+                    </div>
+                )
+            ),
+        },
+        {
+            key: 'items',
+            header: 'Articles',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'py-4 px-6',
+            render: (receipt) => (
+                <div className="flex flex-col gap-1">
+                    {receipt.sales?.map(sale => (
+                        <div key={sale.id} className="text-sm text-secondary">
+                            <span className="font-bold text-primary">{sale.quantity}x</span> {sale.products?.name}
+                        </div>
+                    ))}
+                </div>
+            ),
+        },
+        {
+            key: 'total',
+            header: 'Total',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
+            cellClassName: 'py-4 px-6 text-right font-bold text-primary text-lg',
+            render: (receipt) => `${receipt.total_amount.toLocaleString('fr-FR')} F`,
+        },
+        {
+            key: 'status',
+            header: 'Statut',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-center',
+            cellClassName: 'py-4 px-6 text-center',
+            render: (receipt) => (
+                <div className="flex flex-col gap-2 items-center">
+                    {receipt.status === 'cancelled' ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
+                            Annulé
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                            Validé
+                        </span>
+                    )}
+                    {receipt.payment_method === 'mobile_money' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
+                            📱 Mobile Money
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                            💵 Espèces
+                        </span>
+                    )}
+                </div>
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
+            cellClassName: 'py-4 px-6 text-right',
+            render: (receipt) => (
+                <div className="flex justify-end gap-2">
+                    {receipt.status !== 'cancelled' && (
+                        <>
+                            <button
+                                onClick={() => handlePrint(receipt)}
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors"
+                                title="Imprimer Facture"
+                            >
+                                <FileText className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => handleModify(receipt)}
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
+                                title="Modifier"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setReceiptToCancel(receipt)}
+                                className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
+                                title="Annuler Vente"
+                            >
+                                <Ban className="w-4 h-4" />
+                            </button>
+                        </>
+                    )}
+                </div>
+            ),
+        },
+    ];
+
     return (
         <div className="max-w-7xl mx-auto space-y-6 animate-fade-in-up relative">
             {/* Toast Notification */}
@@ -252,118 +376,12 @@ export const HistoriqueVentes = () => {
             </div>
 
             <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden print:hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-100 dark:border-border-theme">
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Date & Heure</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Client</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider">Articles</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right">Total</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-center">Statut</th>
-                                <th className="py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-border-theme">
-                            {receipts.length === 0 ? (
-                                <tr>
-                                    <td colSpan="6" className="py-12 text-center text-secondary">
-                                        Aucune vente enregistrée pour le moment.
-                                    </td>
-                                </tr>
-                            ) : (
-                                receipts.map(receipt => (
-                                    <tr key={receipt.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
-                                        <td className="py-4 px-6">
-                                            <div className="font-bold text-primary">
-                                                {new Date(receipt.created_at).toLocaleDateString('fr-FR')}
-                                            </div>
-                                            <div className="text-sm text-secondary">
-                                                {new Date(receipt.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                                            </div>
-                                        </td>
-                                        <td className="py-4 px-6">
-                                            {receipt.customer_name ? (
-                                                <div>
-                                                    <div className="font-bold text-primary">{receipt.customer_name}</div>
-                                                    {receipt.customer_phone && <div className="text-sm text-secondary">{receipt.customer_phone}</div>}
-                                                </div>
-                                            ) : (
-                                                <div>
-                                                    <div className="font-bold text-primary">Client Comptoir</div>
-                                                    <div className="text-sm text-secondary italic">Passage en caisse</div>
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="py-4 px-6">
-                                            <div className="flex flex-col gap-1">
-                                                {receipt.sales?.map(sale => (
-                                                    <div key={sale.id} className="text-sm text-secondary">
-                                                        <span className="font-bold text-primary">{sale.quantity}x</span> {sale.products?.name}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </td>
-                                        <td className="py-4 px-6 text-right font-bold text-primary text-lg">
-                                            {receipt.total_amount.toLocaleString('fr-FR')} F
-                                        </td>
-                                        <td className="py-4 px-6 text-center">
-                                            <div className="flex flex-col gap-2 items-center">
-                                                {receipt.status === 'cancelled' ? (
-                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
-                                                        Annulé
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                                                        Validé
-                                                    </span>
-                                                )}
-                                                {receipt.payment_method === 'mobile_money' ? (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400">
-                                                        📱 Mobile Money
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
-                                                        💵 Espèces
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="py-4 px-6 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                {receipt.status !== 'cancelled' && (
-                                                    <>
-                                                        <button 
-                                                            onClick={() => handlePrint(receipt)}
-                                                            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 transition-colors"
-                                                            title="Imprimer Facture"
-                                                        >
-                                                            <FileText className="w-4 h-4" />
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => handleModify(receipt)}
-                                                            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/20 transition-colors"
-                                                            title="Modifier"
-                                                        >
-                                                            <Edit2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button 
-                                                            onClick={() => setReceiptToCancel(receipt)}
-                                                            className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
-                                                            title="Annuler Vente"
-                                                        >
-                                                            <Ban className="w-4 h-4" />
-                                                        </button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    columns={columns}
+                    data={receipts}
+                    keyField="id"
+                    emptyContent="Aucune vente enregistrée pour le moment."
+                />
             </div>
         </div>
     );
