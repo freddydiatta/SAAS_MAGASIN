@@ -18,11 +18,22 @@ export const BusinessProvider = ({ children }) => {
     const [selectedBusiness, setSelectedBusiness] = useState(null);
     const [loading, setLoading] = useState(true);
     const [currentMember, setCurrentMember] = useState(null); // { role: 'owner' | 'cashier', name }
+    // `currentMember` reste `null` à la fois pendant la résolution ET quand
+    // elle aboutit à "aucune appartenance" (ex: caissier désactivé en cours
+    // de session) — sans ce flag distinct, RequireOwner ne pouvait pas
+    // différencier les deux et affichait un spinner infini dans le second cas.
+    const [memberResolved, setMemberResolved] = useState(false);
+    // Erreur réseau/RLS lors du chargement des commerces : jusqu'ici seulement
+    // journalisée en console, donc un échec faisait afficher "Créer votre
+    // premier magasin" à un propriétaire qui a pourtant déjà un commerce en
+    // base — indiscernable d'un compte réellement vide sans ce champ.
+    const [fetchError, setFetchError] = useState('');
 
     const fetchBusinesses = async () => {
         if (!user) {
             setBusinesses([]);
             setSelectedBusiness(null);
+            setFetchError('');
             setLoading(false);
             return;
         }
@@ -37,9 +48,10 @@ export const BusinessProvider = ({ children }) => {
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
-            
+
+            setFetchError('');
             setBusinesses(data || []);
-            
+
             // Auto-select if a business was previously selected in localStorage
             const savedBusinessId = localStorage.getItem('gestionpro_selected_business');
             if (savedBusinessId && data?.find(b => b.id === savedBusinessId)) {
@@ -53,6 +65,7 @@ export const BusinessProvider = ({ children }) => {
             }
         } catch (error) {
             console.error('Error fetching businesses:', error.message);
+            setFetchError(error.message || 'Impossible de charger vos commerces.');
         } finally {
             setLoading(false);
         }
@@ -66,12 +79,15 @@ export const BusinessProvider = ({ children }) => {
     // sélectionné, ou un caissier (business_members) — et son nom d'affichage.
     useEffect(() => {
         const resolveMembership = async () => {
+            setMemberResolved(false);
             if (!user || !selectedBusiness) {
                 setCurrentMember(null);
+                setMemberResolved(true);
                 return;
             }
             if (selectedBusiness.user_id === user.id) {
                 setCurrentMember({ role: 'owner', name: null });
+                setMemberResolved(true);
                 return;
             }
             const { data } = await supabase
@@ -81,6 +97,7 @@ export const BusinessProvider = ({ children }) => {
                 .eq('user_id', user.id)
                 .maybeSingle();
             setCurrentMember(data ? { role: data.role, name: data.name } : null);
+            setMemberResolved(true);
         };
         resolveMembership();
     }, [user, selectedBusiness]);
@@ -133,8 +150,10 @@ export const BusinessProvider = ({ children }) => {
             selectedBusiness,
             selectBusiness,
             loading,
+            fetchError,
             refreshBusinesses: fetchBusinesses,
             currentMember,
+            memberResolved,
             isCashier: currentMember?.role === 'cashier',
             switchToCashier,
             switchBackToOwner,

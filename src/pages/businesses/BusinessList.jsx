@@ -19,7 +19,7 @@ const BUSINESS_TYPES = [
 
 export const BusinessList = () => {
     const { user } = useAuth();
-    const { businesses, selectBusiness, loading, refreshBusinesses } = useBusiness();
+    const { businesses, selectBusiness, loading, refreshBusinesses, fetchError } = useBusiness();
     const navigate = useNavigate();
     
     const [isCreating, setIsCreating] = useState(false);
@@ -114,6 +114,18 @@ export const BusinessList = () => {
                         Créez autant de magasins que vous voulez pour tester les différentes interfaces.
                     </p>
                 </div>
+
+                {fetchError && (
+                    <div className="mb-8 p-4 rounded-xl bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-bold flex items-center justify-between gap-4 max-w-2xl mx-auto">
+                        <span className="flex items-center gap-2"><span className="text-xl">⚠️</span> Impossible de charger vos commerces : {fetchError}</span>
+                        <button
+                            onClick={refreshBusinesses}
+                            className="shrink-0 px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
+                        >
+                            Réessayer
+                        </button>
+                    </div>
+                )}
 
                 {/* Liste des magasins */}
                 {businesses.length > 0 && !isCreating && (
