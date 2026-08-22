@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,23 +34,31 @@ export const Caisse = () => {
 
     const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    // Mémoïsé : ce filtre re-scannerait tout le catalogue à chaque frappe
+    // dans la recherche sinon, ce qui deviendrait sensible sur un catalogue
+    // de plusieurs centaines de références.
+    const filteredProducts = useMemo(
+        () => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
+        [products, searchTerm]
     );
 
-    const addToCart = (product) => {
+    // useCallback avec une dépendance vide : addToCart ne lit jamais `cart`
+    // directement (mise à jour fonctionnelle via setCart(prev => ...)), donc
+    // sa référence reste stable pour toujours — nécessaire pour que
+    // React.memo sur ProductCard serve à quelque chose.
+    const addToCart = useCallback((product) => {
         setCart(prev => {
             const existing = prev.find(item => item.id === product.id);
             if (existing) {
-                return prev.map(item => 
-                    item.id === product.id 
+                return prev.map(item =>
+                    item.id === product.id
                         ? { ...item, quantity: item.quantity + 1 }
                         : item
                 );
             }
             return [...prev, { ...product, quantity: 1 }];
         });
-    };
+    }, []);
 
     const removeFromCart = (productId) => {
         setCart(prev => prev.filter(item => item.id !== productId));
@@ -275,34 +283,7 @@ export const Caisse = () => {
                     ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
                             {filteredProducts.map(product => (
-                                <motion.button 
-                                    whileHover={product.stock_quantity > 0 ? { scale: 1.02, y: -2 } : {}}
-                                    whileTap={product.stock_quantity > 0 ? { scale: 0.98 } : {}}
-                                    key={product.id}
-                                    onClick={() => addToCart(product)}
-                                    disabled={product.stock_quantity <= 0}
-                                    className={`group flex flex-col relative rounded-2xl text-left transition-all overflow-hidden ${
-                                        product.stock_quantity <= 0 
-                                            ? 'opacity-50 cursor-not-allowed grayscale' 
-                                            : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer border border-transparent hover:border-accent/30'
-                                    }`}
-                                >
-                                    {/* Image Placeholder */}
-                                    <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-3 sm:p-4">
-                                        <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
-                                            <Package className="w-6 h-6 sm:w-8 sm:h-8 text-orange-300 dark:text-accent/50 opacity-50" />
-                                        </div>
-                                    </div>
-                                    <div className="p-3 sm:p-4 flex flex-col flex-1">
-                                        <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base">{product.name}</div>
-                                        <div className="mt-auto pt-2 flex flex-col xl:flex-row xl:items-end justify-between gap-1">
-                                            <div className="text-accent font-bold text-sm sm:text-lg whitespace-nowrap">{product.price.toLocaleString('fr-FR')} F</div>
-                                            <div className="text-xs text-secondary font-medium">
-                                                Stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </motion.button>
+                                <ProductCard key={product.id} product={product} onAdd={addToCart} />
                             ))}
                         </div>
                     )}
@@ -470,3 +451,38 @@ export const Caisse = () => {
         </div>
     );
 };
+
+// Mémoïsé : sans ça, ajouter un article au panier ou changer sa quantité
+// re-rendrait toute la grille de produits (potentiellement des centaines
+// de cartes) à chaque fois, alors que rien n'y change visuellement.
+const ProductCard = memo(function ProductCard({ product, onAdd }) {
+    return (
+        <motion.button
+            whileHover={product.stock_quantity > 0 ? { scale: 1.02, y: -2 } : {}}
+            whileTap={product.stock_quantity > 0 ? { scale: 0.98 } : {}}
+            onClick={() => onAdd(product)}
+            disabled={product.stock_quantity <= 0}
+            className={`group flex flex-col relative rounded-2xl text-left transition-all overflow-hidden ${
+                product.stock_quantity <= 0
+                    ? 'opacity-50 cursor-not-allowed grayscale'
+                    : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer border border-transparent hover:border-accent/30'
+            }`}
+        >
+            {/* Image Placeholder */}
+            <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-3 sm:p-4">
+                <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
+                    <Package className="w-6 h-6 sm:w-8 sm:h-8 text-orange-300 dark:text-accent/50 opacity-50" />
+                </div>
+            </div>
+            <div className="p-3 sm:p-4 flex flex-col flex-1">
+                <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base">{product.name}</div>
+                <div className="mt-auto pt-2 flex flex-col xl:flex-row xl:items-end justify-between gap-1">
+                    <div className="text-accent font-bold text-sm sm:text-lg whitespace-nowrap">{product.price.toLocaleString('fr-FR')} F</div>
+                    <div className="text-xs text-secondary font-medium">
+                        Stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
+                    </div>
+                </div>
+            </div>
+        </motion.button>
+    );
+});

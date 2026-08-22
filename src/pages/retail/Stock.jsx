@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
@@ -54,8 +54,9 @@ export const Stock = () => {
         }
     };
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredProducts = useMemo(
+        () => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
+        [products, searchTerm]
     );
 
     const columns = [

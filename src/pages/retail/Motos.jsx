@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
@@ -22,10 +22,14 @@ export const Motos = () => {
     // client-side instead of via a separate server query + cache key, so a sale
     // or stock edit made anywhere else is reflected here too without a stale cache.
     const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
-    const motos = products.filter(p => p.type === 'moto' || p.name.toLowerCase().includes('moto'));
+    const motos = useMemo(
+        () => products.filter(p => p.type === 'moto' || p.name.toLowerCase().includes('moto')),
+        [products]
+    );
 
-    const filteredMotos = motos.filter(m =>
-        m.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredMotos = useMemo(
+        () => motos.filter(m => m.name.toLowerCase().includes(searchTerm.toLowerCase())),
+        [motos, searchTerm]
     );
 
     const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: productKeys.all(selectedBusiness?.id) });
