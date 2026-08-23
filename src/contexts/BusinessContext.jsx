@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { cacheCashierCredentials, verifyPinOffline } from '../services/offlineCashierAuth';
+import { cacheCashierCredentials, verifyPinOffline, restoreSessionLocally } from '../services/offlineCashierAuth';
 
 const BusinessContext = createContext({});
 
@@ -14,7 +14,7 @@ const BusinessContext = createContext({});
 const OWNER_SESSION_KEY = 'gestionpro_owner_session';
 
 export const BusinessProvider = ({ children }) => {
-    const { user } = useAuth();
+    const { user, refreshSession } = useAuth();
     const [businesses, setBusinesses] = useState([]);
     const [selectedBusiness, setSelectedBusiness] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -135,6 +135,13 @@ export const BusinessProvider = ({ children }) => {
     // même caissier sur cet appareil (cf. offlineCashierAuth.js). Si ce
     // caissier n'a jamais été utilisé en ligne ici, ou que le PIN est faux,
     // on échoue proprement plutôt que de laisser l'utilisateur bloqué.
+    //
+    // Volontairement PAS supabase.auth.setSession() ici : cette méthode fait
+    // toujours un aller-retour réseau (vérification du jeton côté serveur,
+    // ou rafraîchissement s'il est expiré) même pour un jeton encore valide
+    // — elle échouait donc systématiquement hors-ligne ("Load failed").
+    // restoreSessionLocally() écrit directement la session dans le storage
+    // que supabase-js lit lui-même, sans jamais appeler le réseau.
     const switchToCashierOffline = async (memberId, pin) => {
         const result = await verifyPinOffline(memberId, pin);
         if (!result.success) {
@@ -147,12 +154,23 @@ export const BusinessProvider = ({ children }) => {
             throw new Error('PIN invalide.');
         }
 
+        // Un jeton en cache réellement expiré (session mise en cache il y a
+        // plus d'~1h, la durée de vie par défaut d'un access_token Supabase)
+        // ne peut pas être rafraîchi sans réseau — mieux vaut le dire
+        // clairement ici que de laisser getSession() essayer, échouer, et
+        // vider tout l'état d'authentification de l'app.
+        const expiresAt = result.session?.expires_at;
+        if (expiresAt && expiresAt * 1000 <= Date.now()) {
+            throw new Error('La session mise en cache pour ce caissier a expiré. Reconnectez-le une fois en ligne pour la renouveler.');
+        }
+
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         if (currentSession?.user?.email) {
             sessionStorage.setItem(OWNER_SESSION_KEY, currentSession.user.email);
         }
-        const { error } = await supabase.auth.setSession(result.session);
-        if (error) throw error;
+
+        restoreSessionLocally(result.session);
+        await refreshSession();
     };
 
     // Redemande le mot de passe du propriétaire : ré-authentification

@@ -8,42 +8,46 @@ export const AuthProvider = ({ children }) => {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        // Fetch current session
-        const fetchSession = async () => {
-            try {
-                const { data: { session } } = await supabase.auth.getSession();
-                setSession(session);
-                
-                if (session) {
-                    if (!navigator.onLine) {
-                        // Si on est hors ligne, on utilise l'utilisateur de la session mise en cache
-                        setUser(session.user);
-                    } else {
-                        // Valider cryptographiquement la session auprès du serveur
-                        const { data: { user }, error } = await supabase.auth.getUser();
-                        if (error) {
-                            console.error("Session invalide ou expirée:", error.message);
-                            // Fallback au cas où l'erreur est liée au réseau
-                            if (error.message.includes('fetch') || error.message.includes('Network')) {
-                                setUser(session.user);
-                            } else {
-                                setUser(null);
-                            }
-                        } else {
-                            setUser(user ?? null);
-                        }
-                    }
-                } else {
-                    setUser(null);
-                }
-            } catch (error) {
-                console.error("Erreur lors de la récupération de la session", error.message);
-            } finally {
-                setLoading(false);
-            }
-        };
+    // Extraite de l'effet pour pouvoir être rappelée à la demande (voir
+    // refreshSession ci-dessous) — nécessaire après une restauration de
+    // session hors-ligne (offlineCashierAuth.restoreSessionLocally), qui
+    // écrit directement dans le storage sans passer par une méthode
+    // supabase.auth qui déclencherait onAuthStateChange.
+    const fetchSession = async () => {
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            setSession(session);
 
+            if (session) {
+                if (!navigator.onLine) {
+                    // Si on est hors ligne, on utilise l'utilisateur de la session mise en cache
+                    setUser(session.user);
+                } else {
+                    // Valider cryptographiquement la session auprès du serveur
+                    const { data: { user }, error } = await supabase.auth.getUser();
+                    if (error) {
+                        console.error("Session invalide ou expirée:", error.message);
+                        // Fallback au cas où l'erreur est liée au réseau
+                        if (error.message.includes('fetch') || error.message.includes('Network')) {
+                            setUser(session.user);
+                        } else {
+                            setUser(null);
+                        }
+                    } else {
+                        setUser(user ?? null);
+                    }
+                }
+            } else {
+                setUser(null);
+            }
+        } catch (error) {
+            console.error("Erreur lors de la récupération de la session", error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchSession();
 
         // Listen for auth state changes
@@ -51,7 +55,7 @@ export const AuthProvider = ({ children }) => {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
-            
+
             // Check for referral code in localStorage upon sign in
             if (session?.user && _event === 'SIGNED_IN') {
                 const refCode = localStorage.getItem('gestionpro_ref');
@@ -75,6 +79,11 @@ export const AuthProvider = ({ children }) => {
         session,
         user,
         signOut: () => supabase.auth.signOut(),
+        // Force une relecture de la session courante (sans repasser `loading`
+        // à true, l'app est déjà montée) : utilisé après
+        // restoreSessionLocally() pour que le reste de l'app voie
+        // immédiatement la nouvelle identité restaurée hors-ligne.
+        refreshSession: fetchSession,
     };
 
     return (

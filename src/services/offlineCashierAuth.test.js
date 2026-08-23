@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { cacheCashierCredentials, hasCachedCashier, verifyPinOffline } from './offlineCashierAuth';
+import { cacheCashierCredentials, hasCachedCashier, verifyPinOffline, restoreSessionLocally } from './offlineCashierAuth';
 
 const { getMock, setMock } = vi.hoisted(() => ({
     getMock: vi.fn(),
@@ -9,6 +9,13 @@ const { getMock, setMock } = vi.hoisted(() => ({
 vi.mock('idb-keyval', () => ({
     get: getMock,
     set: setMock,
+}));
+
+// lib/supabase.js throws at import time without real env vars (by design,
+// see its own file) — mocked here purely to provide a stable AUTH_STORAGE_KEY,
+// same reasoning as SwitchUserModal.test.jsx.
+vi.mock('../lib/supabase', () => ({
+    AUTH_STORAGE_KEY: 'sb-test-project-auth-token',
 }));
 
 // Un vrai hash PBKDF2-SHA256 (100k itérations) de "1234" avec ce sel — même
@@ -36,24 +43,20 @@ describe('offlineCashierAuth', () => {
         REAL_PIN_HASH = `${SALT_HEX}:${await derivePinHash('1234', SALT_HEX)}`;
     }, 20000);
 
-    it('caches credentials keyed by member id, storing only access/refresh tokens from the session', async () => {
+    it('caches credentials keyed by member id, storing the full session as-is', async () => {
         getMock.mockResolvedValueOnce({});
+        const session = { access_token: 'at', refresh_token: 'rt', expires_at: 9999999999, user: { id: 'u1' } };
 
-        await cacheCashierCredentials('member-1', {
-            name: 'Awa',
-            pinHash: REAL_PIN_HASH,
-            session: { access_token: 'at', refresh_token: 'rt', user: { id: 'u1' }, extra: 'should not be stored' },
-        });
+        await cacheCashierCredentials('member-1', { name: 'Awa', pinHash: REAL_PIN_HASH, session });
 
         const [, stored] = setMock.mock.calls[0];
         expect(stored['member-1']).toMatchObject({
             name: 'Awa',
             pinHash: REAL_PIN_HASH,
-            session: { access_token: 'at', refresh_token: 'rt' },
+            session,
             failedAttempts: 0,
             lockedUntil: null,
         });
-        expect(stored['member-1'].session).not.toHaveProperty('extra');
     });
 
     it('hasCachedCashier reflects whether an entry exists', async () => {
@@ -121,5 +124,14 @@ describe('offlineCashierAuth', () => {
 
         expect(result).toEqual({ success: false, reason: 'locked' });
         expect(setMock).not.toHaveBeenCalled();
+    });
+
+    it('restoreSessionLocally writes the session directly under the storage key supabase-js reads, without any network call', () => {
+        localStorage.clear();
+        const session = { access_token: 'at', refresh_token: 'rt', expires_at: 9999999999, user: { id: 'u1' } };
+
+        restoreSessionLocally(session);
+
+        expect(JSON.parse(localStorage.getItem('sb-test-project-auth-token'))).toEqual(session);
     });
 });

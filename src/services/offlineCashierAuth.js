@@ -1,4 +1,5 @@
 import { get, set } from 'idb-keyval';
+import { AUTH_STORAGE_KEY } from '../lib/supabase';
 
 const STORE_KEY = 'offline_cashier_auth';
 const MAX_ATTEMPTS = 5;
@@ -25,15 +26,20 @@ const derivePinHash = async (pin, saltHex) => {
 
 /**
  * À appeler après une bascule vers un caissier réussie EN LIGNE : met en
- * cache son pin_hash (déjà salé côté serveur) et la session obtenue, pour
- * que ce même caissier reste sélectionnable hors-ligne sur cet appareil.
+ * cache son pin_hash (déjà salé côté serveur) et la session complète
+ * obtenue (access_token, refresh_token, expires_at, user...), pour que ce
+ * même caissier reste sélectionnable hors-ligne sur cet appareil. La
+ * session est gardée telle quelle (pas juste access/refresh_token) car
+ * restoreSessionLocally() doit reproduire exactement ce que supabase-js
+ * range normalement en storage — il lui faut expires_at pour ne pas être
+ * rejetée par sa propre validation.
  */
 export const cacheCashierCredentials = async (memberId, { name, pinHash, session }) => {
     const store = await readStore();
     store[memberId] = {
         name,
         pinHash,
-        session: { access_token: session.access_token, refresh_token: session.refresh_token },
+        session,
         failedAttempts: 0,
         lockedUntil: null,
         cachedAt: new Date().toISOString(),
@@ -44,6 +50,18 @@ export const cacheCashierCredentials = async (memberId, { name, pinHash, session
 export const hasCachedCashier = async (memberId) => {
     const store = await readStore();
     return !!store[memberId];
+};
+
+/**
+ * Restaure une session en écrivant directement dans le storage lu par
+ * supabase-js, plutôt que via supabase.auth.setSession() — qui déclenche
+ * toujours un appel réseau (voir le commentaire sur AUTH_STORAGE_KEY dans
+ * lib/supabase.js) et échoue donc systématiquement hors-ligne. Le prochain
+ * appel à supabase.auth.getSession() lira cette session directement depuis
+ * le storage sans réseau, tant que son expires_at n'est pas dépassé.
+ */
+export const restoreSessionLocally = (session) => {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 };
 
 /**
