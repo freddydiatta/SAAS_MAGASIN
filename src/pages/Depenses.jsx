@@ -5,8 +5,15 @@ import { EXPENSE_CATEGORIES } from '../services/expensesService';
 import { Modal } from '../components/Modal';
 import { DataTable } from '../components/DataTable';
 import { Plus, Trash2, Wallet } from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
+
+// Une couleur par catégorie, dans l'ordre où elles apparaissent dans
+// EXPENSE_CATEGORIES — dégradé de l'accent app plutôt que des couleurs
+// arbitraires, pour rester cohérent avec le reste des graphiques (cf.
+// RetailDashboard).
+const CATEGORY_COLORS = ['#D96645', '#E8B6A6', '#C25637', '#94A3B8', '#64748B'];
 
 export const Depenses = () => {
     const { selectedBusiness, currentMember } = useBusiness();
@@ -14,7 +21,7 @@ export const Depenses = () => {
     const actorLabel = currentMember?.name || user?.email || 'unknown';
 
     const {
-        expenses, isLoading, totalExpenses, totalExpensesToday,
+        expenses, isLoading, totalExpenses, totalExpensesToday, expensesByCategory,
         isAddOpen, openAddForm, closeForm,
         formData, setFormData,
         handleSubmit, handleDelete, isSaving,
@@ -98,6 +105,35 @@ export const Depenses = () => {
                     </div>
                 </div>
             </div>
+
+            {expensesByCategory.length > 0 && (
+                <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
+                    <h2 className="text-lg font-bold text-primary mb-6">Répartition par catégorie</h2>
+                    <div className="h-[220px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={expensesByCategory}
+                                    dataKey="total"
+                                    nameKey="label"
+                                    innerRadius={55}
+                                    outerRadius={85}
+                                    paddingAngle={2}
+                                >
+                                    {expensesByCategory.map((entry, index) => (
+                                        <Cell key={entry.category} fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.05)' }}
+                                    formatter={(value) => [`${formatFCFA(value)} FCFA`, 'Total']}
+                                />
+                                <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
 
             <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden">
                 <DataTable

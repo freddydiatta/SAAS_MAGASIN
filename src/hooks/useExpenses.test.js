@@ -52,6 +52,16 @@ describe('useExpenses', () => {
         expect(result.current.totalExpensesToday).toBe(500);
     });
 
+    it('groups expenses by category, sorted from most to least expensive', async () => {
+        const { result } = renderHookWithQueryClient(() => useExpenses(BUSINESS, 'owner@test.com'));
+
+        await waitFor(() => expect(result.current.expenses).toHaveLength(2));
+        expect(result.current.expensesByCategory).toEqual([
+            { category: 'transport', label: 'Transport', total: 500 },
+            { category: 'divers', label: 'Divers', total: 300 },
+        ]);
+    });
+
     it('rejects submitting a "divers" expense with no label', async () => {
         const { result } = renderHookWithQueryClient(() => useExpenses(BUSINESS, 'owner@test.com'));
         await waitFor(() => expect(result.current.expenses).toHaveLength(2));

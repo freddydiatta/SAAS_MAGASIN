@@ -45,6 +45,20 @@ describe('Depenses', () => {
         expect(screen.getByText('1 500 F')).toBeInTheDocument();
     });
 
+    it('shows a category breakdown chart when there are expenses', async () => {
+        renderWithQueryClient(<Depenses />);
+
+        expect(await screen.findByText('Répartition par catégorie')).toBeInTheDocument();
+    });
+
+    it('hides the category breakdown chart when there are no expenses yet', async () => {
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [], error: null }));
+        renderWithQueryClient(<Depenses />);
+
+        await screen.findByText('Aucune dépense enregistrée pour le moment.');
+        expect(screen.queryByText('Répartition par catégorie')).not.toBeInTheDocument();
+    });
+
     it('blocks a "Divers" expense with no description', async () => {
         const user = userEvent.setup();
         renderWithQueryClient(<Depenses />);

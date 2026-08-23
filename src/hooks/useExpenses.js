@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { fetchExpenses, addExpense, deleteExpense } from '../services/expensesService';
+import { fetchExpenses, addExpense, deleteExpense, EXPENSE_CATEGORIES } from '../services/expensesService';
 import { expenseSchema, firstZodError } from '../lib/validation';
 
 const EMPTY_FORM = { category: 'divers', label: '', amount: '' };
@@ -28,6 +28,17 @@ export function useExpenses(selectedBusiness, actorLabel) {
     const totalExpensesToday = expenses
         .filter((e) => new Date(e.created_at).getTime() >= today)
         .reduce((sum, e) => sum + Number(e.amount), 0);
+
+    // Répartition par catégorie (demandée par un utilisateur testant l'app :
+    // voir en un coup d'œil ce qui coûte le plus cher), triée du plus gros au
+    // plus petit poste pour que le camembert affiche les parts dans cet ordre.
+    const totalsByCategory = expenses.reduce((acc, e) => {
+        acc[e.category] = (acc[e.category] || 0) + Number(e.amount);
+        return acc;
+    }, {});
+    const expensesByCategory = Object.entries(totalsByCategory)
+        .map(([category, total]) => ({ category, label: EXPENSE_CATEGORIES[category] || category, total }))
+        .sort((a, b) => b.total - a.total);
 
     const addExpenseMutation = useMutation({
         mutationFn: (newExpense) => addExpense({ businessId: selectedBusiness.id, createdBy: actorLabel, ...newExpense }),
@@ -82,6 +93,7 @@ export function useExpenses(selectedBusiness, actorLabel) {
         isLoading,
         totalExpenses,
         totalExpensesToday,
+        expensesByCategory,
         isAddOpen,
         openAddForm,
         closeForm,
