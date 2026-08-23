@@ -3,7 +3,7 @@ import { QueryClient, useIsRestoring, useQueryClient } from '@tanstack/react-que
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
 import { get, set, del } from 'idb-keyval';
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
@@ -11,25 +11,42 @@ import { BusinessProvider } from './contexts/BusinessContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { RequireOwner } from './components/RequireOwner';
 import { Landing } from './pages/Landing';
-import { DashboardLayout } from './layouts/DashboardLayout';
-import { Dashboard } from './pages/Dashboard';
-import { Login } from './pages/auth/Login';
-import { Register } from './pages/auth/Register';
-import { BusinessList } from './pages/businesses/BusinessList';
-import { PlaceholderPage } from './pages/PlaceholderPage';
-import { Stock } from './pages/retail/Stock';
-import { Caisse } from './pages/retail/Caisse';
-import { HistoriqueVentes } from './pages/retail/HistoriqueVentes';
-import { AuditLogs } from './pages/retail/AuditLogs';
-import { Villas } from './pages/villas/Villas';
-import { Reservations } from './pages/villas/Reservations';
-import { Menu } from './pages/restaurant/Menu';
-import { Commandes } from './pages/restaurant/Commandes';
-import { Motos } from './pages/retail/Motos';
-import { Calendrier } from './pages/villas/Calendrier';
-import { AffiliateDashboard } from './pages/affiliate/AffiliateDashboard';
-import { Parametres } from './pages/settings/Parametres';
 import { syncOfflineSales } from './services/syncService';
+
+// Chargées à la demande : App.jsx importait jusqu'ici toutes les pages du
+// tableau de bord (graphiques recharts, génération PDF jspdf/html2canvas,
+// tous les verticaux métier) de façon statique — la page d'accueil publique
+// devait donc télécharger tout le bundle de l'appli entière (1.7 Mo) avant
+// de pouvoir s'afficher, d'où des chargements de 5-10s sur mobile. Seule
+// Landing reste importée normalement : c'est la toute première page vue,
+// pas de flash de chargement à lui imposer.
+const named = (importer, name) => lazy(() => importer().then(m => ({ default: m[name] })));
+
+const DashboardLayout = named(() => import('./layouts/DashboardLayout'), 'DashboardLayout');
+const Dashboard = named(() => import('./pages/Dashboard'), 'Dashboard');
+const Login = named(() => import('./pages/auth/Login'), 'Login');
+const Register = named(() => import('./pages/auth/Register'), 'Register');
+const BusinessList = named(() => import('./pages/businesses/BusinessList'), 'BusinessList');
+const Stock = named(() => import('./pages/retail/Stock'), 'Stock');
+const Caisse = named(() => import('./pages/retail/Caisse'), 'Caisse');
+const HistoriqueVentes = named(() => import('./pages/retail/HistoriqueVentes'), 'HistoriqueVentes');
+const AuditLogs = named(() => import('./pages/retail/AuditLogs'), 'AuditLogs');
+const Villas = named(() => import('./pages/villas/Villas'), 'Villas');
+const Reservations = named(() => import('./pages/villas/Reservations'), 'Reservations');
+const Menu = named(() => import('./pages/restaurant/Menu'), 'Menu');
+const Commandes = named(() => import('./pages/restaurant/Commandes'), 'Commandes');
+const Motos = named(() => import('./pages/retail/Motos'), 'Motos');
+const Calendrier = named(() => import('./pages/villas/Calendrier'), 'Calendrier');
+const AffiliateDashboard = named(() => import('./pages/affiliate/AffiliateDashboard'), 'AffiliateDashboard');
+const Parametres = named(() => import('./pages/settings/Parametres'), 'Parametres');
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-accent animate-spin" />
+    </div>
+  );
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -103,6 +120,7 @@ function App() {
         <AuthProvider>
           <BusinessProvider>
             <Router>
+              <Suspense fallback={<RouteFallback />}>
               <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Landing />} />
@@ -145,6 +163,7 @@ function App() {
                 } />
               </Route>
               </Routes>
+              </Suspense>
             </Router>
           </BusinessProvider>
         </AuthProvider>
