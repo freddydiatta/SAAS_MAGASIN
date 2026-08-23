@@ -824,3 +824,29 @@ CREATE TABLE IF NOT EXISTS public.contact_messages (
 
 ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
 
+-- ==========================================
+-- SUIVI DES DÉPENSES
+-- Une seule table, partagée par tous les verticaux (retail/motos,
+-- restaurant, villas) — même logique de dépense -> bénéfice partout.
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.expenses (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    category TEXT NOT NULL DEFAULT 'divers',
+    label TEXT,
+    amount DECIMAL(10, 2) NOT NULL CHECK (amount >= 0),
+    created_by TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Members can manage expenses of their business" ON public.expenses;
+CREATE POLICY "Members can manage expenses of their business"
+ON public.expenses
+FOR ALL USING (public.is_business_member(business_id))
+WITH CHECK (public.is_business_member(business_id));
+
+CREATE INDEX IF NOT EXISTS idx_expenses_business_created_at
+    ON public.expenses (business_id, created_at DESC);

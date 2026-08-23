@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useRestaurantDashboardStats } from '../../hooks/useRestaurantDashboardStats';
-import { Utensils, DollarSign, Clock, Users, ArrowRight } from 'lucide-react';
+import { Utensils, DollarSign, Clock, Users, ArrowRight, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { StatusBadge } from '../StatusBadge';
 import { ORDER_STATUS } from '../../lib/orderStatus';
@@ -11,7 +11,7 @@ const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).rep
 export const RestaurantDashboard = () => {
     const { selectedBusiness } = useBusiness();
     const navigate = useNavigate();
-    const { isLoading, commandesEnCours, caisseDuJour, platsServis, tablesOuvertes, recentOrders } = useRestaurantDashboardStats(selectedBusiness);
+    const { isLoading, commandesEnCours, caisseDuJour, platsServis, tablesOuvertes, recentOrders, depensesDuJour, beneficeDuJour } = useRestaurantDashboardStats(selectedBusiness);
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
@@ -27,7 +27,7 @@ export const RestaurantDashboard = () => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -94,6 +94,27 @@ export const RestaurantDashboard = () => {
                             <p className="text-secondary text-sm font-medium">Tables Ouvertes</p>
                             <h3 className="text-2xl font-bold text-primary">{isLoading ? '—' : tablesOuvertes}</h3>
                         </div>
+                    </div>
+                </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    onClick={() => navigate('/dashboard/depenses')}
+                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors cursor-pointer"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <Wallet className={`w-6 h-6 ${beneficeDuJour >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                        </div>
+                        <div>
+                            <p className="text-secondary text-sm font-medium">Bénéfice net (jour)</p>
+                            <h3 className={`text-2xl font-bold ${beneficeDuJour >= 0 ? 'text-primary' : 'text-red-500'}`}>{isLoading ? '—' : formatFCFA(beneficeDuJour)} <span className="text-sm">FCFA</span></h3>
+                        </div>
+                    </div>
+                    <div className="text-sm font-medium text-slate-400">
+                        Dépenses : {formatFCFA(depensesDuJour)} F
                     </div>
                 </motion.div>
             </div>

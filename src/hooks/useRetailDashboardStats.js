@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useProducts } from './useProducts';
+import { fetchExpenses } from '../services/expensesService';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -31,6 +32,14 @@ export function useRetailDashboardStats(selectedBusiness) {
             if (error) throw error;
             return data;
         },
+        enabled: !!user && !!selectedBusiness
+    });
+
+    // Même clé de requête que useExpenses (['expenses', businessId]) pour
+    // partager le cache React Query plutôt que refaire la requête.
+    const { data: expenses = [] } = useQuery({
+        queryKey: ['expenses', selectedBusiness?.id],
+        queryFn: () => fetchExpenses(selectedBusiness.id),
         enabled: !!user && !!selectedBusiness
     });
 
@@ -67,6 +76,11 @@ export function useRetailDashboardStats(selectedBusiness) {
     const diffTransactions = transactions - transactionsHier;
 
     const alertesStock = products.filter(p => p.stock_quantity <= 2).length;
+
+    const depensesDuJour = expenses
+        .filter(e => new Date(e.created_at).getTime() >= today)
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+    const beneficeDuJour = caisseDuJour - depensesDuJour;
 
     // --- Chart Data (Last 7 Days) ---
     const chartData = [];
@@ -111,6 +125,8 @@ export function useRetailDashboardStats(selectedBusiness) {
         caisseDuJour,
         caisseDuJourCash,
         caisseDuJourMobile,
+        depensesDuJour,
+        beneficeDuJour,
         percentChange,
         panierMoyen,
         transactions,

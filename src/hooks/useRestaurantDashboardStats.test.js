@@ -33,10 +33,17 @@ const ORDERS = [
     { id: 'o5', table_number: '9', status: 'paid', total_amount: 9000, items: [{ quantity: 5 }], created_at: yesterday.toISOString() },
 ];
 
+const EXPENSES = [
+    { id: 'e1', category: 'divers', amount: 800, created_at: today.toISOString() },
+];
+
 describe('useRestaurantDashboardStats', () => {
     beforeEach(() => {
         fromMock.mockReset();
-        fromMock.mockImplementation(() => createQueryBuilder({ data: ORDERS, error: null }));
+        fromMock.mockImplementation((table) => {
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            return createQueryBuilder({ data: ORDERS, error: null });
+        });
     });
 
     it('counts commandesEnCours as pending or served orders regardless of day', async () => {
@@ -53,6 +60,8 @@ describe('useRestaurantDashboardStats', () => {
 
         // o3 is the only paid order from today (2000) — o5 is paid but from yesterday
         expect(result.current.caisseDuJour).toBe(2000);
+        expect(result.current.depensesDuJour).toBe(800);
+        expect(result.current.beneficeDuJour).toBe(2000 - 800);
     });
 
     it('sums platsServis from served+paid orders today by item quantities', async () => {

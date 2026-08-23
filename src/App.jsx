@@ -39,6 +39,7 @@ const Motos = named(() => import('./pages/retail/Motos'), 'Motos');
 const Calendrier = named(() => import('./pages/villas/Calendrier'), 'Calendrier');
 const AffiliateDashboard = named(() => import('./pages/affiliate/AffiliateDashboard'), 'AffiliateDashboard');
 const Parametres = named(() => import('./pages/settings/Parametres'), 'Parametres');
+const Depenses = named(() => import('./pages/Depenses'), 'Depenses');
 
 function RouteFallback() {
   return (
@@ -156,6 +157,7 @@ function App() {
                 <Route path="commandes" element={<Commandes />} />
                 <Route path="menu" element={<Menu />} />
                 <Route path="affiliation" element={<AffiliateDashboard />} />
+                <Route path="depenses" element={<Depenses />} />
                 <Route path="parametres" element={
                   <RequireOwner>
                     <Parametres />

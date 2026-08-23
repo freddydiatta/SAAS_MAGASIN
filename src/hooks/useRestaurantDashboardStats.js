@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { fetchExpenses } from '../services/expensesService';
 
 // Tous les calculs de KPI du tableau de bord restaurant (commandes en
 // cours, caisse du jour, plats servis, tables ouvertes) : avant,
@@ -19,6 +20,14 @@ export function useRestaurantDashboardStats(selectedBusiness) {
             if (error) throw error;
             return data;
         },
+        enabled: !!selectedBusiness
+    });
+
+    // Même clé de requête que useExpenses (['expenses', businessId]) pour
+    // partager le cache React Query plutôt que refaire la requête.
+    const { data: expenses = [] } = useQuery({
+        queryKey: ['expenses', selectedBusiness?.id],
+        queryFn: () => fetchExpenses(selectedBusiness.id),
         enabled: !!selectedBusiness
     });
 
@@ -44,6 +53,11 @@ export function useRestaurantDashboardStats(selectedBusiness) {
 
     const recentOrders = orders.slice(0, 5);
 
+    const depensesDuJour = expenses
+        .filter(e => new Date(e.created_at).getTime() >= today)
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+    const beneficeDuJour = caisseDuJour - depensesDuJour;
+
     return {
         isLoading,
         commandesEnCours,
@@ -51,5 +65,7 @@ export function useRestaurantDashboardStats(selectedBusiness) {
         platsServis,
         tablesOuvertes,
         recentOrders,
+        depensesDuJour,
+        beneficeDuJour,
     };
 }

@@ -44,6 +44,10 @@ export const DashboardLayout = () => {
     const getMenuItems = () => {
         const type = selectedBusiness?.type;
         const common = [{ path: '/dashboard', label: 'Aperçu', icon: '🏠' }];
+        // Toujours juste avant "Affiliation" dans chaque branche : les
+        // dépenses (transport, divers...) partagent la même logique quel
+        // que soit le vertical, pas de raison de la dupliquer par métier.
+        const depensesItem = { path: '/dashboard/depenses', label: 'Dépenses', icon: '💸' };
         let items;
 
         if (type === 'villa') {
@@ -52,6 +56,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
+                depensesItem,
                 { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
         } else if (type === 'restaurant') {
@@ -60,6 +65,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
+                depensesItem,
                 { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
         } else {
@@ -73,6 +79,7 @@ export const DashboardLayout = () => {
             if (type === 'pieces_moto') {
                 items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
             }
+            items.push(depensesItem);
             items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
         }
 

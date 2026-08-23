@@ -40,11 +40,17 @@ const SALES = [
     { id: 's3', quantity: 1, total_price: 500, created_at: yesterday9am.toISOString(), products: { name: 'Casque Moto', type: 'moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
 ];
 
+const EXPENSES = [
+    { id: 'e1', category: 'transport', amount: 500, created_at: today9am.toISOString() },
+    { id: 'e2', category: 'divers', amount: 300, created_at: yesterday9am.toISOString() }, // not today -> excluded
+];
+
 describe('useRetailDashboardStats', () => {
     beforeEach(() => {
         fromMock.mockReset();
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             return createQueryBuilder({ data: SALES, error: null });
         });
     });
@@ -63,6 +69,9 @@ describe('useRetailDashboardStats', () => {
         expect(result.current.diffTransactions).toBe(1); // 2 today - 1 yesterday
         expect(result.current.panierMoyen).toBe(1500); // 3000 / 2
         expect(result.current.alertesStock).toBe(1);
+        // only e1 (transport, 500) falls on today; e2 was yesterday
+        expect(result.current.depensesDuJour).toBe(500);
+        expect(result.current.beneficeDuJour).toBe(3000 - 500);
     });
 
     it('produces a 7-day chart series and top products ranked by quantity sold', async () => {

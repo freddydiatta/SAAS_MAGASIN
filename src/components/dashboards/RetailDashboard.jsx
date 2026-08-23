@@ -4,7 +4,7 @@ import { AddProductModal } from '../AddProductModal';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard } from 'lucide-react';
+import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const RetailDashboard = () => {
@@ -17,6 +17,8 @@ export const RetailDashboard = () => {
         caisseDuJour,
         caisseDuJourCash,
         caisseDuJourMobile,
+        depensesDuJour,
+        beneficeDuJour,
         percentChange,
         panierMoyen,
         transactions,
@@ -50,7 +52,7 @@ export const RetailDashboard = () => {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -151,6 +153,27 @@ export const RetailDashboard = () => {
                     </div>
                     <div className={`text-sm font-medium ${alertesStock > 0 ? 'text-red-500' : 'text-slate-400'}`}>
                         {alertesStock > 0 ? 'Articles à réapprovisionner' : 'Stock sain'}
+                    </div>
+                </motion.div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    onClick={() => navigate('/dashboard/depenses')}
+                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors cursor-pointer"
+                >
+                    <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                            <Wallet className={`w-6 h-6 ${beneficeDuJour >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                        </div>
+                        <div>
+                            <p className="text-secondary text-sm font-medium">Bénéfice net (jour)</p>
+                            <h3 className={`text-2xl font-bold ${beneficeDuJour >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatFCFA(beneficeDuJour)} <span className="text-sm font-medium">F</span></h3>
+                        </div>
+                    </div>
+                    <div className="text-sm font-medium text-slate-400">
+                        Dépenses : {formatFCFA(depensesDuJour)} F
                     </div>
                 </motion.div>
             </div>
