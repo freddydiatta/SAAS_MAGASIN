@@ -179,13 +179,16 @@ export const DashboardLayout = () => {
                                 <Link to="/businesses" className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
                                     Changer de magasin
                                 </Link>
-                                {isCashier ? (
+                                {/* Un caissier peut aussi basculer directement vers un
+                                    autre caissier (SwitchUserModal liste tous les
+                                    caissiers actifs, peu importe qui est connecté),
+                                    sans devoir d'abord repasser par le propriétaire. */}
+                                <button onClick={() => setIsSwitchUserOpen(true)} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
+                                    Changer d'utilisateur
+                                </button>
+                                {isCashier && (
                                     <button onClick={() => setIsReturnToOwnerOpen(true)} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
                                         Revenir au propriétaire
-                                    </button>
-                                ) : (
-                                    <button onClick={() => setIsSwitchUserOpen(true)} className="w-full bg-panel border border-slate-200 dark:border-border-theme px-4 py-2 rounded-xl text-sm text-center font-medium text-primary hover:border-accent hover:text-accent transition-colors shadow-sm">
-                                        Changer d'utilisateur
                                     </button>
                                 )}
                                 <button onClick={() => signOut()} className="text-xs text-center text-slate-400 hover:text-red-500 mt-1 transition-colors">

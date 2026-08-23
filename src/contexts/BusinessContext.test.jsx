@@ -144,6 +144,49 @@ describe('BusinessContext', () => {
         });
     });
 
+    describe('owner email stash — direct cashier-to-cashier switching', () => {
+        beforeEach(() => {
+            sessionStorage.clear();
+        });
+
+        it('stashes the current session email the first time a switch happens', async () => {
+            getSessionMock.mockResolvedValue({ data: { session: { user: { email: 'real-owner@test.com' } } } });
+            signInWithPasswordMock.mockResolvedValueOnce({ data: { session: { access_token: 'at' } }, error: null });
+
+            const { result } = renderHook(() => useBusiness(), { wrapper });
+            await waitFor(() => expect(result.current.loading).toBe(false));
+
+            await act(async () => {
+                await result.current.switchToCashier({
+                    email: 'cashier-a@cashier.local', password: 'secret', memberId: 'member-a', name: 'Awa', pinHash: 'salt:hash',
+                });
+            });
+
+            expect(sessionStorage.getItem('gestionpro_owner_session')).toBe('real-owner@test.com');
+        });
+
+        it('does not overwrite the stashed owner email when switching directly from one cashier to another', async () => {
+            // A cashier is already logged in (not the owner) and switches
+            // straight to a different cashier — currentSession here is
+            // cashier A's, not the real owner's. Without the fix, this
+            // would clobber the stash and break "revenir au propriétaire".
+            sessionStorage.setItem('gestionpro_owner_session', 'real-owner@test.com');
+            getSessionMock.mockResolvedValue({ data: { session: { user: { email: 'cashier-a@cashier.local' } } } });
+            signInWithPasswordMock.mockResolvedValueOnce({ data: { session: { access_token: 'at' } }, error: null });
+
+            const { result } = renderHook(() => useBusiness(), { wrapper });
+            await waitFor(() => expect(result.current.loading).toBe(false));
+
+            await act(async () => {
+                await result.current.switchToCashier({
+                    email: 'cashier-b@cashier.local', password: 'secret', memberId: 'member-b', name: 'Moussa', pinHash: 'salt:hash',
+                });
+            });
+
+            expect(sessionStorage.getItem('gestionpro_owner_session')).toBe('real-owner@test.com');
+        });
+    });
+
     describe('resolveMembership offline fallback', () => {
         it('falls back to the local cashier cache (by auth user id) when the live membership query fails, e.g. offline', async () => {
             const BUSINESS = { id: 'biz-1', user_id: 'someone-else', name: 'Boutique' };

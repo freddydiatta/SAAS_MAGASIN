@@ -131,8 +131,13 @@ export const BusinessProvider = ({ children }) => {
     // pour switchBackToOwner qui réutilise indirectement ce chemin) mettent
     // ce caissier en cache pour switchToCashierOffline.
     const switchToCashier = async ({ email, password, memberId, name, pinHash }) => {
+        // Ne jamais écraser un email déjà mis de côté : un caissier peut
+        // maintenant basculer directement vers un autre caissier (sans
+        // repasser par le propriétaire), et currentSession serait alors
+        // celle du premier caissier, pas celle du propriétaire — l'écraser
+        // ferait perdre définitivement l'email du vrai propriétaire.
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession?.user?.email) {
+        if (currentSession?.user?.email && !sessionStorage.getItem(OWNER_SESSION_KEY)) {
             sessionStorage.setItem(OWNER_SESSION_KEY, currentSession.user.email);
         }
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -189,8 +194,11 @@ export const BusinessProvider = ({ children }) => {
             throw new Error('La session mise en cache pour ce caissier a expiré. Reconnectez-le une fois en ligne pour la renouveler.');
         }
 
+        // Même précaution que dans switchToCashier : ne jamais écraser un
+        // email de propriétaire déjà mis de côté par un switch caissier ->
+        // caissier direct.
         const { data: { session: currentSession } } = await supabase.auth.getSession();
-        if (currentSession?.user?.email) {
+        if (currentSession?.user?.email && !sessionStorage.getItem(OWNER_SESSION_KEY)) {
             sessionStorage.setItem(OWNER_SESSION_KEY, currentSession.user.email);
         }
 
