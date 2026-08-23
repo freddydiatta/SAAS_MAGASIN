@@ -10,10 +10,10 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
 
 // Une couleur par catégorie, dans l'ordre où elles apparaissent dans
-// EXPENSE_CATEGORIES — dégradé de l'accent app plutôt que des couleurs
-// arbitraires, pour rester cohérent avec le reste des graphiques (cf.
-// RetailDashboard).
-const CATEGORY_COLORS = ['#D96645', '#E8B6A6', '#C25637', '#94A3B8', '#64748B'];
+// EXPENSE_CATEGORIES. Des teintes franchement différentes (pas un dégradé
+// d'une seule couleur) pour que chaque part du camembert reste
+// distinguable au premier coup d'œil, même pour des montants proches.
+const CATEGORY_COLORS = ['#D96645', '#3B82F6', '#10B981', '#8B5CF6', '#F59E0B'];
 
 export const Depenses = () => {
     const { selectedBusiness, currentMember } = useBusiness();
