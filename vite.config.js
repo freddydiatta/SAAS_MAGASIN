@@ -31,14 +31,13 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
+            // pwa-192x192.png/pwa-512x512.png étaient référencées mais
+            // n'existaient nulle part dans public/ — le manifest pointait
+            // vers des fichiers introuvables. favicon.svg existe déjà et un
+            // icône SVG "any" est valide pour un manifest PWA.
+            src: 'favicon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
             purpose: 'any maskable'
           }
         ]
