@@ -4,17 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { Parametres } from './Parametres';
 import { renderWithQueryClient } from '../../test/testUtils';
 
-const { useAuthMock, useBusinessMock, invokeMock, listCashiersMock } = vi.hoisted(() => ({
+const { useAuthMock, useBusinessMock, invokeMock, listCashiersMock, updateUserMock, refreshSessionMock } = vi.hoisted(() => ({
     useAuthMock: vi.fn(),
     useBusinessMock: vi.fn(),
     invokeMock: vi.fn(),
     listCashiersMock: vi.fn(),
+    updateUserMock: vi.fn(),
+    refreshSessionMock: vi.fn(),
 }));
 
 vi.mock('../../contexts/AuthContext', () => ({ useAuth: useAuthMock }));
 vi.mock('../../contexts/BusinessContext', () => ({ useBusiness: useBusinessMock }));
 vi.mock('../../lib/supabase', () => ({
-    supabase: { functions: { invoke: invokeMock } },
+    supabase: { functions: { invoke: invokeMock }, auth: { updateUser: updateUserMock } },
 }));
 vi.mock('../../services/cashiersService', () => ({
     listCashiers: listCashiersMock,
@@ -30,6 +32,8 @@ describe('Parametres — subscription section', () => {
         useBusinessMock.mockReset();
         invokeMock.mockReset();
         listCashiersMock.mockReset();
+        updateUserMock.mockReset();
+        refreshSessionMock.mockReset();
         listCashiersMock.mockResolvedValue([]);
         useBusinessMock.mockReturnValue({ selectedBusiness: BUSINESS });
     });
@@ -59,5 +63,34 @@ describe('Parametres — subscription section', () => {
         expect(await screen.findByText(/Abonnement — Pack Business/)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /passer au pack business/i })).not.toBeInTheDocument();
         expect(screen.getByText(/magasins illimités/i)).toBeInTheDocument();
+    });
+
+    it('downgrades to Essentiel after confirmation', async () => {
+        useAuthMock.mockReturnValue({ user: { user_metadata: { subscription_plan: 'business' } }, refreshSession: refreshSessionMock });
+        updateUserMock.mockResolvedValue({ error: null });
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const user = userEvent.setup();
+        renderWithQueryClient(<Parametres />);
+
+        await user.click(await screen.findByRole('button', { name: /repasser au pack essentiel/i }));
+
+        expect(confirmSpy).toHaveBeenCalled();
+        await waitFor(() => {
+            expect(updateUserMock).toHaveBeenCalledWith({ data: { subscription_plan: 'essentiel' } });
+        });
+        expect(refreshSessionMock).toHaveBeenCalled();
+        confirmSpy.mockRestore();
+    });
+
+    it('does not downgrade when the confirmation is cancelled', async () => {
+        useAuthMock.mockReturnValue({ user: { user_metadata: { subscription_plan: 'business' } }, refreshSession: refreshSessionMock });
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+        const user = userEvent.setup();
+        renderWithQueryClient(<Parametres />);
+
+        await user.click(await screen.findByRole('button', { name: /repasser au pack essentiel/i }));
+
+        expect(updateUserMock).not.toHaveBeenCalled();
+        confirmSpy.mockRestore();
     });
 });

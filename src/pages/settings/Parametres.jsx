@@ -13,13 +13,14 @@ import { extractPaydunyaErrorMessage } from '../../lib/paydunyaError';
 
 export const Parametres = () => {
     const { selectedBusiness } = useBusiness();
-    const { user } = useAuth();
+    const { user, refreshSession } = useAuth();
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [name, setName] = useState('');
     const [pin, setPin] = useState('');
     const [formError, setFormError] = useState('');
     const [isUpgrading, setIsUpgrading] = useState(false);
+    const [isDowngrading, setIsDowngrading] = useState(false);
 
     const currentPlan = user?.user_metadata?.subscription_plan || DEFAULT_PLAN;
 
@@ -40,6 +41,32 @@ export const Parametres = () => {
             toast.error(await extractPaydunyaErrorMessage(error, "Impossible d'initialiser la mise à niveau pour le moment."));
         } finally {
             setIsUpgrading(false);
+        }
+    };
+
+    // Repasser en Essentiel ne nécessite pas de paiement (le prix baisse au
+    // prochain renouvellement, cf. BillingModal qui relit toujours le plan
+    // courant) — juste une confirmation, puisque ça remet la limite d'1
+    // magasin pour toute nouvelle création (les magasins déjà créés restent
+    // accessibles, le trigger enforce_business_plan_limit ne s'applique
+    // qu'aux nouvelles insertions).
+    const handleDowngrade = async () => {
+        if (!window.confirm(
+            "Repasser au Pack Essentiel limite la création de nouveaux magasins à 1 seul. Vos magasins déjà créés restent accessibles. Continuer ?"
+        )) {
+            return;
+        }
+        setIsDowngrading(true);
+        try {
+            const { error } = await supabase.auth.updateUser({ data: { subscription_plan: 'essentiel' } });
+            if (error) throw error;
+            await refreshSession();
+            toast.success('Vous êtes maintenant sur le Pack Essentiel.');
+        } catch (error) {
+            console.error('Erreur de changement de forfait:', error);
+            toast.error(error.message || 'Impossible de changer de forfait pour le moment.');
+        } finally {
+            setIsDowngrading(false);
         }
     };
 
@@ -112,7 +139,7 @@ export const Parametres = () => {
                             </p>
                         </div>
                     </div>
-                    {currentPlan !== 'business' && (
+                    {currentPlan !== 'business' ? (
                         <button
                             onClick={handleUpgrade}
                             disabled={isUpgrading}
@@ -120,6 +147,14 @@ export const Parametres = () => {
                         >
                             <CreditCard className="w-4 h-4" />
                             {isUpgrading ? 'Redirection...' : `Passer au ${SUBSCRIPTION_PLANS.business.label} (${SUBSCRIPTION_PLANS.business.price.toLocaleString('fr-FR')} FCFA/mois)`}
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleDowngrade}
+                            disabled={isDowngrading}
+                            className="text-secondary hover:text-primary font-medium px-4 py-2.5 rounded-xl transition-colors text-sm shrink-0 disabled:opacity-50 underline decoration-dotted underline-offset-4"
+                        >
+                            {isDowngrading ? 'Changement...' : `Repasser au ${SUBSCRIPTION_PLANS.essentiel.label}`}
                         </button>
                     )}
                 </div>
