@@ -13,14 +13,31 @@ serve(async (req) => {
   }
 
   try {
-    const payload = await req.json()
-    
+    // PayDunya envoie l'IPN en application/x-www-form-urlencoded avec des
+    // clés imbriquées façon PHP ("data[invoice][token]", etc.), jamais en
+    // JSON — confirmé en conditions réelles (payload capturé : response_code,
+    // hash, invoice.token, custom_data.business_id, status, tous sous
+    // "data"). req.json() plantait donc sur CHAQUE appel réel, et ce webhook
+    // n'avait en pratique jamais confirmé un seul paiement avant ce correctif.
+    const rawBody = await req.text();
+    const params: Record<string, unknown> = {};
+    for (const [key, value] of new URLSearchParams(rawBody).entries()) {
+      const path = key.replace(/\]/g, '').split('[');
+      let node = params;
+      for (let i = 0; i < path.length - 1; i++) {
+        const segment = path[i];
+        if (typeof node[segment] !== 'object' || node[segment] === null) node[segment] = {};
+        node = node[segment] as Record<string, unknown>;
+      }
+      node[path[path.length - 1]] = value;
+    }
+    const payload: any = (params as any).data;
+
     // PayDunya sends the master key in the body as 'hash' to verify it's from them
-    // Note: In a real production environment, you MUST verify this hash
     const PAYDUNYA_MASTER_KEY = Deno.env.get('PAYDUNYA_MASTER_KEY') || "";
     const expectedHash = createHash("sha512").update(PAYDUNYA_MASTER_KEY).toString();
-    
-    if (payload.hash !== expectedHash) {
+
+    if (payload?.hash !== expectedHash) {
        console.error("Invalid Hash!");
        return new Response(JSON.stringify({ error: "Invalid Hash" }), {
          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
