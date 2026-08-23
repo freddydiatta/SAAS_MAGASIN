@@ -14,6 +14,16 @@ vi.mock('../services/cashiersService', () => ({
     cashierLogin: cashierLoginMock,
 }));
 
+// SwitchUserModal renders the offline hint via useOfflineStatus, which
+// pulls in the real syncService.js -> salesService.js -> lib/supabase.js
+// chain. lib/supabase.js throws at import time without Supabase env vars,
+// which happened to be set locally (a real .env for `npm run dev`) but not
+// in CI — passed here, failed there. Mock it like useOfflineStatus's own
+// test does, so this test doesn't depend on ambient env state either way.
+vi.mock('../services/syncService', () => ({
+    getOfflineSalesCount: vi.fn().mockResolvedValue(0),
+}));
+
 const { switchToCashierMock, switchToCashierOfflineMock } = vi.hoisted(() => ({
     switchToCashierMock: vi.fn(),
     switchToCashierOfflineMock: vi.fn(),
