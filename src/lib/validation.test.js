@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { businessSchema, restaurantOrderSchema, firstZodError } from './validation';
+import { businessSchema, restaurantOrderSchema, villaSchema, firstZodError } from './validation';
 
 describe('businessSchema', () => {
     it('accepts a valid business with optional fields left blank', () => {
@@ -27,6 +27,22 @@ describe('businessSchema', () => {
     it('rejects a missing type', () => {
         const result = businessSchema.safeParse({ name: 'Ma Boutique', type: '' });
         expect(result.success).toBe(false);
+    });
+});
+
+describe('villaSchema', () => {
+    it('passes image_url through when set', () => {
+        const result = villaSchema.safeParse({
+            name: 'Villa Saly', address: '', price_per_night: 100000, image_url: 'https://x/villa.jpg',
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.image_url).toBe('https://x/villa.jpg');
+    });
+
+    it('accepts a villa with no photo yet', () => {
+        const result = villaSchema.safeParse({ name: 'Villa Saly', address: '', price_per_night: 100000, image_url: '' });
+        expect(result.success).toBe(true);
+        expect(result.data.image_url).toBe('');
     });
 });
 

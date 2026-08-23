@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { deleteProductImage } from './imagesService';
 
 export const productKeys = {
     all: (businessId) => ['products', businessId],
@@ -14,28 +15,44 @@ export const fetchProducts = async (businessId) => {
     return data;
 };
 
-export const addProduct = async ({ businessId, name, type, price, stockQuantity }) => {
+export const addProduct = async ({ businessId, name, type, price, stockQuantity, imageUrl }) => {
     const { error } = await supabase.from('products').insert([{
         business_id: businessId,
         name,
         type,
         price,
         stock_quantity: stockQuantity,
+        image_url: imageUrl || null,
     }]);
     if (error) throw error;
 };
 
-export const updateProduct = async ({ id, name, type, price, stockQuantity }) => {
+export const updateProduct = async ({ id, name, type, price, stockQuantity, imageUrl, previousImageUrl }) => {
     const { error } = await supabase
         .from('products')
-        .update({ name, type, price, stock_quantity: stockQuantity })
+        .update({ name, type, price, stock_quantity: stockQuantity, image_url: imageUrl || null })
         .eq('id', id);
     if (error) throw error;
+
+    // Best-effort : ne fait jamais échouer la mise à jour du produit
+    // elle-même si le nettoyage de l'ancienne photo dans Storage échoue.
+    if (previousImageUrl && previousImageUrl !== imageUrl) {
+        deleteProductImage(previousImageUrl).catch((e) =>
+            console.error('Impossible de supprimer l\'ancienne photo du produit:', e.message)
+        );
+    }
 };
 
-export const deleteProduct = async (id) => {
+export const deleteProduct = async ({ id, imageUrl }) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
+
+    if (imageUrl) {
+        deleteProductImage(imageUrl).catch((e) =>
+            console.error('Impossible de supprimer la photo du produit:', e.message)
+        );
+    }
+
     return id;
 };
 

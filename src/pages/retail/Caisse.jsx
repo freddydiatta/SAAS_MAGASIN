@@ -293,11 +293,20 @@ const ProductCard = memo(function ProductCard({ product, onAdd }) {
                     : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer border border-transparent hover:border-accent/30'
             }`}
         >
-            {/* Image Placeholder */}
+            {/* Photo du produit, ou pastille "à venir" si aucune n'a été ajoutée */}
             <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-3 sm:p-4">
-                <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
-                    <Package className="w-6 h-6 sm:w-8 sm:h-8 text-orange-300 dark:text-accent/50 opacity-50" />
-                </div>
+                {product.image_url ? (
+                    <img
+                        src={product.image_url}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-cover rounded-xl"
+                    />
+                ) : (
+                    <div className="w-full h-full border-2 border-dashed border-orange-200 dark:border-accent/30 rounded-xl flex items-center justify-center">
+                        <Package className="w-6 h-6 sm:w-8 sm:h-8 text-orange-300 dark:text-accent/50 opacity-50" />
+                    </div>
+                )}
             </div>
             <div className="p-3 sm:p-4 flex flex-col flex-1">
                 <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base">{product.name}</div>

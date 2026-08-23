@@ -40,6 +40,7 @@ export const villaSchema = z.object({
     address: z.string().trim().max(300, "L'adresse est trop longue.").optional().or(z.literal('')),
     price_per_night: z.coerce.number({ invalid_type_error: 'Le prix doit être un nombre.' })
         .positive('Le prix par nuit doit être supérieur à 0.'),
+    image_url: z.string().optional().or(z.literal('')),
 });
 
 export const reservationSchema = z.object({

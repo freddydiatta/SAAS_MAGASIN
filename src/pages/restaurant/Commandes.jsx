@@ -274,10 +274,15 @@ export const Commandes = () => {
                                         whileTap={{ scale: 0.98 }}
                                         key={item.id}
                                         onClick={() => addToCart(item)}
-                                        className="relative p-5 rounded-2xl text-left border border-slate-100 dark:border-border-theme hover:border-accent/50 bg-surface cursor-pointer transition-colors group flex flex-col justify-between h-full min-h-[120px]"
+                                        className="relative rounded-2xl text-left border border-slate-100 dark:border-border-theme hover:border-accent/50 bg-surface cursor-pointer transition-colors group flex flex-col overflow-hidden h-full"
                                     >
-                                        <div className="font-bold text-primary mb-2 line-clamp-2 group-hover:text-accent transition-colors">{item.name}</div>
-                                        <div className="text-accent font-black text-lg">{item.price.toLocaleString('fr-FR')} F</div>
+                                        {item.image_url && (
+                                            <img src={item.image_url} alt="" loading="lazy" className="w-full aspect-[4/3] object-cover" />
+                                        )}
+                                        <div className="p-5 flex-1 flex flex-col justify-between min-h-[90px]">
+                                            <div className="font-bold text-primary mb-2 line-clamp-2 group-hover:text-accent transition-colors">{item.name}</div>
+                                            <div className="text-accent font-black text-lg">{item.price.toLocaleString('fr-FR')} F</div>
+                                        </div>
                                     </motion.button>
                                 ))}
                             </div>

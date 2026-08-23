@@ -179,6 +179,7 @@ CREATE TABLE public.products (
     type TEXT,
     price DECIMAL(10, 2) CHECK (price >= 0),
     stock_quantity INTEGER DEFAULT 0 CHECK (stock_quantity >= 0),
+    image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -241,6 +242,7 @@ CREATE TABLE public.villas (
     address TEXT,
     price_per_night DECIMAL(10, 2) NOT NULL CHECK (price_per_night >= 0),
     status TEXT DEFAULT 'available', -- 'available', 'maintenance'
+    image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -286,6 +288,7 @@ CREATE TABLE public.menu_items (
     category TEXT NOT NULL DEFAULT 'plat', -- 'plat', 'boisson', 'dessert', etc.
     price DECIMAL(10, 2) NOT NULL CHECK (price >= 0),
     is_available BOOLEAN DEFAULT true,
+    image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -757,3 +760,48 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.adjust_stock(uuid, integer) TO authenticated;
+
+-- ==========================================
+-- PHOTOS DE PRODUITS / MENU / VILLAS
+-- Bucket Storage public en lecture (ce sont juste des photos d'articles,
+-- affichées en <img src> côté client) ; upload/modification/suppression
+-- réservés aux membres du commerce concerné, via le premier segment du
+-- chemin (product-images/<business_id>/<fichier>).
+-- ==========================================
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES ('product-images', 'product-images', true, 5242880, ARRAY['image/jpeg', 'image/png', 'image/webp'])
+ON CONFLICT (id) DO UPDATE SET
+    public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Public read access to product images" ON storage.objects;
+DROP POLICY IF EXISTS "Business members can upload their product images" ON storage.objects;
+DROP POLICY IF EXISTS "Business members can update their product images" ON storage.objects;
+DROP POLICY IF EXISTS "Business members can delete their product images" ON storage.objects;
+
+CREATE POLICY "Public read access to product images"
+ON storage.objects FOR SELECT
+USING (bucket_id = 'product-images');
+
+CREATE POLICY "Business members can upload their product images"
+ON storage.objects FOR INSERT
+WITH CHECK (
+    bucket_id = 'product-images'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);
+
+CREATE POLICY "Business members can update their product images"
+ON storage.objects FOR UPDATE
+USING (
+    bucket_id = 'product-images'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);
+
+CREATE POLICY "Business members can delete their product images"
+ON storage.objects FOR DELETE
+USING (
+    bucket_id = 'product-images'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);

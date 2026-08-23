@@ -48,9 +48,9 @@ export const Stock = () => {
         }
     });
 
-    const handleDelete = (id) => {
+    const handleDelete = (product) => {
         if (window.confirm('Voulez-vous vraiment supprimer ce produit ?')) {
-            deleteProductMutation.mutate(id);
+            deleteProductMutation.mutate({ id: product.id, imageUrl: product.image_url });
         }
     };
 
@@ -122,7 +122,7 @@ export const Stock = () => {
                         <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => handleDelete(product.id)}
+                        onClick={() => handleDelete(product)}
                         className="w-9 h-9 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/20 transition-colors"
                         title="Supprimer"
                     >

@@ -57,9 +57,9 @@ export const Motos = () => {
         }
     });
 
-    const handleDelete = (id) => {
+    const handleDelete = (moto) => {
         if (window.confirm('Voulez-vous vraiment supprimer cette moto ?')) {
-            deleteMotoMutation.mutate(id);
+            deleteMotoMutation.mutate({ id: moto.id, imageUrl: moto.image_url });
         }
     };
 
@@ -148,7 +148,7 @@ export const Motos = () => {
                         <Edit2 className="w-4 h-4" />
                     </button>
                     <button
-                        onClick={() => handleDelete(moto.id)}
+                        onClick={() => handleDelete(moto)}
                         aria-label="Supprimer la moto"
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                     >

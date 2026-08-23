@@ -6,15 +6,19 @@ import { Home, MapPin, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
+import { ImageUploadField } from '../../components/ImageUploadField';
 import { villaSchema, firstZodError } from '../../lib/validation';
 import { StatusBadge } from '../../components/StatusBadge';
+import { deleteProductImage } from '../../services/imagesService';
+
+const EMPTY_FORM = { name: '', address: '', price_per_night: '', image_url: '' };
 
 export const Villas = () => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [editingVilla, setEditingVilla] = useState(null);
-    const [formData, setFormData] = useState({ name: '', address: '', price_per_night: '' });
+    const [formData, setFormData] = useState(EMPTY_FORM);
     const [formError, setFormError] = useState('');
 
     const { data: villas = [], isLoading } = useQuery({
@@ -43,37 +47,53 @@ export const Villas = () => {
         onSuccess: () => {
             queryClient.invalidateQueries(['villas']);
             setIsAddOpen(false);
-            setFormData({ name: '', address: '', price_per_night: '' });
+            setFormData(EMPTY_FORM);
             toast.success('Villa ajoutée avec succès !');
         }
     });
 
     const updateVillaMutation = useMutation({
-        mutationFn: async ({ id, ...updates }) => {
+        mutationFn: async ({ id, previousImageUrl, ...updates }) => {
             const { data, error } = await supabase
                 .from('villas')
                 .update(updates)
                 .eq('id', id)
                 .select();
             if (error) throw error;
+
+            // Best-effort : ne fait jamais échouer la mise à jour de la villa
+            // elle-même si le nettoyage de l'ancienne photo échoue.
+            if (previousImageUrl && previousImageUrl !== updates.image_url) {
+                deleteProductImage(previousImageUrl).catch((e) =>
+                    console.error("Impossible de supprimer l'ancienne photo de la villa:", e.message)
+                );
+            }
+
             return data;
         },
         onSuccess: () => {
             queryClient.invalidateQueries(['villas']);
             setIsAddOpen(false);
             setEditingVilla(null);
-            setFormData({ name: '', address: '', price_per_night: '' });
+            setFormData(EMPTY_FORM);
             toast.success('Villa modifiée avec succès !');
         }
     });
 
     const deleteVillaMutation = useMutation({
-        mutationFn: async (id) => {
+        mutationFn: async ({ id, imageUrl }) => {
             const { error } = await supabase
                 .from('villas')
                 .delete()
                 .eq('id', id);
             if (error) throw error;
+
+            if (imageUrl) {
+                deleteProductImage(imageUrl).catch((e) =>
+                    console.error('Impossible de supprimer la photo de la villa:', e.message)
+                );
+            }
+
             return id;
         },
         onSuccess: () => {
@@ -96,7 +116,7 @@ export const Villas = () => {
         }
 
         if (editingVilla) {
-            updateVillaMutation.mutate({ id: editingVilla.id, ...result.data });
+            updateVillaMutation.mutate({ id: editingVilla.id, previousImageUrl: editingVilla.image_url, ...result.data });
         } else {
             addVillaMutation.mutate(result.data);
         }
@@ -107,7 +127,8 @@ export const Villas = () => {
         setFormData({
             name: villa.name,
             address: villa.address || '',
-            price_per_night: villa.price_per_night
+            price_per_night: villa.price_per_night,
+            image_url: villa.image_url || ''
         });
         setFormError('');
         setIsAddOpen(true);
@@ -115,7 +136,7 @@ export const Villas = () => {
 
     const handleDelete = (villa) => {
         if (window.confirm(`Êtes-vous sûr de vouloir supprimer la villa "${villa.name}" ?`)) {
-            deleteVillaMutation.mutate(villa.id);
+            deleteVillaMutation.mutate({ id: villa.id, imageUrl: villa.image_url });
         }
     };
 
@@ -130,7 +151,7 @@ export const Villas = () => {
                     <button
                         onClick={() => {
                             setEditingVilla(null);
-                            setFormData({ name: '', address: '', price_per_night: '' });
+                            setFormData(EMPTY_FORM);
                             setFormError('');
                             setIsAddOpen(true);
                         }}
@@ -159,14 +180,19 @@ export const Villas = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 * index }}
-                            key={villa.id} 
-                            className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme flex flex-col group hover:border-accent/30 transition-colors"
+                            key={villa.id}
+                            className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme flex flex-col overflow-hidden group hover:border-accent/30 transition-colors"
                         >
+                            {villa.image_url ? (
+                                <img src={villa.image_url} alt="" loading="lazy" className="w-full aspect-video object-cover" />
+                            ) : (
+                                <div className="w-full aspect-video bg-indigo-50/50 dark:bg-indigo-500/5 flex items-center justify-center">
+                                    <Home className="w-8 h-8 text-indigo-200 dark:text-indigo-500/30" />
+                                </div>
+                            )}
+                            <div className="p-6 flex flex-col flex-1">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-500">
-                                        <Home className="w-5 h-5" />
-                                    </div>
                                     <h3 className="text-xl font-bold text-primary group-hover:text-accent transition-colors">{villa.name}</h3>
                                 </div>
                                 <StatusBadge
@@ -186,7 +212,7 @@ export const Villas = () => {
                                     <span className="font-bold text-accent text-lg leading-none">{villa.price_per_night.toLocaleString('fr-FR')} F</span>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button 
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); handleEdit(villa); }}
                                         className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
                                         title="Modifier la villa"
@@ -201,6 +227,7 @@ export const Villas = () => {
                                         <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
+                            </div>
                             </div>
                         </motion.div>
                     ))
@@ -227,6 +254,7 @@ export const Villas = () => {
                             {formError}
                         </div>
                     )}
+                    <ImageUploadField businessId={selectedBusiness?.id} value={formData.image_url} onChange={(url) => setFormData({ ...formData, image_url: url })} label="Photo de la villa" />
                     <div>
                         <label className="block text-sm font-medium text-primary mb-1">Nom du bien / Villa</label>
                         <input

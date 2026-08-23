@@ -6,6 +6,7 @@ import { Plus, X, Utensils, Coffee, Pizza, IceCream } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { Modal } from '../../components/Modal';
+import { ImageUploadField } from '../../components/ImageUploadField';
 import { menuItemSchema, firstZodError } from '../../lib/validation';
 import { StatusBadge } from '../../components/StatusBadge';
 
@@ -14,6 +15,7 @@ export const Menu = () => {
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [formData, setFormData] = useState({ name: '', price: '', category: 'plat' });
+    const [imageUrl, setImageUrl] = useState('');
 
     const { data: menuItems = [], isLoading } = useQuery({
         queryKey: ['menuItems', selectedBusiness?.id],
@@ -43,6 +45,7 @@ export const Menu = () => {
             queryClient.invalidateQueries(['menuItems']);
             setIsAddOpen(false);
             setFormData({ name: '', price: '', category: 'plat' });
+            setImageUrl('');
             toast.success('Plat ajouté au menu !');
         }
     });
@@ -56,7 +59,7 @@ export const Menu = () => {
             return;
         }
 
-        addMenuItemMutation.mutate({ ...result.data, is_available: true });
+        addMenuItemMutation.mutate({ ...result.data, is_available: true, image_url: imageUrl || null });
     };
 
     const categories = {
@@ -107,14 +110,23 @@ export const Menu = () => {
                                 ) : (
                                     items.map(item => (
                                         <div key={item.id} className="flex justify-between items-center group/item hover:bg-slate-50 dark:hover:bg-slate-800/50 p-2 -mx-2 rounded-lg transition-colors">
-                                            <div>
-                                                <p className="font-medium text-primary text-sm group-hover/item:text-accent transition-colors">{item.name}</p>
-                                                <p className="text-xs text-secondary font-bold">{item.price.toLocaleString('fr-FR')} F</p>
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                {item.image_url ? (
+                                                    <img src={item.image_url} alt="" loading="lazy" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                                                ) : (
+                                                    <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                        <CategoryIcon className="w-4 h-4 text-slate-300 dark:text-slate-600" />
+                                                    </div>
+                                                )}
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-primary text-sm group-hover/item:text-accent transition-colors truncate">{item.name}</p>
+                                                    <p className="text-xs text-secondary font-bold">{item.price.toLocaleString('fr-FR')} F</p>
+                                                </div>
                                             </div>
                                             <StatusBadge
                                                 label={item.is_available ? 'Disponible' : 'Indisponible'}
                                                 tone={item.is_available ? 'emerald' : 'red'}
-                                                className="px-2 py-0.5 text-[10px]"
+                                                className="px-2 py-0.5 text-[10px] shrink-0 ml-2"
                                             />
                                         </div>
                                     ))
@@ -138,6 +150,8 @@ export const Menu = () => {
                     </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <ImageUploadField businessId={selectedBusiness?.id} value={imageUrl} onChange={setImageUrl} label="Photo du plat" />
+
                     <div>
                         <label className="block text-sm font-medium text-primary mb-1">Nom (Plat, Boisson...)</label>
                         <input

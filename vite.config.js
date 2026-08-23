@@ -47,7 +47,23 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5 MB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+        // Photos produits/menu/villas (bucket Supabase Storage product-images) :
+        // sans cette règle, le service worker ne touche que les fichiers de
+        // build précachés — une photo déjà vue disparaîtrait dès qu'on repasse
+        // hors-ligne. CacheFirst car ce sont des fichiers immuables (nouvelle
+        // photo = nouveau chemin, jamais réécrits sur place).
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.includes('/storage/v1/object/public/product-images/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'product-images',
+              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] }
+            }
+          }
+        ]
       }
     })
   ],

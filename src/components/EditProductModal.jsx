@@ -3,6 +3,7 @@ import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateProduct, productKeys } from '../services/productsService';
 import { Modal } from './Modal';
+import { ImageUploadField } from './ImageUploadField';
 import { productSchema, firstZodError } from '../lib/validation';
 
 export const EditProductModal = ({ isOpen, onClose, product }) => {
@@ -13,6 +14,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
     const [price, setPrice] = useState('');
     const [quantity, setQuantity] = useState('');
     const [addQuantity, setAddQuantity] = useState('');
+    const [imageUrl, setImageUrl] = useState('');
 
     const [type, setType] = useState('standard');
 
@@ -26,6 +28,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
             setQuantity(product.stock_quantity || '');
             setAddQuantity('');
             setType(product.type || 'standard');
+            setImageUrl(product.image_url || '');
         }
     }, [product, isOpen]);
 
@@ -46,7 +49,9 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                 name: result.data.name,
                 type,
                 price: result.data.price,
-                stockQuantity: result.data.quantity
+                stockQuantity: result.data.quantity,
+                imageUrl,
+                previousImageUrl: product.image_url,
             });
 
             // Rafraîchir les produits
@@ -86,6 +91,8 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                         {error}
                     </div>
                 )}
+
+                <ImageUploadField businessId={selectedBusiness?.id} value={imageUrl} onChange={setImageUrl} />
 
                 <div>
                     <label className="block text-sm font-semibold text-primary mb-1.5">Nom du produit / pièce</label>
