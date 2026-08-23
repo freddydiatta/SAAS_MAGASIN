@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 :root {
+  /* Sans ça, les navigateurs mobiles stylent le "chrome" natif des champs
+     (fond des <input>, flèches de type=number...) selon le thème SYSTÈME
+     du téléphone, indépendamment du thème clair/sombre choisi dans l'app —
+     un input restait noir sur fond blanc (texte illisible) dès que le
+     téléphone était en mode sombre alors que l'app affichait le thème clair. */
+  color-scheme: light;
+
   --color-primary-base: #111827;
   /* Gray 900 */
   --color-secondary-base: #4B5563;
@@ -17,6 +24,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --color-primary-base: #F9FAFB;
   /* Gray 50 */
   --color-secondary-base: #9CA3AF;
