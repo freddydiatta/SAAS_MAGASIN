@@ -16,25 +16,11 @@ export const DashboardLayout = () => {
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
         return localStorage.getItem('sidebarCollapsed') === 'true';
     });
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        return localStorage.getItem('theme') === 'dark' || document.documentElement.classList.contains('dark');
-    });
 
     const location = useLocation();
     const { selectedBusiness, currentMember, isCashier } = useBusiness();
     const { user, signOut } = useAuth();
     const navigate = useNavigate();
-
-    // Toggle Dark Mode
-    useEffect(() => {
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    }, [isDarkMode]);
 
     // Save Sidebar State
     useEffect(() => {
@@ -252,14 +238,6 @@ export const DashboardLayout = () => {
                         <Link to="/dashboard/historique" className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${location.pathname === '/dashboard/historique' ? 'bg-white dark:bg-slate-700 text-primary shadow-sm' : 'text-secondary hover:text-primary'}`}>
                             Historique
                         </Link>
-                        <button 
-                            onClick={() => setIsDarkMode(!isDarkMode)}
-                            className="px-3 py-2 rounded-full text-secondary hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ml-1 focus:outline-none"
-                            title={isDarkMode ? "Passer au thème clair" : "Passer au thème sombre"}
-                            aria-label={isDarkMode ? "Passer au thème clair" : "Passer au thème sombre"}
-                        >
-                            {isDarkMode ? '☀️' : '🌙'}
-                        </button>
                     </div>
                 </header>
 

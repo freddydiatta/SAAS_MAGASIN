@@ -2,10 +2,11 @@
 
 :root {
   /* Sans ça, les navigateurs mobiles stylent le "chrome" natif des champs
-     (fond des <input>, flèches de type=number...) selon le thème SYSTÈME
-     du téléphone, indépendamment du thème clair/sombre choisi dans l'app —
-     un input restait noir sur fond blanc (texte illisible) dès que le
-     téléphone était en mode sombre alors que l'app affichait le thème clair. */
+     (fond des <input>, flèches de type=number...) selon le thème sombre/clair
+     du téléphone, indépendamment des couleurs de l'app — un input restait
+     noir sur fond blanc (texte illisible) dès que le téléphone était en mode
+     sombre. L'app est volontairement toujours claire (pas de mode nuit), donc
+     ce chrome natif doit toujours suivre le clair lui aussi. */
   color-scheme: light;
 
   --color-primary-base: #111827;
@@ -21,24 +22,6 @@
 
   --shadow-premium-base: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
   --shadow-premium-lg-base: 0 10px 30px -4px rgba(0, 0, 0, 0.05);
-}
-
-.dark {
-  color-scheme: dark;
-
-  --color-primary-base: #F9FAFB;
-  /* Gray 50 */
-  --color-secondary-base: #9CA3AF;
-  /* Gray 400 */
-  --color-surface-base: #111827;
-  /* Gray 900 */
-  --color-panel-base: #1F2937;
-  /* Gray 800 */
-  --color-border-base: #374151;
-  /* Gray 700 */
-
-  --shadow-premium-base: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
-  --shadow-premium-lg-base: 0 10px 30px -4px rgba(0, 0, 0, 0.6);
 }
 
 @theme {
