@@ -14,6 +14,7 @@ export const Pricing = () => {
             annualPrice: "50 000",
             description: "L'essentiel pour démarrer sereinement votre digitalisation.",
             features: [
+                "1 magasin",
                 "Gestion des stocks de base (pièces détachées)",
                 "Calcul de la caisse du jour automatique",
                 "1 utilisateur (accès admin)"
@@ -27,6 +28,7 @@ export const Pricing = () => {
             annualPrice: "90 000",
             description: "Pour les commerces qui voient grand et veulent tout contrôler.",
             features: [
+                "Magasins illimités",
                 "Le multi-activités (Pièces + Motos + Villas)",
                 "Comptes supplémentaires (employés/gérants)",
                 "Support technique prioritaire 7j/7",

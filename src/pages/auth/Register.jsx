@@ -4,9 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
-import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { DEFAULT_PLAN } from '../../config/pricing';
+import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle, CheckCircle2, Check } from 'lucide-react';
+import { DEFAULT_PLAN, SUBSCRIPTION_PLANS } from '../../config/pricing';
 import { registerSchema } from '../../lib/validation';
+
+const PLAN_OPTIONS = [
+    { id: 'essentiel', blurb: '1 magasin' },
+    { id: 'business', blurb: 'Magasins illimités' },
+];
 
 export const Register = () => {
     const [authError, setAuthError] = useState('');
@@ -14,7 +19,10 @@ export const Register = () => {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const selectedPlan = searchParams.get('plan') || DEFAULT_PLAN;
+    const planFromUrl = searchParams.get('plan');
+    const [selectedPlan, setSelectedPlan] = useState(
+        SUBSCRIPTION_PLANS[planFromUrl] ? planFromUrl : DEFAULT_PLAN
+    );
     const refCodeFromUrl = searchParams.get('ref');
 
     // Store ref code in localStorage if present
@@ -167,6 +175,37 @@ export const Register = () => {
                         </motion.div>
                     ) : (
                         <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+                            <div className="space-y-1.5">
+                                <label className="block text-sm font-bold text-primary">Forfait</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {PLAN_OPTIONS.map((option) => {
+                                        const plan = SUBSCRIPTION_PLANS[option.id];
+                                        const isSelected = selectedPlan === option.id;
+                                        return (
+                                            <button
+                                                key={option.id}
+                                                type="button"
+                                                onClick={() => setSelectedPlan(option.id)}
+                                                className={`relative text-left p-4 rounded-xl border-2 transition-all ${
+                                                    isSelected
+                                                        ? 'border-accent bg-accent/5'
+                                                        : 'border-slate-200 bg-white hover:border-slate-300'
+                                                }`}
+                                            >
+                                                {isSelected && (
+                                                    <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-accent text-white flex items-center justify-center">
+                                                        <Check className="w-3.5 h-3.5" />
+                                                    </div>
+                                                )}
+                                                <p className="font-bold text-primary">{plan.label}</p>
+                                                <p className="text-secondary text-sm">{plan.price.toLocaleString('fr-FR')} FCFA/mois</p>
+                                                <p className="text-xs text-secondary mt-1">{option.blurb}</p>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label className="block text-sm font-bold text-primary">Adresse email</label>
                                 <input
