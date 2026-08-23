@@ -29,3 +29,6 @@ dev-dist
 
 # Agent Configs
 .agents/mcp_config.json
+
+# Supabase CLI local cache
+supabase/.temp

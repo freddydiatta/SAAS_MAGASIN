@@ -42,7 +42,7 @@ serve(async (req) => {
     const notifyEmail = Deno.env.get('CONTACT_NOTIFICATION_EMAIL')
     if (resendApiKey && notifyEmail) {
       try {
-        await fetch('https://api.resend.com/emails', {
+        const emailResponse = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${resendApiKey}`,
@@ -56,6 +56,12 @@ serve(async (req) => {
             text: `De : ${name.trim()}\nContact : ${contact_info.trim()}\n\n${message.trim()}`,
           }),
         })
+        // fetch() only rejects on network errors, not HTTP error statuses —
+        // without this, a bad/expired key or a Resend outage would fail
+        // silently and never show up anywhere.
+        if (!emailResponse.ok) {
+          console.error('Erreur envoi email de notification:', emailResponse.status, await emailResponse.text())
+        }
       } catch (emailError) {
         console.error('Erreur envoi email de notification:', emailError)
       }
