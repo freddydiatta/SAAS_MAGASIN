@@ -75,7 +75,8 @@ export function useRetailDashboardStats(selectedBusiness) {
     const transactionsHier = salesYesterday.length;
     const diffTransactions = transactions - transactionsHier;
 
-    const alertesStock = products.filter(p => p.stock_quantity <= 2).length;
+    const lowStockProducts = products.filter(p => p.stock_quantity <= 2);
+    const alertesStock = lowStockProducts.length;
 
     const depensesDuJour = expenses
         .filter(e => new Date(e.created_at).getTime() >= today)
@@ -132,6 +133,7 @@ export function useRetailDashboardStats(selectedBusiness) {
         transactions,
         diffTransactions,
         alertesStock,
+        lowStockProducts,
         chartData,
         total7Days,
         topProducts,

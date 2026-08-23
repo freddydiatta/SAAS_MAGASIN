@@ -69,6 +69,7 @@ describe('useRetailDashboardStats', () => {
         expect(result.current.diffTransactions).toBe(1); // 2 today - 1 yesterday
         expect(result.current.panierMoyen).toBe(1500); // 3000 / 2
         expect(result.current.alertesStock).toBe(1);
+        expect(result.current.lowStockProducts).toEqual([{ id: 'p1', name: 'Casque Moto', stock_quantity: 1 }]);
         // only e1 (transport, 500) falls on today; e2 was yesterday
         expect(result.current.depensesDuJour).toBe(500);
         expect(result.current.beneficeDuJour).toBe(3000 - 500);

@@ -24,6 +24,7 @@ export const RetailDashboard = () => {
         transactions,
         diffTransactions,
         alertesStock,
+        lowStockProducts,
         chartData,
         total7Days,
         topProducts,
@@ -136,7 +137,8 @@ export const RetailDashboard = () => {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    className={`bg-panel rounded-3xl p-6 shadow-premium border ${alertesStock > 0 ? 'border-red-200 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10' : 'border-slate-100 dark:border-border-theme'} relative overflow-hidden group`}
+                    onClick={alertesStock > 0 ? () => navigate('/dashboard/stock') : undefined}
+                    className={`bg-panel rounded-3xl p-6 shadow-premium border ${alertesStock > 0 ? 'border-red-200 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 cursor-pointer' : 'border-slate-100 dark:border-border-theme'} relative overflow-hidden group`}
                 >
                     <div className="flex items-center gap-4 mb-4">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${alertesStock > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 dark:bg-slate-800 text-amber-500'}`}>
@@ -151,9 +153,14 @@ export const RetailDashboard = () => {
                             </h3>
                         </div>
                     </div>
-                    <div className={`text-sm font-medium ${alertesStock > 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                        {alertesStock > 0 ? 'Articles à réapprovisionner' : 'Stock sain'}
-                    </div>
+                    {alertesStock > 0 ? (
+                        <div className="text-sm font-medium text-red-500 truncate">
+                            {lowStockProducts.slice(0, 2).map(p => p.name).join(', ')}
+                            {lowStockProducts.length > 2 ? ` +${lowStockProducts.length - 2} autre${lowStockProducts.length - 2 > 1 ? 's' : ''}` : ''}
+                        </div>
+                    ) : (
+                        <div className="text-sm font-medium text-slate-400">Stock sain</div>
+                    )}
                 </motion.div>
 
                 <motion.div
