@@ -162,7 +162,12 @@ serve(async (req) => {
 
     const { email, password } = JSON.parse(await decryptText(member.encrypted_credentials))
 
-    return new Response(JSON.stringify({ email, password, name: member.name }), {
+    // pin_hash (déjà salé/PBKDF2, pas le PIN en clair) est renvoyé pour que
+    // le client puisse mettre ce caissier en cache et permettre un nouveau
+    // changement d'utilisateur vers lui sans réseau la prochaine fois — le
+    // caller vient de prouver qu'il connaît le PIN correct à l'instant, ce
+    // hash ne lui apprend donc rien qu'il n'a pas déjà démontré.
+    return new Response(JSON.stringify({ email, password, name: member.name, pin_hash: member.pin_hash }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {

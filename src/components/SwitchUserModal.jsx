@@ -3,10 +3,12 @@ import { useQuery } from '@tanstack/react-query';
 import { User, Delete } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
 import { listCashiers, cashierLogin } from '../services/cashiersService';
+import { useOfflineStatus } from '../hooks/useOfflineStatus';
 import { Modal } from './Modal';
 
 export const SwitchUserModal = ({ isOpen, onClose }) => {
-    const { selectedBusiness, switchToCashier } = useBusiness();
+    const { selectedBusiness, switchToCashier, switchToCashierOffline } = useBusiness();
+    const { isOnline } = useOfflineStatus();
     const [selectedCashier, setSelectedCashier] = useState(null);
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
@@ -43,8 +45,14 @@ export const SwitchUserModal = ({ isOpen, onClose }) => {
     const submitPin = async (fullPin) => {
         setIsSubmitting(true);
         try {
-            const { email, password } = await cashierLogin({ memberId: selectedCashier.id, pin: fullPin });
-            await switchToCashier({ email, password });
+            if (navigator.onLine) {
+                const { email, password, name, pin_hash } = await cashierLogin({ memberId: selectedCashier.id, pin: fullPin });
+                await switchToCashier({ email, password, memberId: selectedCashier.id, name, pinHash: pin_hash });
+            } else {
+                // Ne marche que si ce caissier a déjà été activé sur cet appareil
+                // via une bascule en ligne réussie (cf. offlineCashierAuth.js).
+                await switchToCashierOffline(selectedCashier.id, fullPin);
+            }
             handleClose();
         } catch (err) {
             setError(err.message || 'PIN invalide.');
@@ -58,6 +66,11 @@ export const SwitchUserModal = ({ isOpen, onClose }) => {
         <Modal isOpen={isOpen} onClose={handleClose} title="Changer d'utilisateur" maxWidth="max-w-sm">
             {!selectedCashier ? (
                 <div className="space-y-2">
+                    {!isOnline && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 text-center pb-2">
+                            Hors-ligne : seuls les caissiers déjà utilisés sur cet appareil fonctionneront.
+                        </p>
+                    )}
                     {activeCashiers.length === 0 ? (
                         <p className="text-sm text-secondary text-center py-6">
                             Aucun caissier actif. Ajoutez-en un depuis Paramètres.

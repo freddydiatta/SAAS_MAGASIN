@@ -39,5 +39,5 @@ export const cashierLogin = async ({ memberId, pin }) => {
     });
     if (error) throw error;
     if (data?.error) throw new Error(data.error);
-    return data; // { email, password, name }
+    return data; // { email, password, name, pin_hash }
 };

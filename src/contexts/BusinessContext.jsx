@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
+import { cacheCashierCredentials, verifyPinOffline } from '../services/offlineCashierAuth';
 
 const BusinessContext = createContext({});
 
@@ -113,12 +114,44 @@ export const BusinessProvider = ({ children }) => {
     // le mot de passe, cf. switchBackToOwner). La tentative de connexion
     // (succès/échec de PIN) est déjà journalisée côté Edge Function
     // cashier-login, pas besoin de le refaire ici.
-    const switchToCashier = async ({ email, password }) => {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user?.email) {
-            sessionStorage.setItem(OWNER_SESSION_KEY, session.user.email);
+    // memberId/name/pinHash (présents seulement pour un vrai caissier, pas
+    // pour switchBackToOwner qui réutilise indirectement ce chemin) mettent
+    // ce caissier en cache pour switchToCashierOffline.
+    const switchToCashier = async ({ email, password, memberId, name, pinHash }) => {
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession?.user?.email) {
+            sessionStorage.setItem(OWNER_SESSION_KEY, currentSession.user.email);
         }
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        if (memberId && pinHash && data?.session) {
+            await cacheCashierCredentials(memberId, { name, pinHash, session: data.session });
+        }
+    };
+
+    // Même bascule, mais sans réseau : le PIN est vérifié contre le hash mis
+    // en cache lors d'un précédent switchToCashier réussi EN LIGNE pour ce
+    // même caissier sur cet appareil (cf. offlineCashierAuth.js). Si ce
+    // caissier n'a jamais été utilisé en ligne ici, ou que le PIN est faux,
+    // on échoue proprement plutôt que de laisser l'utilisateur bloqué.
+    const switchToCashierOffline = async (memberId, pin) => {
+        const result = await verifyPinOffline(memberId, pin);
+        if (!result.success) {
+            if (result.reason === 'not_cached') {
+                throw new Error("Ce caissier n'a jamais été utilisé sur cet appareil en étant en ligne — connectez-vous une fois en ligne avec lui pour l'activer hors-ligne.");
+            }
+            if (result.reason === 'locked') {
+                throw new Error('Trop de tentatives. Réessayez dans quelques minutes.');
+            }
+            throw new Error('PIN invalide.');
+        }
+
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (currentSession?.user?.email) {
+            sessionStorage.setItem(OWNER_SESSION_KEY, currentSession.user.email);
+        }
+        const { error } = await supabase.auth.setSession(result.session);
         if (error) throw error;
     };
 
@@ -156,6 +189,7 @@ export const BusinessProvider = ({ children }) => {
             memberResolved,
             isCashier: currentMember?.role === 'cashier',
             switchToCashier,
+            switchToCashierOffline,
             switchBackToOwner,
             hasOwnerSessionStashed,
             getStashedOwnerEmail
