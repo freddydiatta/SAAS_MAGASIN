@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
-import { cacheCashierCredentials, verifyPinOffline, restoreSessionLocally } from '../services/offlineCashierAuth';
+import { cacheCashierCredentials, verifyPinOffline, restoreSessionLocally, findCachedCashierByUserId } from '../services/offlineCashierAuth';
 
 const BusinessContext = createContext({});
 
@@ -91,13 +91,26 @@ export const BusinessProvider = ({ children }) => {
                 setMemberResolved(true);
                 return;
             }
-            const { data } = await supabase
-                .from('business_members_safe')
-                .select('name, role')
-                .eq('business_id', selectedBusiness.id)
-                .eq('user_id', user.id)
-                .maybeSingle();
-            setCurrentMember(data ? { role: data.role, name: data.name } : null);
+            try {
+                const { data, error } = await supabase
+                    .from('business_members_safe')
+                    .select('name, role')
+                    .eq('business_id', selectedBusiness.id)
+                    .eq('user_id', user.id)
+                    .maybeSingle();
+                if (error) throw error;
+                setCurrentMember(data ? { role: data.role, name: data.name } : null);
+            } catch (error) {
+                // Cette requête réseau échoue systématiquement hors-ligne — sans
+                // ce repli, un switchToCashierOffline réussi laissait quand même
+                // l'app bloquée sur memberResolved=false (spinner infini sur les
+                // pages RequireOwner) ou sur l'ancien rôle, puisque cet effet ne
+                // pouvait jamais aboutir. Le cache local du switch hors-ligne
+                // connaît déjà ce caissier par son user id.
+                console.error('Impossible de résoudre le rôle en ligne, repli sur le cache hors-ligne:', error.message);
+                const cachedMember = await findCachedCashierByUserId(user.id);
+                setCurrentMember(cachedMember);
+            }
             setMemberResolved(true);
         };
         resolveMembership();
@@ -126,7 +139,19 @@ export const BusinessProvider = ({ children }) => {
         if (error) throw error;
 
         if (memberId && pinHash && data?.session) {
-            await cacheCashierCredentials(memberId, { name, pinHash, session: data.session });
+            try {
+                await cacheCashierCredentials(memberId, { name, pinHash, session: data.session });
+            } catch (cacheError) {
+                // La connexion elle-même a déjà réussi (onAuthStateChange a
+                // déjà basculé l'app vers ce caissier) — un souci de mise en
+                // cache (ex: quota IndexedDB, navigation privée) ne doit pas
+                // faire remonter d'erreur ici, sinon SwitchUserModal
+                // afficherait un échec pour une bascule qui a en fait marché.
+                // Conséquence : ce caissier ne sera simplement pas
+                // disponible hors-ligne tant qu'un switch ne réussit pas à
+                // se mettre en cache.
+                console.error('Impossible de mettre ce caissier en cache pour un usage hors-ligne:', cacheError.message);
+            }
         }
     };
 
@@ -185,11 +210,15 @@ export const BusinessProvider = ({ children }) => {
         }
         const { error } = await supabase.auth.signInWithPassword({ email: ownerEmail, password });
         if (error) {
-            await supabase.rpc('log_failed_login', { p_email: ownerEmail });
+            // supabase.rpc() est un thenable, pas une vraie Promise (voir
+            // Login.jsx) — et surtout, s'il échoue (ex: hors-ligne), il ne
+            // doit jamais remplacer l'erreur réelle (mauvais mot de passe,
+            // ou panne réseau) qu'on s'apprête à relancer juste après.
+            supabase.rpc('log_failed_login', { p_email: ownerEmail }).then(undefined, () => {});
             throw error;
         }
         sessionStorage.removeItem(OWNER_SESSION_KEY);
-        await supabase.rpc('log_login_success');
+        supabase.rpc('log_login_success').then(undefined, () => {});
     };
 
     const hasOwnerSessionStashed = () => !!sessionStorage.getItem(OWNER_SESSION_KEY);

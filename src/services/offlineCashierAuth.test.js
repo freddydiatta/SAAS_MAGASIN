@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { cacheCashierCredentials, hasCachedCashier, verifyPinOffline, restoreSessionLocally } from './offlineCashierAuth';
+import { cacheCashierCredentials, hasCachedCashier, verifyPinOffline, restoreSessionLocally, findCachedCashierByUserId } from './offlineCashierAuth';
 
 const { getMock, setMock } = vi.hoisted(() => ({
     getMock: vi.fn(),
@@ -67,6 +67,23 @@ describe('offlineCashierAuth', () => {
         await expect(hasCachedCashier('member-2')).resolves.toBe(false);
     });
 
+    it('findCachedCashierByUserId matches by the auth session user id, not the member id', async () => {
+        getMock.mockResolvedValueOnce({
+            'member-1': { name: 'Awa', session: { user: { id: 'auth-user-a' } } },
+            'member-2': { name: 'Kofi', session: { user: { id: 'auth-user-b' } } },
+        });
+
+        await expect(findCachedCashierByUserId('auth-user-b')).resolves.toEqual({ role: 'cashier', name: 'Kofi' });
+    });
+
+    it('findCachedCashierByUserId returns null when no cached cashier matches', async () => {
+        getMock.mockResolvedValueOnce({
+            'member-1': { name: 'Awa', session: { user: { id: 'auth-user-a' } } },
+        });
+
+        await expect(findCachedCashierByUserId('someone-else')).resolves.toBeNull();
+    });
+
     it('reports not_cached when the member was never switched to online on this device', async () => {
         getMock.mockResolvedValueOnce({});
         const result = await verifyPinOffline('member-1', '1234');
@@ -84,6 +101,20 @@ describe('offlineCashierAuth', () => {
         // failed-attempt counter reset on success
         const [, stored] = setMock.mock.calls[0];
         expect(stored['member-1'].failedAttempts).toBe(0);
+    }, 20000);
+
+    it('still grants access on a correct PIN even if persisting the reset attempt counter fails', async () => {
+        // The counter write is a best-effort bonus, not the access decision
+        // (already made by the hash comparison) — a storage failure here
+        // (quota, private browsing) must not turn a correct PIN into a denial.
+        getMock.mockResolvedValueOnce({
+            'member-1': { name: 'Awa', pinHash: REAL_PIN_HASH, session: { access_token: 'at' }, failedAttempts: 0, lockedUntil: null },
+        });
+        setMock.mockRejectedValueOnce(new Error('IndexedDB quota exceeded'));
+
+        const result = await verifyPinOffline('member-1', '1234');
+
+        expect(result).toEqual({ success: true, name: 'Awa', session: { access_token: 'at' } });
     }, 20000);
 
     it('rejects a wrong PIN and increments the failed-attempt counter', async () => {

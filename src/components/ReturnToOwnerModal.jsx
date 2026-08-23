@@ -25,7 +25,15 @@ export const ReturnToOwnerModal = ({ isOpen, onClose }) => {
             await switchBackToOwner(password);
             handleClose();
         } catch (err) {
-            setError('Mot de passe incorrect.');
+            // Le retour au propriétaire exige toujours le réseau (par design,
+            // pour empêcher un appareil laissé en mode caissier de repasser
+            // propriétaire sans preuve d'identité) — sans ce message
+            // dédié, une tentative hors-ligne affichait "Mot de passe
+            // incorrect" alors que le mot de passe n'a même pas pu être
+            // vérifié, ce qui aurait induit en erreur.
+            setError(!navigator.onLine
+                ? 'Connexion internet requise pour revenir au compte propriétaire.'
+                : 'Mot de passe incorrect.');
             setPassword('');
         } finally {
             setIsSubmitting(false);
