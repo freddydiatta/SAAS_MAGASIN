@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { getPlanPrice } from '../config/pricing';
+import { extractPaydunyaErrorMessage } from '../lib/paydunyaError';
 import { Modal } from './Modal';
 
 export const BillingModal = ({ isExpired }) => {
@@ -35,23 +36,7 @@ export const BillingModal = ({ isExpired }) => {
             }
         } catch (error) {
             console.error('Erreur de paiement:', error);
-            let errorMessage = "Impossible d'initialiser le paiement pour le moment.";
-            
-            // Try to extract the detailed error from Supabase Edge Function response
-            if (error.context && typeof error.context.json === 'function') {
-                try {
-                    const errorData = await error.context.json();
-                    if (errorData && errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (e) {
-                    console.error("Could not parse error context", e);
-                }
-            } else if (error.message && error.message !== "Edge Function returned a non-2xx status code") {
-                errorMessage = error.message;
-            }
-
-            toast.error(errorMessage);
+            toast.error(await extractPaydunyaErrorMessage(error));
         } finally {
             setIsLoading(false);
         }

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { business_id } = await req.json()
+    const { business_id, target_plan } = await req.json()
     if (!business_id) throw new Error('business_id manquant.')
 
     // 1. Check Auth
@@ -56,7 +56,12 @@ serve(async (req) => {
     // frontend : src/config/pricing.js — ce fichier tourne sur Deno et ne
     // peut pas l'importer directement, donc les montants sont dupliqués ici
     // volontairement et doivent être mis à jour ensemble.
-    const plan = user.user_metadata?.subscription_plan || 'essentiel';
+    // target_plan (optionnel) permet un changement de forfait : sans lui on
+    // refacture simplement le plan actuel (renouvellement classique) ; avec
+    // lui, on facture le plan VISÉ — le webhook mettra à jour le compte vers
+    // ce plan une fois le paiement confirmé (cf. paydunya-webhook).
+    const currentPlan = user.user_metadata?.subscription_plan || 'essentiel';
+    const plan = (target_plan === 'essentiel' || target_plan === 'business') ? target_plan : currentPlan;
     const amount = plan === 'business' ? 9000 : 5000;
 
     // 3. Prepare PayDunya Invoice
@@ -74,7 +79,8 @@ serve(async (req) => {
         website_url: "https://saas-magasin.vercel.app"
       },
       custom_data: {
-        business_id: business_id
+        business_id: business_id,
+        target_plan: plan
       }
     };
 

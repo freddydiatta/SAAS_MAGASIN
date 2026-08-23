@@ -92,6 +92,29 @@ serve(async (req) => {
         })
         .eq('id', businessId);
 
+      // 2.5. Changement de forfait si ce paiement visait un plan différent
+      // du plan actuel. paydunya-checkout inclut toujours target_plan dans
+      // custom_data — identique au plan actuel pour un simple renouvellement
+      // (aucun changement ici), différent pour une mise à niveau Essentiel
+      // -> Business. On relit le user_metadata complet avant d'écrire pour
+      // ne jamais perdre d'autres champs (ex. referred_by) au passage. Dans
+      // son propre try/catch pour la même raison que la commission plus bas
+      // : un souci ici ne doit jamais faire échouer toute la réponse (sinon
+      // PayDunya rejoue le webhook alors que le paiement est déjà confirmé).
+      try {
+        const targetPlan = customData.target_plan;
+        if (business?.user_id && (targetPlan === 'essentiel' || targetPlan === 'business')) {
+          const { data: userData } = await supabaseAdmin.auth.admin.getUserById(business.user_id);
+          if (userData?.user && userData.user.user_metadata?.subscription_plan !== targetPlan) {
+            await supabaseAdmin.auth.admin.updateUserById(business.user_id, {
+              user_metadata: { ...userData.user.user_metadata, subscription_plan: targetPlan }
+            });
+          }
+        }
+      } catch (planUpdateError) {
+        console.error('Erreur changement de forfait:', planUpdateError);
+      }
+
       // 3. Commission d'affiliation, si le propriétaire de ce commerce a été
       // parrainé (table referrals). N'importe quel souci ici est journalisé
       // mais ne doit jamais faire échouer la confirmation du paiement lui
