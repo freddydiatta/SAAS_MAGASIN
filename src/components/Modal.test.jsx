@@ -90,4 +90,35 @@ describe('Modal accessibility', () => {
 
         expect(document.activeElement).toBe(trigger);
     });
+
+    it('keeps focus in a field while typing, even though onClose is a fresh function every render', async () => {
+        // Regression test: most callers pass an inline onClose (e.g.
+        // `onClose={() => setIsOpen(false)}`), and a controlled field inside
+        // the modal re-renders its parent on every keystroke. If the focus
+        // trap's effect depended on onClose's identity, that re-render used
+        // to kick focus out of the field being typed into.
+        function FormHarness() {
+            const [isOpen, setIsOpen] = useState(false);
+            const [value, setValue] = useState('');
+            return (
+                <div>
+                    <button onClick={() => setIsOpen(true)}>Ouvrir</button>
+                    <Modal isOpen={isOpen} title="Titre modale" onClose={() => setIsOpen(false)}>
+                        <input aria-label="Description" value={value} onChange={(e) => setValue(e.target.value)} />
+                    </Modal>
+                </div>
+            );
+        }
+
+        const user = userEvent.setup();
+        render(<FormHarness />);
+        await user.click(screen.getByText('Ouvrir'));
+        const input = await screen.findByLabelText('Description');
+
+        input.focus();
+        await user.type(input, 'Réparation');
+
+        expect(input).toHaveValue('Réparation');
+        expect(document.activeElement).toBe(input);
+    });
 });

@@ -28,6 +28,16 @@ export const Modal = ({
     const panelRef = useRef(null);
     const [titleId] = useState(() => `modal-title-${++modalIdCounter}`);
 
+    // Toujours à jour sans figurer dans les deps de l'effet ci-dessous : les
+    // appelants passent presque tous un onClose recréé à chaque rendu (ex.
+    // `onClose={() => setIsOpen(false)}`), et un champ contrôlé dans la
+    // modale re-rend son parent à chaque frappe. Si onClose faisait partie
+    // des deps, l'effet se redéclenchait à chaque lettre tapée : le cleanup
+    // renvoyait le focus au déclencheur d'origine puis le re-focus initial
+    // le reprenait, faisant sauter le focus hors du champ en cours de saisie.
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+
     useEffect(() => {
         if (!isOpen) return;
 
@@ -42,7 +52,7 @@ export const Modal = ({
 
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') {
-                onClose();
+                onCloseRef.current();
                 return;
             }
             if (e.key !== 'Tab' || !panelRef.current) return;
@@ -67,7 +77,7 @@ export const Modal = ({
             window.removeEventListener('keydown', handleKeyDown);
             previouslyFocused?.focus?.();
         };
-    }, [isOpen, onClose]);
+    }, [isOpen]);
 
     return (
         <AnimatePresence>
