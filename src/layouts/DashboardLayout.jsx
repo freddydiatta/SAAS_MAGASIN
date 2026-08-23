@@ -6,6 +6,7 @@ import { BillingModal } from '../components/BillingModal';
 import { SwitchUserModal } from '../components/SwitchUserModal';
 import { ReturnToOwnerModal } from '../components/ReturnToOwnerModal';
 import { ErrorBoundary } from '../components/ErrorBoundary';
+import { OfflineStatusBadge } from '../components/OfflineStatusBadge';
 import { getPlanLabel } from '../config/pricing';
 
 export const DashboardLayout = () => {
@@ -220,6 +221,8 @@ export const DashboardLayout = () => {
                         >
                             <span className="text-xl">☰</span>
                         </button>
+
+                        <OfflineStatusBadge />
 
                         <div className="relative w-full hidden sm:block">
                             <input 

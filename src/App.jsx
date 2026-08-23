@@ -64,9 +64,20 @@ function SyncAndLoadingGate({ children }) {
       console.log('Réseau rétabli, synchronisation des données...');
       syncOfflineSales(queryClient);
     };
-
     window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
+
+    // Filet de sécurité : l'événement 'online' ne se déclenche pas de façon
+    // fiable partout (certains navigateurs mobiles, reprise après veille) —
+    // sans ce minuteur, une vente hors-ligne pouvait rester bloquée jusqu'au
+    // prochain rechargement complet de l'app. syncOfflineSales sort tout de
+    // suite si hors-ligne ou déjà en cours, donc ce tick est sans coût la
+    // plupart du temps.
+    const retryInterval = setInterval(() => syncOfflineSales(queryClient), 30000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      clearInterval(retryInterval);
+    };
   }, [queryClient]);
 
   if (isRestoring) {

@@ -75,6 +75,7 @@ export function useCaisseCart(selectedBusiness) {
             if (!navigator.onLine) {
                 // HORS-LIGNE
                 const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal, paymentMethod);
+                queryClient.invalidateQueries(['offlineSalesPending']);
 
                 // Mettre à jour le cache local des ventes
                 queryClient.setQueryData(['receipts', selectedBusiness.id], (old) => {

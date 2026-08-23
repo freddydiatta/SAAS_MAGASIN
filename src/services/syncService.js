@@ -5,6 +5,16 @@ import { processSale } from './salesService';
 const OFFLINE_SALES_KEY = 'offline_sales';
 
 /**
+ * Nombre de ventes en attente de synchronisation — lu par useOfflineStatus
+ * pour afficher un badge à l'utilisateur (avant, cette file n'était visible
+ * nulle part dans l'interface).
+ */
+export const getOfflineSalesCount = async () => {
+    const offlineSales = await get(OFFLINE_SALES_KEY) || [];
+    return offlineSales.length;
+};
+
+/**
  * Sauvegarde une vente dans IndexedDB quand l'application est hors ligne.
  */
 export const saveOfflineSale = async (businessId, cart, customerName, customerPhone, total, paymentMethod) => {
@@ -34,62 +44,89 @@ export const saveOfflineSale = async (businessId, cart, customerName, customerPh
     return newReceipt;
 };
 
+// App.jsx appelle syncOfflineSales à la fois au montage, sur l'événement
+// 'online', ET désormais sur un minuteur périodique (l'événement 'online' ne
+// se déclenche pas de façon fiable partout, notamment sur mobile) — ce
+// verrou évite que deux appels concurrents relisent/réécrivent la même
+// file en même temps et se marchent dessus.
+let isSyncing = false;
+
 /**
  * Tente de synchroniser toutes les ventes en attente vers Supabase.
  */
 export const syncOfflineSales = async (queryClient) => {
-    if (!navigator.onLine) return;
-    
-    const offlineSales = await get(OFFLINE_SALES_KEY) || [];
-    if (offlineSales.length === 0) return;
-    
-    console.log(`Synchronisation de ${offlineSales.length} ventes hors-ligne...`);
-    let syncedCount = 0;
-    const failedSales = [];
+    // Le check-and-set doit rester synchrone (pas d'await avant de poser le
+    // verrou) : sinon deux appels concurrents peuvent tous les deux passer
+    // ce test avant que l'un des deux n'ait eu la chance de positionner
+    // isSyncing, et se remettre à lire/écrire la même file en parallèle.
+    if (!navigator.onLine || isSyncing) return;
+    isSyncing = true;
 
-    for (const receipt of offlineSales) {
-        try {
-            // Créée via la même fonction transactionnelle que la caisse en ligne
-            // (process_sale) : insertion du reçu, des lignes de vente et décrément
-            // du stock en une seule opération atomique côté base de données.
-            const { error: saleError } = await processSale({
-                businessId: receipt.business_id,
-                customerName: receipt.customer_name,
-                customerPhone: receipt.customer_phone,
-                paymentMethod: receipt.payment_method || 'cash',
-                items: receipt.sales.map(sale => ({ product_id: sale.product_id, quantity: sale.quantity })),
-                createdAt: receipt.created_at
-            });
+    try {
+        const offlineSales = await get(OFFLINE_SALES_KEY) || [];
+        if (offlineSales.length === 0) return;
 
-            if (saleError) throw saleError;
-            syncedCount++;
-        } catch (e) {
-            console.error("Erreur lors de la synchronisation de la vente:", e);
-            failedSales.push(receipt);
+        console.log(`Synchronisation de ${offlineSales.length} ventes hors-ligne...`);
+        let syncedCount = 0;
+        const failedSales = [];
+        const failures = [];
+
+        for (const receipt of offlineSales) {
+            try {
+                // Créée via la même fonction transactionnelle que la caisse en ligne
+                // (process_sale) : insertion du reçu, des lignes de vente et décrément
+                // du stock en une seule opération atomique côté base de données.
+                const { error: saleError } = await processSale({
+                    businessId: receipt.business_id,
+                    customerName: receipt.customer_name,
+                    customerPhone: receipt.customer_phone,
+                    paymentMethod: receipt.payment_method || 'cash',
+                    items: receipt.sales.map(sale => ({ product_id: sale.product_id, quantity: sale.quantity })),
+                    createdAt: receipt.created_at
+                });
+
+                if (saleError) throw saleError;
+                syncedCount++;
+            } catch (e) {
+                console.error("Erreur lors de la synchronisation de la vente:", e);
+                failedSales.push(receipt);
+                failures.push({ receipt, message: e?.message || 'Erreur inconnue' });
+            }
         }
-    }
 
-    // On ne garde en file d'attente que les ventes qui ont réellement échoué
-    // (l'ordre de la boucle n'a pas d'importance, contrairement à un slice
-    // basé sur le nombre de succès).
-    await set(OFFLINE_SALES_KEY, failedSales);
+        // On ne garde en file d'attente que les ventes qui ont réellement échoué
+        // (l'ordre de la boucle n'a pas d'importance, contrairement à un slice
+        // basé sur le nombre de succès).
+        await set(OFFLINE_SALES_KEY, failedSales);
 
-    if (syncedCount > 0 && queryClient) {
-        // Rafraîchir le cache pour afficher les vraies IDs générées par Supabase
-        queryClient.invalidateQueries(['receipts']);
-        queryClient.invalidateQueries(['products']);
-        queryClient.invalidateQueries(['sales']);
-    }
+        if (queryClient) {
+            // Toujours invalider, même si syncedCount est 0 : saveOfflineSale a
+            // décrémenté le stock affiché de façon optimiste dès la mise en
+            // file (avant toute confirmation serveur). Si la synchro échoue —
+            // typiquement parce qu'un autre appareil a vendu le même produit
+            // entre-temps — ce stock local optimiste est faux et doit être
+            // corrigé par les vraies valeurs serveur, pas seulement en cas de
+            // succès partiel.
+            queryClient.invalidateQueries(['offlineSalesPending']);
+            queryClient.invalidateQueries(['receipts']);
+            queryClient.invalidateQueries(['products']);
+            queryClient.invalidateQueries(['sales']);
+        }
 
-    if (syncedCount > 0) {
-        toast.success(`${syncedCount} vente${syncedCount > 1 ? 's' : ''} hors-ligne synchronisée${syncedCount > 1 ? 's' : ''}.`);
-    }
-    // Échec réel (ex. stock épuisé entre-temps) : sans ce message, la vente
-    // reste en attente indéfiniment sans que personne ne s'en aperçoive.
-    if (failedSales.length > 0) {
-        toast.error(
-            `${failedSales.length} vente${failedSales.length > 1 ? 's' : ''} hors-ligne n'a/n'ont pas pu être synchronisée${failedSales.length > 1 ? 's' : ''}. Nouvelle tentative au prochain retour en ligne.`,
-            { duration: 8000 }
-        );
+        if (syncedCount > 0) {
+            toast.success(`${syncedCount} vente${syncedCount > 1 ? 's' : ''} hors-ligne synchronisée${syncedCount > 1 ? 's' : ''}.`);
+        }
+        // Échec réel (ex. stock épuisé entre-temps, vendu par un autre appareil
+        // pendant qu'on était hors-ligne) : un décompte générique ne dit ni
+        // quelle vente ni pourquoi, donc rien d'actionnable pour le caissier.
+        // Un toast détaillé par vente permet d'appeler le client, proposer un
+        // autre produit, etc. — la vente reste en file pour une nouvelle
+        // tentative automatique.
+        failures.forEach(({ receipt, message }) => {
+            const who = receipt.customer_name ? `à ${receipt.customer_name}` : '(client comptoir)';
+            toast.error(`❌ Vente ${who} non synchronisée : ${message}`, { duration: 10000 });
+        });
+    } finally {
+        isSyncing = false;
     }
 };
