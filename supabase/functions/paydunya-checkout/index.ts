@@ -71,7 +71,7 @@ serve(async (req) => {
       },
       store: {
         name: "GestionPro SaaS",
-        website_url: "https://votre-site.com" // Remplace par ton URL
+        website_url: "https://saas-magasin.vercel.app"
       },
       custom_data: {
         business_id: business_id
