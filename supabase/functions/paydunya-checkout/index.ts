@@ -78,7 +78,17 @@ serve(async (req) => {
       }
     };
 
-    const paydunyaRes = await fetch("https://app.paydunya.com/api/v1/checkout-invoice/create", {
+    // PayDunya expose deux endpoints distincts : /api/v1 (production, exige
+    // le KYC du compte marchand) et /sandbox-api/v1 (test, sans cette
+    // exigence). Les deux acceptent leurs propres clés (test_xxx vs live_xxx)
+    // mais l'URL elle-même ne change PAS automatiquement selon la clé
+    // utilisée — l'appeler avec des clés de test sur l'URL de production
+    // renvoie l'erreur PayDunya 1001 "KYC requis" même en pur mode test.
+    const paydunyaBaseUrl = PAYDUNYA_PRIVATE_KEY?.startsWith('test_')
+      ? "https://app.paydunya.com/sandbox-api/v1"
+      : "https://app.paydunya.com/api/v1";
+
+    const paydunyaRes = await fetch(`${paydunyaBaseUrl}/checkout-invoice/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
