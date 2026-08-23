@@ -1,7 +1,7 @@
 import { Globe, MessageCircle, Share2, ArrowRight, Mail, Phone, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export const Footer = ({ onContactClick }) => {
+export const Footer = () => {
     return (
         <footer className="bg-slate-950 pt-24 pb-8 border-t border-white/5 text-slate-300 relative overflow-hidden">
             {/* Decoration */}
@@ -23,11 +23,11 @@ export const Footer = ({ onContactClick }) => {
                         </p>
                         <div className="flex items-center gap-4">
                             {[
-                                { Icon: Globe, label: 'Site web' },
-                                { Icon: MessageCircle, label: 'Nous contacter par message' },
-                                { Icon: Share2, label: 'Partager' },
-                            ].map(({ Icon, label }, i) => (
-                                <a key={i} href="#" aria-label={label} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-accent hover:text-white hover:border-accent transition-all">
+                                { Icon: Globe, label: 'Site web', href: '/' },
+                                { Icon: MessageCircle, label: 'Nous contacter par message', href: '#contact' },
+                                { Icon: Share2, label: 'Partager', href: '#' },
+                            ].map(({ Icon, label, href }, i) => (
+                                <a key={i} href={href} aria-label={label} className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:bg-accent hover:text-white hover:border-accent transition-all">
                                     <Icon className="w-4 h-4" />
                                 </a>
                             ))}
@@ -41,6 +41,7 @@ export const Footer = ({ onContactClick }) => {
                             <li><a href="#features" className="text-slate-400 hover:text-accent transition-colors text-sm font-medium">Fonctionnalités</a></li>
                             <li><a href="#pricing" className="text-slate-400 hover:text-accent transition-colors text-sm font-medium">Tarifs</a></li>
                             <li><a href="#partner" className="text-slate-400 hover:text-accent transition-colors text-sm font-medium">Programme Partenaire</a></li>
+                            <li><a href="#contact" className="text-slate-400 hover:text-accent transition-colors text-sm font-medium">FAQ &amp; Contact</a></li>
                         </ul>
                     </div>
 

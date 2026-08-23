@@ -805,3 +805,22 @@ USING (
     bucket_id = 'product-images'
     AND public.is_business_member((storage.foldername(name))[1]::uuid)
 );
+
+-- ==========================================
+-- MESSAGES DE CONTACT (site public)
+-- Insérés uniquement via l'Edge Function send-contact-message
+-- (service_role, contourne RLS) : aucune policy INSERT/SELECT pour
+-- anon/authenticated, consultables seulement depuis le tableau de bord
+-- Supabase.
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.contact_messages (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    contact_info TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.contact_messages ENABLE ROW LEVEL SECURITY;
+

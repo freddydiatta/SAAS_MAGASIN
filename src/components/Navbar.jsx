@@ -41,6 +41,7 @@ export const Navbar = () => {
                     <div className="hidden md:flex items-center space-x-8">
                         <a href="#features" className="font-semibold text-secondary hover:text-primary transition-colors">Fonctionnalités</a>
                         <a href="#partner" className="font-semibold text-secondary hover:text-primary transition-colors">Programme Partenaire</a>
+                        <a href="#contact" className="font-semibold text-secondary hover:text-primary transition-colors">FAQ &amp; Contact</a>
                         <Link to="/login" className="font-semibold text-primary hover:text-accent transition-colors">Connexion</Link>
                         <Link to="/register" className="btn-primary px-6 py-2.5 shadow-md shadow-accent/20 hover:-translate-y-0.5 transition-transform">
                             Essai Gratuit
@@ -72,6 +73,7 @@ export const Navbar = () => {
                         <div className="px-4 pt-4 pb-6 space-y-2 sm:px-6">
                             <a href="#features" onClick={() => setIsOpen(false)} className="block px-4 py-3 font-semibold text-secondary hover:text-primary hover:bg-surface rounded-xl transition-colors">Fonctionnalités</a>
                             <a href="#partner" onClick={() => setIsOpen(false)} className="block px-4 py-3 font-semibold text-secondary hover:text-primary hover:bg-surface rounded-xl transition-colors">Programme Partenaire</a>
+                            <a href="#contact" onClick={() => setIsOpen(false)} className="block px-4 py-3 font-semibold text-secondary hover:text-primary hover:bg-surface rounded-xl transition-colors">FAQ &amp; Contact</a>
                             <Link to="/login" onClick={() => setIsOpen(false)} className="block px-4 py-3 font-semibold text-secondary hover:text-primary hover:bg-surface rounded-xl transition-colors">Connexion</Link>
                             <div className="pt-2">
                                 <Link to="/register" onClick={() => setIsOpen(false)} className="block w-full text-center btn-primary py-4 rounded-xl font-bold shadow-md shadow-accent/20">
