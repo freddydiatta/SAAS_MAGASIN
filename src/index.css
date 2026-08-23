@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Sans ça, Tailwind v4 fait suivre TOUTES les classes dark: (dizaines de
+   fichiers) au thème du système d'exploitation (prefers-color-scheme),
+   indépendamment de tout code de l'app — donc même après avoir retiré le
+   bouton et la logique de mode nuit, la sidebar et la barre du haut
+   restaient sombres dès que le téléphone/ordinateur était en thème sombre.
+   En les liant à la classe .dark (jamais posée nulle part maintenant), ces
+   classes ne s'activent plus jamais : l'app reste claire quel que soit le
+   thème système. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Sans ça, les navigateurs mobiles stylent le "chrome" natif des champs
      (fond des <input>, flèches de type=number...) selon le thème sombre/clair
