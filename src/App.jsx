@@ -156,7 +156,11 @@ function App() {
                 <Route path="reservations" element={<Reservations />} />
                 <Route path="commandes" element={<Commandes />} />
                 <Route path="menu" element={<Menu />} />
-                <Route path="affiliation" element={<AffiliateDashboard />} />
+                <Route path="affiliation" element={
+                  <RequireOwner>
+                    <AffiliateDashboard />
+                  </RequireOwner>
+                } />
                 <Route path="depenses" element={<Depenses />} />
                 <Route path="parametres" element={
                   <RequireOwner>

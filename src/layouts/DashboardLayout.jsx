@@ -43,7 +43,6 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
                 depensesItem,
-                { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
         } else if (type === 'restaurant') {
             items = [
@@ -52,7 +51,6 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
                 depensesItem,
-                { path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' },
             ];
         } else {
             // Default (Retail: pieces_moto, quincaillerie, boutique)
@@ -66,11 +64,17 @@ export const DashboardLayout = () => {
                 items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
             }
             items.push(depensesItem);
-            items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
         }
 
-        // Réservé au propriétaire : logs de sécurité et gestion du commerce/équipe.
+        // Réservé au propriétaire : programme d'affiliation, logs de
+        // sécurité et gestion du commerce/équipe. Un caissier n'a pas de
+        // lien de parrainage ni de commissions à consulter — ce n'est pas
+        // juste une histoire d'affichage : sans ce filtre, un caissier
+        // visitant /dashboard/affiliation se voyait créer sa propre fiche
+        // affilié (AffiliateDashboard crée le profil manquant pour
+        // n'importe quel compte connecté), un artefact de données parasite.
         if (!isCashier) {
+            items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
             if (type !== 'villa' && type !== 'restaurant') {
                 items.push({ path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' });
             }
