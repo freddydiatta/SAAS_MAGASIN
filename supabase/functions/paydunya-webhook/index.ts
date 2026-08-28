@@ -101,8 +101,8 @@ serve(async (req) => {
       // son propre try/catch pour la même raison que la commission plus bas
       // : un souci ici ne doit jamais faire échouer toute la réponse (sinon
       // PayDunya rejoue le webhook alors que le paiement est déjà confirmé).
+      const targetPlan = customData.target_plan;
       try {
-        const targetPlan = customData.target_plan;
         if (business?.user_id && (targetPlan === 'essentiel' || targetPlan === 'business')) {
           const { data: userData } = await supabaseAdmin.auth.admin.getUserById(business.user_id);
           if (userData?.user && userData.user.user_metadata?.subscription_plan !== targetPlan) {
@@ -113,6 +113,23 @@ serve(async (req) => {
         }
       } catch (planUpdateError) {
         console.error('Erreur changement de forfait:', planUpdateError);
+      }
+
+      // 2.6. Pack Business : UN SEUL abonnement pour tout le compte, pas un
+      // par magasin — le forfait promet des magasins illimités pour un seul
+      // prix, donc un paiement qui confirme le plan business doit couvrir
+      // TOUS les magasins de ce propriétaire, pas seulement celui payé ici.
+      // Sans ça, chaque magasin redemanderait sa propre facture séparée.
+      try {
+        if (business?.user_id && targetPlan === 'business') {
+          await supabaseAdmin
+            .from('businesses')
+            .update({ subscription_status: 'active', subscription_end_date: newEndDate.toISOString() })
+            .eq('user_id', business.user_id)
+            .neq('id', businessId);
+        }
+      } catch (syncError) {
+        console.error('Erreur synchronisation abonnement multi-magasins:', syncError);
       }
 
       // 3. Commission d'affiliation, si le propriétaire de ce commerce a été

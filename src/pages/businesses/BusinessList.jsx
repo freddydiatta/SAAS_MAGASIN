@@ -52,6 +52,18 @@ export const BusinessList = () => {
 
         setIsSubmitting(true);
 
+        // Pack Business : un seul abonnement pour tout le compte, pas un par
+        // magasin — sans ça, un nouveau magasin repartirait sur son propre
+        // essai de 14 jours (les valeurs par défaut de la table) puis
+        // redemanderait sa propre facture séparée, alors que le forfait
+        // promet des magasins illimités pour un seul prix. On hérite donc du
+        // statut/de la date de fin déjà payés sur un magasin existant.
+        const existingSubscription = plan === 'business' && businesses.length > 0
+            ? businesses.reduce((latest, b) => (
+                !latest || new Date(b.subscription_end_date) > new Date(latest.subscription_end_date) ? b : latest
+            ), null)
+            : null;
+
         try {
             const { data, error } = await supabase
                 .from('businesses')
@@ -62,7 +74,11 @@ export const BusinessList = () => {
                         type: result.data.type,
                         phone: result.data.phone,
                         address: result.data.address,
-                        subscription_plan: plan
+                        subscription_plan: plan,
+                        ...(existingSubscription ? {
+                            subscription_status: existingSubscription.subscription_status,
+                            subscription_end_date: existingSubscription.subscription_end_date,
+                        } : {}),
                     }
                 ])
                 .select();
