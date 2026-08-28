@@ -122,7 +122,7 @@ export const AffiliateDashboard = () => {
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-extrabold text-primary mb-2">Espace Affiliation</h1>
-                <p className="text-secondary font-medium">Partagez votre lien et touchez {profile?.commission_rate || 20}% de commission sur chaque abonnement généré.</p>
+                <p className="text-secondary font-medium">Partagez votre lien et touchez 1 000 FCFA par mois pour chaque filleul actif.</p>
             </div>
 
             {/* Referral Link Card */}

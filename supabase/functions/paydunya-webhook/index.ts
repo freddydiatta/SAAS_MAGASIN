@@ -133,9 +133,16 @@ serve(async (req) => {
       }
 
       // 3. Commission d'affiliation, si le propriétaire de ce commerce a été
-      // parrainé (table referrals). N'importe quel souci ici est journalisé
-      // mais ne doit jamais faire échouer la confirmation du paiement lui
-      // même — c'est un traitement annexe, pas le cœur du webhook.
+      // parrainé (table referrals). Forfait fixe de 1000 FCFA par mois payé
+      // par le filleul (annoncé tel quel sur la page publique du programme
+      // partenaire, PartnerProgram.jsx : "1 000 FCFA / mois pour chaque
+      // utilisateur que vous ramenez") — PAS un pourcentage du montant payé,
+      // contrairement à ce que ce code faisait jusqu'ici (20% via
+      // affiliates.commission_rate, jamais ce qui était promis). N'importe
+      // quel souci ici est journalisé mais ne doit jamais faire échouer la
+      // confirmation du paiement lui même — c'est un traitement annexe, pas
+      // le cœur du webhook.
+      const AFFILIATE_COMMISSION_FCFA = 1000;
       try {
         if (business?.user_id && paymentRow?.amount) {
           const { data: referral } = await supabaseAdmin
@@ -147,12 +154,12 @@ serve(async (req) => {
           if (referral) {
             const { data: affiliate } = await supabaseAdmin
               .from('affiliates')
-              .select('commission_rate, total_earnings')
+              .select('total_earnings')
               .eq('id', referral.affiliate_id)
               .maybeSingle();
 
             if (affiliate) {
-              const commissionAmount = (Number(paymentRow.amount) * Number(affiliate.commission_rate)) / 100;
+              const commissionAmount = AFFILIATE_COMMISSION_FCFA;
 
               await supabaseAdmin.from('commissions').insert({
                 affiliate_id: referral.affiliate_id,
