@@ -1,9 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Restreint aux origines de l'app (pas '*') — voir create-cashier/index.ts
+// pour le détail du raisonnement.
+const ALLOWED_ORIGINS = ['https://saas-magasin.vercel.app', 'http://localhost:5173', 'http://localhost:4173']
+
+function corsHeadersFor(req: Request) {
+  const origin = req.headers.get('origin') ?? ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // --- Crypto helpers (mêmes primitives que create-cashier, dupliquées ici
@@ -65,6 +72,7 @@ async function verifyPin(pin: string, stored: string): Promise<boolean> {
 }
 
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -95,7 +103,10 @@ serve(async (req) => {
       .select('id, business_id, user_id, name, is_active, pin_hash, encrypted_credentials')
       .eq('id', member_id)
       .maybeSingle()
-    if (memberError) throw memberError
+    if (memberError) {
+      console.error('Erreur lecture caissier:', memberError)
+      throw new Error('PIN invalide.')
+    }
 
     // Journalise une tentative de connexion caissier dans audit_logs (lu
     // uniquement par le propriétaire). service_role : ignore la RLS.
@@ -143,7 +154,10 @@ serve(async (req) => {
     const { data: attempt, error: attemptError } = await supabaseAdmin
       .rpc('record_pin_attempt', { p_member_id: member.id, p_success: isValid })
       .single()
-    if (attemptError) throw attemptError
+    if (attemptError) {
+      console.error('Erreur verrouillage PIN:', attemptError)
+      throw new Error('PIN invalide.')
+    }
 
     if (attempt?.is_locked) {
       logAttempt(

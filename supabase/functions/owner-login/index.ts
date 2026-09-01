@@ -1,12 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Restreint aux origines de l'app (pas '*') — voir create-cashier/index.ts
+// pour le détail du raisonnement.
+const ALLOWED_ORIGINS = ['https://saas-magasin.vercel.app', 'http://localhost:5173', 'http://localhost:4173']
+
+function corsHeadersFor(req: Request) {
+  const origin = req.headers.get('origin') ?? ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }

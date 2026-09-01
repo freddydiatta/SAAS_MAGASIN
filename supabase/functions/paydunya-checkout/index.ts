@@ -1,12 +1,20 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+// Restreint aux origines de l'app (pas '*') — voir create-cashier/index.ts
+// pour le détail du raisonnement.
+const ALLOWED_ORIGINS = ['https://saas-magasin.vercel.app', 'http://localhost:5173', 'http://localhost:4173']
+
+function corsHeadersFor(req: Request) {
+  const origin = req.headers.get('origin') ?? ''
+  return {
+    'Access-Control-Allow-Origin': ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -29,7 +37,10 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '').trim()
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
-    if (userError) throw new Error('Erreur getUser: ' + userError.message)
+    if (userError) {
+      console.error('Erreur getUser:', userError)
+      throw new Error('Session invalide. Reconnectez-vous.')
+    }
     if (!user) throw new Error('Utilisateur introuvable (Non autorisé)')
 
     // 2. Setup Service Role Client for admin tasks
@@ -49,7 +60,10 @@ serve(async (req) => {
       .eq('id', business_id)
       .eq('user_id', user.id)
       .maybeSingle()
-    if (businessError) throw businessError
+    if (businessError) {
+      console.error('Erreur vérification commerce:', businessError)
+      throw new Error("Impossible de vérifier ce commerce pour le moment.")
+    }
     if (!business) throw new Error('Commerce introuvable ou accès non autorisé.')
 
     // Retrieve plan to determine price. Source de vérité canonique côté
