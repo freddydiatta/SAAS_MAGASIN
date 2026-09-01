@@ -7,10 +7,23 @@ import { motion } from 'framer-motion';
 import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle } from 'lucide-react';
 import { loginSchema } from '../../lib/validation';
 
+// Le blocage anti brute-force vit désormais côté serveur (Edge Function
+// owner-login + table login_attempts, verrouillée par un FOR UPDATE
+// atomique) — rafraîchir la page ne le réinitialise plus. Ce compte à
+// rebours n'est qu'un affichage ; la vraie limite est appliquée par le
+// serveur à chaque tentative, countdown ou pas.
+const formatCountdown = (seconds) => {
+    if (seconds >= 60) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${String(secs).padStart(2, '0')}`;
+    }
+    return `${seconds}s`;
+};
+
 export const Login = () => {
     const [authError, setAuthError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [failedAttempts, setFailedAttempts] = useState(0);
     const [lockoutCountdown, setLockoutCountdown] = useState(0);
     const navigate = useNavigate();
 
@@ -20,12 +33,11 @@ export const Login = () => {
             timer = setInterval(() => {
                 setLockoutCountdown(prev => prev - 1);
             }, 1000);
-        } else if (lockoutCountdown === 0 && failedAttempts >= 5) {
-            setFailedAttempts(0);
+        } else {
             setAuthError('');
         }
         return () => clearInterval(timer);
-    }, [lockoutCountdown, failedAttempts]);
+    }, [lockoutCountdown]);
 
     const {
         register,
@@ -47,28 +59,34 @@ export const Login = () => {
         setAuthError('');
         
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email: data.email,
-                password: data.password,
+            // Passe par l'Edge Function owner-login plutôt que
+            // signInWithPassword directement : elle applique le verrouillage
+            // anti brute-force côté serveur (table login_attempts, verrou
+            // atomique) avant de tenter l'authentification elle-même.
+            const { data: result, error } = await supabase.functions.invoke('owner-login', {
+                body: { email: data.email, password: data.password },
             });
+            if (error) throw error;
 
-            if (error) {
-                // supabase-js query builders are "thenables" (.then only) —
-                // pas de vraie Promise, donc pas de .catch()/.finally(). Un
-                // .catch() direct ici plantait de façon synchrone et cassait
-                // TOUTE tentative de connexion (réussie ou non).
-                supabase.rpc('log_failed_login', { p_email: data.email }).then(undefined, () => {});
-                const newAttempts = failedAttempts + 1;
-                setFailedAttempts(newAttempts);
-
-                if (newAttempts >= 5) {
-                    setLockoutCountdown(60);
-                    setAuthError("Trop de tentatives échouées. Veuillez patienter 60 secondes.");
+            if (!result.success) {
+                if (result.locked) {
+                    const seconds = Math.max(1, Math.ceil((new Date(result.lockedUntil).getTime() - Date.now()) / 1000));
+                    setLockoutCountdown(seconds);
+                    setAuthError(`Trop de tentatives échouées. Réessayez dans ${formatCountdown(seconds)}.`);
                 } else {
-                    setAuthError(`Identifiants incorrects. Il vous reste ${5 - newAttempts} tentative(s).`);
+                    // supabase-js query builders are "thenables" (.then only) —
+                    // pas de vraie Promise, donc pas de .catch()/.finally(). Un
+                    // .catch() direct ici plantait de façon synchrone et cassait
+                    // TOUTE tentative de connexion (réussie ou non).
+                    supabase.rpc('log_failed_login', { p_email: data.email }).then(undefined, () => {});
+                    setAuthError(`Identifiants incorrects. Il vous reste ${result.remainingAttempts} tentative(s).`);
                 }
             } else {
-                setFailedAttempts(0);
+                const { error: setSessionError } = await supabase.auth.setSession({
+                    access_token: result.session.access_token,
+                    refresh_token: result.session.refresh_token,
+                });
+                if (setSessionError) throw setSessionError;
                 supabase.rpc('log_login_success').then(undefined, () => {});
                 navigate('/dashboard');
             }
@@ -158,7 +176,7 @@ export const Login = () => {
                             }`}
                         >
                             {lockoutCountdown > 0 ? (
-                                `Réessayez dans ${lockoutCountdown}s`
+                                `Réessayez dans ${formatCountdown(lockoutCountdown)}`
                             ) : isLoading ? (
                                 <Loader2 className="w-6 h-6 animate-spin" />
                             ) : (
