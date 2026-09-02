@@ -17,6 +17,7 @@ export const RetailDashboard = () => {
         caisseDuJour,
         caisseDuJourCash,
         caisseDuJourMobile,
+        caisseDuJourCredit,
         depensesDuJour,
         beneficeDuJour,
         percentChange,
@@ -78,15 +79,21 @@ export const RetailDashboard = () => {
                         <span className="text-slate-400 font-medium">vs hier</span>
                     </div>
 
-                    <div className="pt-3 border-t border-slate-100 dark:border-border-theme/50 flex justify-between text-xs relative">
+                    <div className="pt-3 border-t border-slate-100 dark:border-border-theme/50 flex justify-between text-xs relative gap-2">
                         <div className="flex flex-col gap-0.5">
                             <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Espèces</span>
                             <span className="font-bold text-primary">{formatFCFA(caisseDuJourCash)} F</span>
                         </div>
-                        <div className="flex flex-col gap-0.5 text-right">
-                            <span className="text-slate-400 flex items-center justify-end gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Mobile</span>
+                        <div className="flex flex-col gap-0.5">
+                            <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Mobile</span>
                             <span className="font-bold text-primary">{formatFCFA(caisseDuJourMobile)} F</span>
                         </div>
+                        {caisseDuJourCredit > 0 && (
+                            <div className="flex flex-col gap-0.5 text-right" title="Vendu à crédit aujourd'hui — pas encore encaissé, voir Dettes">
+                                <span className="text-slate-400 flex items-center justify-end gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>Crédit</span>
+                                <span className="font-bold text-purple-600 dark:text-purple-400">{formatFCFA(caisseDuJourCredit)} F</span>
+                            </div>
+                        )}
                     </div>
                 </motion.div>
 

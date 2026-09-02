@@ -45,6 +45,24 @@ const RECEIPT = {
     ],
 };
 
+describe('HistoriqueVentes payment method badge', () => {
+    beforeEach(() => {
+        rpcMock.mockReset();
+        fromMock.mockReset();
+    });
+
+    it('labels a credit sale distinctly instead of falling back to Espèces', async () => {
+        const creditReceipt = { ...RECEIPT, id: 'r2', payment_method: 'credit' };
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [creditReceipt], error: null }));
+
+        renderWithQueryClient(<HistoriqueVentes />);
+        await screen.findByText('Casque Moto');
+
+        expect(screen.getByText(/Crédit/)).toBeInTheDocument();
+        expect(screen.queryByText(/Espèces/)).not.toBeInTheDocument();
+    });
+});
+
 describe('HistoriqueVentes cancel/modify', () => {
     beforeEach(() => {
         rpcMock.mockReset();

@@ -40,6 +40,11 @@ const SALES = [
     { id: 's3', quantity: 1, total_price: 500, created_at: yesterday9am.toISOString(), products: { name: 'Casque Moto', type: 'moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
 ];
 
+const SALES_WITH_CREDIT = [
+    ...SALES,
+    { id: 's4', quantity: 1, total_price: 4000, created_at: today9am.toISOString(), products: { name: 'Casque Moto', type: 'moto' }, receipts: { status: 'completed', payment_method: 'credit' } },
+];
+
 const EXPENSES = [
     { id: 'e1', category: 'transport', amount: 500, created_at: today9am.toISOString() },
     { id: 'e2', category: 'divers', amount: 300, created_at: yesterday9am.toISOString() }, // not today -> excluded
@@ -81,6 +86,45 @@ describe('useRetailDashboardStats', () => {
 
         expect(result.current.chartData).toHaveLength(7);
         expect(result.current.topProducts[0]).toMatchObject({ name: 'Casque Moto', quantity: 3, revenue: 2500 });
+    });
+
+    it('excludes credit sales from caisse du jour and the average basket, but still counts them as a transaction', async () => {
+        fromMock.mockImplementation((table) => {
+            if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
+        });
+        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
+        await waitFor(() => expect(result.current.loadingSales).toBe(false));
+
+        // Same collected total as before (3000) — the 4000 credit sale is not
+        // money actually in hand yet.
+        expect(result.current.caisseDuJour).toBe(3000);
+        expect(result.current.caisseDuJourCredit).toBe(4000);
+        expect(result.current.beneficeDuJour).toBe(3000 - 500);
+        // panier moyen only averages the two collected sales, not the credit one
+        expect(result.current.panierMoyen).toBe(1500);
+        // but the credit sale still happened — it counts as a transaction
+        expect(result.current.transactions).toBe(3);
+    });
+
+    it('excludes credit sales from the 7-day chart total and per-product revenue, but keeps their quantity', async () => {
+        fromMock.mockImplementation((table) => {
+            if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
+        });
+        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
+        await waitFor(() => expect(result.current.loadingSales).toBe(false));
+
+        const todayEntry = result.current.chartData[result.current.chartData.length - 1];
+        expect(todayEntry.total).toBe(3000);
+
+        const casque = result.current.topProducts.find((p) => p.name === 'Casque Moto');
+        // quantity: 2 (cash) + 1 (yesterday cash) + 1 (credit) = 4 units actually sold
+        expect(casque.quantity).toBe(4);
+        // revenue: only the cash sales (2000 + 500), not the 4000 credit sale
+        expect(casque.revenue).toBe(2500);
     });
 
     it('returns 0% change (not a divide-by-zero) when there were no sales yesterday and none today', async () => {

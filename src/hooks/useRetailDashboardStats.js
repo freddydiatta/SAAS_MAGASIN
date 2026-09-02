@@ -47,14 +47,22 @@ export function useRetailDashboardStats(selectedBusiness) {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
+    // Une vente à crédit (voir Caisse.jsx) n'a pas encore été payée — la
+    // compter dans "Caisse du jour" ferait apparaître comme encaissé de
+    // l'argent que le commerçant n'a en réalité pas en main tant que le
+    // client n'a pas remboursé sa dette (voir Dettes.jsx).
+    const isCashCollected = (sale) => sale.receipts?.payment_method !== 'credit';
+
     const salesToday = sales.filter(s => new Date(s.created_at).getTime() >= today);
     const salesYesterday = sales.filter(s => {
         const time = new Date(s.created_at).getTime();
         return time >= yesterday.getTime() && time < today;
     });
+    const collectedSalesToday = salesToday.filter(isCashCollected);
+    const collectedSalesYesterday = salesYesterday.filter(isCashCollected);
 
-    const caisseDuJour = salesToday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
-    const caisseHier = salesYesterday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+    const caisseDuJour = collectedSalesToday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+    const caisseHier = collectedSalesYesterday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
 
     const caisseDuJourCash = salesToday
         .filter(sale => sale.receipts?.payment_method === 'cash')
@@ -64,12 +72,16 @@ export function useRetailDashboardStats(selectedBusiness) {
         .filter(sale => sale.receipts?.payment_method === 'mobile_money')
         .reduce((sum, sale) => sum + Number(sale.total_price), 0);
 
+    const caisseDuJourCredit = salesToday
+        .filter(sale => sale.receipts?.payment_method === 'credit')
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+
     // Calculate % change (prevent divide by zero)
     const percentChange = caisseHier > 0
         ? Math.round(((caisseDuJour - caisseHier) / caisseHier) * 100)
         : (caisseDuJour > 0 ? 100 : 0);
 
-    const panierMoyen = salesToday.length > 0 ? Math.round(caisseDuJour / salesToday.length) : 0;
+    const panierMoyen = collectedSalesToday.length > 0 ? Math.round(caisseDuJour / collectedSalesToday.length) : 0;
     const transactions = salesToday.length;
 
     const transactionsHier = salesYesterday.length;
@@ -93,10 +105,12 @@ export function useRetailDashboardStats(selectedBusiness) {
         const nextD = new Date(d);
         nextD.setDate(d.getDate() + 1);
 
+        // Même logique que caisseDuJour : une vente à crédit ce jour-là
+        // n'était pas de l'argent encaissé, donc pas de revenu réel.
         const daySales = sales.filter(s => {
             const time = new Date(s.created_at).getTime();
             return time >= d.getTime() && time < nextD.getTime();
-        });
+        }).filter(isCashCollected);
 
         const dayTotal = daySales.reduce((sum, s) => sum + Number(s.total_price), 0);
         total7Days += dayTotal;
@@ -108,12 +122,17 @@ export function useRetailDashboardStats(selectedBusiness) {
     }
 
     // --- Top Products ---
+    // La quantité vendue compte toutes les ventes (le produit est bien
+    // parti, crédit ou pas) ; le revenu affiché ne compte que l'argent
+    // réellement encaissé, même logique que caisseDuJour.
     const productStats = {};
     sales.forEach(sale => {
         const name = sale.products?.name || 'Inconnu';
         if (!productStats[name]) productStats[name] = { quantity: 0, revenue: 0 };
         productStats[name].quantity += sale.quantity;
-        productStats[name].revenue += Number(sale.total_price);
+        if (isCashCollected(sale)) {
+            productStats[name].revenue += Number(sale.total_price);
+        }
     });
 
     const topProducts = Object.entries(productStats)
@@ -126,6 +145,7 @@ export function useRetailDashboardStats(selectedBusiness) {
         caisseDuJour,
         caisseDuJourCash,
         caisseDuJourMobile,
+        caisseDuJourCredit,
         depensesDuJour,
         beneficeDuJour,
         percentChange,

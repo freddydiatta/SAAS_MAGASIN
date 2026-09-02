@@ -96,8 +96,16 @@ export const HistoriqueVentes = () => {
                         tone={receipt.status === 'cancelled' ? 'red' : 'emerald'}
                     />
                     <StatusBadge
-                        label={receipt.payment_method === 'mobile_money' ? '📱 Mobile Money' : '💵 Espèces'}
-                        tone={receipt.payment_method === 'mobile_money' ? 'orange' : 'blue'}
+                        label={
+                            receipt.payment_method === 'mobile_money' ? '📱 Mobile Money'
+                                : receipt.payment_method === 'credit' ? '🤝 Crédit'
+                                : '💵 Espèces'
+                        }
+                        tone={
+                            receipt.payment_method === 'mobile_money' ? 'orange'
+                                : receipt.payment_method === 'credit' ? 'amber'
+                                : 'blue'
+                        }
                         rounded="md"
                         className="px-2 py-0.5 text-[10px]"
                     />
