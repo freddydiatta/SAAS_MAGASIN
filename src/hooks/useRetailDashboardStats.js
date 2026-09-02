@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useProducts } from './useProducts';
 import { fetchExpenses } from '../services/expensesService';
+import { fetchDebts } from '../services/debtsService';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -43,6 +44,15 @@ export function useRetailDashboardStats(selectedBusiness) {
         enabled: !!user && !!selectedBusiness
     });
 
+    // Même clé que useDebts : une dette remboursée aujourd'hui est de
+    // l'argent qui vient réellement de rentrer en caisse, même si la vente
+    // à crédit d'origine remonte à avant aujourd'hui.
+    const { data: debts = [] } = useQuery({
+        queryKey: ['debts', selectedBusiness?.id],
+        queryFn: () => fetchDebts(selectedBusiness.id),
+        enabled: !!user && !!selectedBusiness
+    });
+
     const today = new Date().setHours(0, 0, 0, 0);
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -61,8 +71,22 @@ export function useRetailDashboardStats(selectedBusiness) {
     const collectedSalesToday = salesToday.filter(isCashCollected);
     const collectedSalesYesterday = salesYesterday.filter(isCashCollected);
 
-    const caisseDuJour = collectedSalesToday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
-    const caisseHier = collectedSalesYesterday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+    const debtsRepaidToday = debts.filter(d => d.status === 'paid' && d.paid_at && new Date(d.paid_at).getTime() >= today);
+    const debtsRepaidYesterday = debts.filter(d => {
+        if (d.status !== 'paid' || !d.paid_at) return false;
+        const time = new Date(d.paid_at).getTime();
+        return time >= yesterday.getTime() && time < today;
+    });
+    const caisseDuJourRembourse = debtsRepaidToday.reduce((sum, d) => sum + Number(d.amount), 0);
+    const caisseHierRembourse = debtsRepaidYesterday.reduce((sum, d) => sum + Number(d.amount), 0);
+
+    // Total des ventes du jour encaissées (hors remboursements) : sert de
+    // base au panier moyen, un remboursement de dette n'étant pas un panier.
+    const ventesCollecteesDuJour = collectedSalesToday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+    const ventesCollecteesHier = collectedSalesYesterday.reduce((sum, sale) => sum + Number(sale.total_price), 0);
+
+    const caisseDuJour = ventesCollecteesDuJour + caisseDuJourRembourse;
+    const caisseHier = ventesCollecteesHier + caisseHierRembourse;
 
     const caisseDuJourCash = salesToday
         .filter(sale => sale.receipts?.payment_method === 'cash')
@@ -81,7 +105,7 @@ export function useRetailDashboardStats(selectedBusiness) {
         ? Math.round(((caisseDuJour - caisseHier) / caisseHier) * 100)
         : (caisseDuJour > 0 ? 100 : 0);
 
-    const panierMoyen = collectedSalesToday.length > 0 ? Math.round(caisseDuJour / collectedSalesToday.length) : 0;
+    const panierMoyen = collectedSalesToday.length > 0 ? Math.round(ventesCollecteesDuJour / collectedSalesToday.length) : 0;
     const transactions = salesToday.length;
 
     const transactionsHier = salesYesterday.length;
@@ -146,6 +170,7 @@ export function useRetailDashboardStats(selectedBusiness) {
         caisseDuJourCash,
         caisseDuJourMobile,
         caisseDuJourCredit,
+        caisseDuJourRembourse,
         depensesDuJour,
         beneficeDuJour,
         percentChange,

@@ -85,6 +85,9 @@ export const DashboardLayout = () => {
                 // Fournisseurs : réservé au propriétaire comme Sécurité, les
                 // prix d'achat négociés y sont visibles (marge par produit).
                 items.push({ path: '/dashboard/fournisseurs', label: 'Fournisseurs', icon: '🚚' });
+                // Finances : bénéfice net et chiffre d'affaires total, encore
+                // plus sensible que les marges — réservé au propriétaire.
+                items.push({ path: '/dashboard/finances', label: 'Finances', icon: '📈' });
                 items.push({ path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' });
             }
             items.push({ path: '/dashboard/parametres', label: 'Paramètres', icon: '⚙️' });

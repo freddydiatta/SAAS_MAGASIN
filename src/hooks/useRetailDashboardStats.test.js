@@ -56,6 +56,7 @@ describe('useRetailDashboardStats', () => {
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            if (table === 'debts') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES, error: null });
         });
     });
@@ -92,6 +93,7 @@ describe('useRetailDashboardStats', () => {
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            if (table === 'debts') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
         });
         const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
@@ -112,6 +114,7 @@ describe('useRetailDashboardStats', () => {
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            if (table === 'debts') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
         });
         const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
@@ -125,6 +128,28 @@ describe('useRetailDashboardStats', () => {
         expect(casque.quantity).toBe(4);
         // revenue: only the cash sales (2000 + 500), not the 4000 credit sale
         expect(casque.revenue).toBe(2500);
+    });
+
+    it('counts a debt repaid today as cash collected, without treating it as a basket', async () => {
+        const DEBTS = [
+            { id: 'd1', customer_name: 'Moussa', amount: 4000, status: 'paid', paid_at: today9am.toISOString() },
+            { id: 'd2', customer_name: 'Awa', amount: 1000, status: 'unpaid' },
+        ];
+        fromMock.mockImplementation((table) => {
+            if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            if (table === 'debts') return createQueryBuilder({ data: DEBTS, error: null });
+            return createQueryBuilder({ data: SALES, error: null });
+        });
+        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
+        await waitFor(() => expect(result.current.loadingSales).toBe(false));
+
+        // 3000 in sales + the 4000 debt repaid today
+        expect(result.current.caisseDuJour).toBe(7000);
+        expect(result.current.caisseDuJourRembourse).toBe(4000);
+        // still only 2 actual sales today -> unaffected average basket
+        expect(result.current.panierMoyen).toBe(1500);
+        expect(result.current.beneficeDuJour).toBe(7000 - 500);
     });
 
     it('returns 0% change (not a divide-by-zero) when there were no sales yesterday and none today', async () => {
