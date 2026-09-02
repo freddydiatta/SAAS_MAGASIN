@@ -69,6 +69,17 @@ export const menuItemSchema = z.object({
         .nonnegative('Le prix ne peut pas être négatif.'),
 });
 
+export const supplierSchema = z.object({
+    name: z.string().trim().min(1, 'Le nom du fournisseur est requis.').max(200, 'Le nom est trop long.'),
+    contactName: z.string().trim().max(200, 'Le nom du contact est trop long.').optional().or(z.literal('')),
+    phone: z.string().trim()
+        .regex(/^[0-9+\s()-]*$/, 'Numéro de téléphone invalide.')
+        .max(30, 'Le numéro est trop long.')
+        .optional()
+        .or(z.literal('')),
+    email: z.string().trim().email('Adresse email invalide.').optional().or(z.literal('')),
+});
+
 export const cashierSchema = z.object({
     name: z.string().trim().min(1, 'Le nom est requis.').max(100, 'Le nom est trop long.'),
     pin: z.string().regex(/^\d{4}$/, 'Le code PIN doit contenir exactement 4 chiffres.'),

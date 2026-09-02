@@ -59,6 +59,15 @@ describe('productsService', () => {
             expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ cost_price: 600 })]);
         });
 
+        it('stores supplier_id as null when no supplier was selected', async () => {
+            const builder = createQueryBuilder({ data: null, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: '' });
+
+            expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ supplier_id: null })]);
+        });
+
         it('stores the uploaded image URL', async () => {
             const builder = createQueryBuilder({ data: null, error: null });
             fromMock.mockImplementation(() => builder);

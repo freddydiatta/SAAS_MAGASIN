@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { businessSchema, restaurantOrderSchema, villaSchema, productSchema, firstZodError } from './validation';
+import { businessSchema, restaurantOrderSchema, villaSchema, productSchema, supplierSchema, firstZodError } from './validation';
 
 describe('businessSchema', () => {
     it('accepts a valid business with optional fields left blank', () => {
@@ -63,6 +63,25 @@ describe('productSchema', () => {
         const result = productSchema.safeParse({ name: 'Casque', price: 5000, quantity: 10, costPrice: -100 });
         expect(result.success).toBe(false);
         expect(firstZodError(result)).toMatch(/prix d'achat ne peut pas être négatif/);
+    });
+});
+
+describe('supplierSchema', () => {
+    it('accepts a supplier with only a name', () => {
+        const result = supplierSchema.safeParse({ name: 'Import Moto', contactName: '', phone: '', email: '' });
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects a blank name', () => {
+        const result = supplierSchema.safeParse({ name: '   ' });
+        expect(result.success).toBe(false);
+        expect(firstZodError(result)).toMatch(/nom du fournisseur est requis/);
+    });
+
+    it('rejects an invalid email', () => {
+        const result = supplierSchema.safeParse({ name: 'Import Moto', email: 'not-an-email' });
+        expect(result.success).toBe(false);
+        expect(firstZodError(result)).toMatch(/email invalide/);
     });
 });
 

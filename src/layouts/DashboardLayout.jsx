@@ -76,6 +76,9 @@ export const DashboardLayout = () => {
         if (!isCashier) {
             items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
             if (type !== 'villa' && type !== 'restaurant') {
+                // Fournisseurs : réservé au propriétaire comme Sécurité, les
+                // prix d'achat négociés y sont visibles (marge par produit).
+                items.push({ path: '/dashboard/fournisseurs', label: 'Fournisseurs', icon: '🚚' });
                 items.push({ path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' });
             }
             items.push({ path: '/dashboard/parametres', label: 'Paramètres', icon: '⚙️' });

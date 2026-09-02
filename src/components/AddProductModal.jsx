@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { addProduct, productKeys } from '../services/productsService';
+import { useSuppliers } from '../hooks/useSuppliers';
 import { Modal } from './Modal';
 import { ImageUploadField } from './ImageUploadField';
 import { productSchema, firstZodError } from '../lib/validation';
@@ -9,10 +10,12 @@ import { productSchema, firstZodError } from '../lib/validation';
 export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) => {
     const { selectedBusiness } = useBusiness();
     const queryClient = useQueryClient();
+    const { data: suppliers = [] } = useSuppliers(selectedBusiness?.id);
 
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
     const [costPrice, setCostPrice] = useState('');
+    const [supplierId, setSupplierId] = useState('');
     const [quantity, setQuantity] = useState('');
     const [imageUrl, setImageUrl] = useState('');
 
@@ -39,6 +42,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                 type,
                 price: result.data.price,
                 costPrice: result.data.costPrice,
+                supplierId,
                 stockQuantity: result.data.quantity,
                 imageUrl,
             });
@@ -50,6 +54,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
             setName('');
             setPrice('');
             setCostPrice('');
+            setSupplierId('');
             setQuantity('');
             setImageUrl('');
             onClose();
@@ -125,6 +130,19 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                             className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
                             placeholder="3000"
                         />
+                    </div>
+                    <div className="col-span-2">
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Fournisseur (optionnel)</label>
+                        <select
+                            value={supplierId}
+                            onChange={(e) => setSupplierId(e.target.value)}
+                            className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                        >
+                            <option value="">Aucun</option>
+                            {suppliers.map((supplier) => (
+                                <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className="col-span-2">
                         <label className="block text-sm font-semibold text-primary mb-1.5">Quantité initiale</label>

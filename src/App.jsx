@@ -36,6 +36,7 @@ const Reservations = named(() => import('./pages/villas/Reservations'), 'Reserva
 const Menu = named(() => import('./pages/restaurant/Menu'), 'Menu');
 const Commandes = named(() => import('./pages/restaurant/Commandes'), 'Commandes');
 const Motos = named(() => import('./pages/retail/Motos'), 'Motos');
+const Fournisseurs = named(() => import('./pages/retail/Fournisseurs'), 'Fournisseurs');
 const Calendrier = named(() => import('./pages/villas/Calendrier'), 'Calendrier');
 const AffiliateDashboard = named(() => import('./pages/affiliate/AffiliateDashboard'), 'AffiliateDashboard');
 const Parametres = named(() => import('./pages/settings/Parametres'), 'Parametres');
@@ -151,6 +152,11 @@ function App() {
                   </RequireOwner>
                 } />
                 <Route path="motos" element={<Motos />} />
+                <Route path="fournisseurs" element={
+                  <RequireOwner>
+                    <Fournisseurs />
+                  </RequireOwner>
+                } />
                 <Route path="calendrier" element={<Calendrier />} />
                 <Route path="villas" element={<Villas />} />
                 <Route path="reservations" element={<Reservations />} />
