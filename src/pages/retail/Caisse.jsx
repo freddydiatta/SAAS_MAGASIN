@@ -36,6 +36,10 @@ export const Caisse = () => {
         [products, searchTerm]
     );
 
+    const isCheckoutDisabled = cart.length === 0
+        || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
+        || (paymentMethod === 'credit' && !customerName.trim());
+
     if (showInvoice && lastSaleDetails) {
         return (
             <InvoicePrint
@@ -207,8 +211,44 @@ export const Caisse = () => {
                             >
                                 📱 Mobile Money
                             </button>
+                            <button
+                                onClick={() => { setPaymentMethod('credit'); setAmountReceived(''); }}
+                                className={`flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all border-2 ${paymentMethod === 'credit' ? 'bg-purple-100 text-purple-600 border-purple-500' : 'bg-surface dark:bg-slate-800 text-secondary border-transparent hover:border-slate-300'}`}
+                            >
+                                🤝 Crédit
+                            </button>
                         </div>
                     </div>
+
+                    {paymentMethod === 'credit' && (
+                        <div className="mb-6 animate-fade-in-up space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                                    Nom du client <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={customerName}
+                                    onChange={(e) => setCustomerName(e.target.value)}
+                                    placeholder="Ex: Moussa Diop"
+                                    className="w-full bg-panel dark:bg-slate-800 border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm font-medium text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Téléphone (optionnel)</label>
+                                <input
+                                    type="text"
+                                    value={customerPhone}
+                                    onChange={(e) => setCustomerPhone(e.target.value)}
+                                    placeholder="Ex: 77 123 45 67"
+                                    className="w-full bg-panel dark:bg-slate-800 border border-slate-200 dark:border-border-theme rounded-xl px-4 py-3 text-sm font-medium text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+                                />
+                            </div>
+                            <p className="text-xs text-secondary">
+                                Cette vente sera enregistrée comme une dette de {cartTotal.toLocaleString('fr-FR')} FCFA à rembourser, visible dans "Dettes".
+                            </p>
+                        </div>
+                    )}
 
                     {paymentMethod === 'cash' && (
                         <div className="mb-6 animate-fade-in-up">
@@ -249,9 +289,9 @@ export const Caisse = () => {
                     <div className="flex gap-3">
                         <button
                             onClick={() => handleCheckout(false)}
-                            disabled={cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))}
+                            disabled={isCheckoutDisabled}
                             className={`flex-[3] py-4 rounded-xl font-bold text-lg transition-all flex justify-center items-center ${
-                                cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
+                                isCheckoutDisabled
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                     : 'bg-primary text-white hover:opacity-90 shadow-premium active:scale-95'
                             }`}
@@ -260,10 +300,10 @@ export const Caisse = () => {
                         </button>
                         <button
                             onClick={() => setIsFacturing(true)}
-                            disabled={cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))}
+                            disabled={isCheckoutDisabled}
                             title="Générer une facture"
                             className={`flex-[1] py-4 rounded-xl font-bold flex items-center justify-center transition-all ${
-                                cart.length === 0 || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
+                                isCheckoutDisabled
                                     ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                                     : 'bg-surface dark:bg-slate-800 text-primary border border-slate-200 dark:border-border-theme hover:border-accent hover:text-accent shadow-sm active:scale-95'
                             }`}

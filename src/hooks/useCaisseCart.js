@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { saveOfflineSale } from '../services/syncService';
 import { processSale } from '../services/salesService';
+import { addDebt } from '../services/debtsService';
 import { invoiceCustomerSchema, firstZodError } from '../lib/validation';
 
 // Tout le cycle panier -> encaissement -> facture de la caisse : état du
@@ -21,7 +22,7 @@ export function useCaisseCart(selectedBusiness) {
     const [lastSaleDetails, setLastSaleDetails] = useState(null);
     const [toastMessage, setToastMessage] = useState('');
     const [amountReceived, setAmountReceived] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' or 'mobile_money'
+    const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash', 'mobile_money' ou 'credit'
 
     const showToast = (message) => {
         setToastMessage(message);
@@ -70,6 +71,14 @@ export function useCaisseCart(selectedBusiness) {
 
     const handleCheckout = async (withInvoice = false) => {
         if (cart.length === 0) return;
+
+        // Une vente à crédit devient une dette : il faut savoir à qui elle
+        // est due, contrairement à une facture classique où le nom du
+        // client reste optionnel.
+        if (paymentMethod === 'credit' && !customerName.trim()) {
+            showToast('❌ Le nom du client est requis pour une vente à crédit.');
+            return;
+        }
 
         try {
             if (!navigator.onLine) {
@@ -134,10 +143,11 @@ export function useCaisseCart(selectedBusiness) {
             // transaction côté base de données, pour éviter tout état incohérent si
             // une étape échoue en cours de route, et pour empêcher la survente en cas
             // de ventes concurrentes (voir supabase/patches/2026-08-21_critical_fixes.sql).
+            const needsCustomerInfo = withInvoice || paymentMethod === 'credit';
             const { data: receiptData, error: receiptError } = await processSale({
                 businessId: selectedBusiness.id,
-                customerName: withInvoice ? customerName : null,
-                customerPhone: withInvoice ? customerPhone : null,
+                customerName: needsCustomerInfo ? customerName : null,
+                customerPhone: needsCustomerInfo ? customerPhone : null,
                 paymentMethod,
                 items: cart.map(item => ({ product_id: item.id, quantity: item.quantity }))
             });
@@ -145,6 +155,27 @@ export function useCaisseCart(selectedBusiness) {
             if (receiptError) throw receiptError;
 
             const receiptId = receiptData.id;
+
+            // La vente elle-même a réussi (stock déjà décrémenté) : si
+            // l'enregistrement de la dette échoue (réseau), on le signale
+            // sans faire croire que l'encaissement lui-même a échoué — et
+            // sans laisser le toast de succès générique l'écraser juste après.
+            let debtRegistrationFailed = false;
+            if (paymentMethod === 'credit') {
+                try {
+                    await addDebt({
+                        businessId: selectedBusiness.id,
+                        customerName,
+                        customerPhone,
+                        amount: receiptData.total_amount,
+                        note: 'Vente à crédit',
+                    });
+                    queryClient.invalidateQueries(['debts', selectedBusiness.id]);
+                } catch (debtError) {
+                    console.error("Erreur lors de l'enregistrement de la dette:", debtError.message);
+                    debtRegistrationFailed = true;
+                }
+            }
 
             // Optimistic update for immediate dashboard reflection
             const onlineNewSales = cart.map(item => ({
@@ -166,6 +197,9 @@ export function useCaisseCart(selectedBusiness) {
             queryClient.invalidateQueries(['sales']);
             queryClient.invalidateQueries(['receipts']);
 
+            // Note : basculer showInvoice remplace tout l'écran caisse par
+            // InvoicePrint, donc un toast n'y serait jamais visible — l'alerte
+            // de dette échouée ne s'affiche que dans le cas sans facture.
             if (withInvoice) {
                 setLastSaleDetails({
                     items: [...cart],
@@ -176,8 +210,10 @@ export function useCaisseCart(selectedBusiness) {
                     receiptId: receiptId
                 });
                 setShowInvoice(true);
+            } else if (debtRegistrationFailed) {
+                showToast("⚠️ Vente encaissée, mais la dette n'a pas pu être enregistrée.");
             } else {
-                showToast('✅ Vente encaissée avec succès !');
+                showToast(paymentMethod === 'credit' ? '✅ Vente à crédit enregistrée !' : '✅ Vente encaissée avec succès !');
             }
 
             resetAfterSale();
