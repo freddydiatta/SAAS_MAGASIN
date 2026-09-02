@@ -1,45 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { useVillaDashboardStats } from '../../hooks/useVillaDashboardStats';
 import { Home, Calendar, DollarSign, Users, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { StatusBadge } from '../StatusBadge';
 
 export const VillaDashboard = () => {
-    const { user } = useAuth();
     const { selectedBusiness } = useBusiness();
+    const navigate = useNavigate();
 
-    // Dummy data fetching - in real app you'd fetch from villas and bookings
-    const { data: villas = [], isLoading: loadingVillas } = useQuery({
-        queryKey: ['villas', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('villas')
-                .select('*')
-                .eq('business_id', selectedBusiness?.id);
-            
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!user && !!selectedBusiness
-    });
-
-    const { data: bookings = [], isLoading: loadingBookings } = useQuery({
-        queryKey: ['bookings', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('bookings')
-                .select('*, villas(name)')
-                .eq('business_id', selectedBusiness?.id)
-                .order('start_date', { ascending: true })
-                .limit(10);
-            
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!user && !!selectedBusiness
-    });
+    const {
+        villasCount,
+        activeBookingsCount,
+        monthlyRevenue,
+        upcomingBookings,
+        isLoading,
+        formatFCFA,
+    } = useVillaDashboardStats(selectedBusiness);
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up">
@@ -51,12 +28,14 @@ export const VillaDashboard = () => {
                     </p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="btn-primary px-5 py-2.5 text-sm">+ Nouvelle Réservation</button>
+                    <button onClick={() => navigate('/dashboard/reservations')} className="btn-primary px-5 py-2.5 text-sm">
+                        + Nouvelle Réservation
+                    </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
@@ -69,16 +48,17 @@ export const VillaDashboard = () => {
                         </div>
                         <div>
                             <p className="text-secondary text-sm font-medium">Villas Gérées</p>
-                            <h3 className="text-2xl font-bold text-primary">{loadingVillas ? "..." : villas.length}</h3>
+                            <h3 className="text-2xl font-bold text-primary">{isLoading ? "..." : villasCount}</h3>
                         </div>
                     </div>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors"
+                    onClick={() => navigate('/dashboard/reservations')}
+                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors cursor-pointer"
                 >
                     <div className="flex items-center gap-4 mb-4">
                         <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
@@ -86,12 +66,12 @@ export const VillaDashboard = () => {
                         </div>
                         <div>
                             <p className="text-secondary text-sm font-medium">Réservations Actives</p>
-                            <h3 className="text-2xl font-bold text-primary">{loadingBookings ? "..." : bookings.length}</h3>
+                            <h3 className="text-2xl font-bold text-primary">{isLoading ? "..." : activeBookingsCount}</h3>
                         </div>
                     </div>
                 </motion.div>
 
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
@@ -103,14 +83,16 @@ export const VillaDashboard = () => {
                         </div>
                         <div>
                             <p className="text-secondary text-sm font-medium">Revenus Mensuels</p>
-                            <h3 className="text-2xl font-bold text-primary">---</h3>
+                            <h3 className="text-2xl font-bold text-primary">
+                                {isLoading ? "..." : `${formatFCFA(monthlyRevenue)} F`}
+                            </h3>
                         </div>
                     </div>
                 </motion.div>
             </div>
 
             {/* List of upcoming bookings */}
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
@@ -120,9 +102,9 @@ export const VillaDashboard = () => {
                     <h2 className="text-lg font-bold text-primary">Prochaines Arrivées</h2>
                 </div>
                 <div className="p-0">
-                    {loadingBookings ? (
+                    {isLoading ? (
                         <div className="p-8 text-center text-secondary">Chargement...</div>
-                    ) : bookings.length === 0 ? (
+                    ) : upcomingBookings.length === 0 ? (
                         <div className="p-12 text-center flex flex-col items-center">
                             <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
                                 <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600" />
@@ -131,12 +113,13 @@ export const VillaDashboard = () => {
                         </div>
                     ) : (
                         <div className="divide-y divide-slate-100 dark:divide-border-theme">
-                            {bookings.map((booking, i) => (
-                                <motion.div 
+                            {upcomingBookings.map((booking, i) => (
+                                <motion.div
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ delay: 0.5 + (i * 0.1) }}
-                                    key={booking.id} 
+                                    key={booking.id}
+                                    onClick={() => navigate('/dashboard/reservations')}
                                     className="p-4 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors flex items-center justify-between group cursor-pointer"
                                 >
                                     <div className="flex items-center gap-4">
@@ -157,7 +140,7 @@ export const VillaDashboard = () => {
                                             </p>
                                             <StatusBadge
                                                 label={booking.status}
-                                                tone={booking.status === 'confirmed' ? 'emerald' : 'amber'}
+                                                tone={booking.status === 'confirmé' ? 'emerald' : 'amber'}
                                                 rounded="md"
                                                 uppercase
                                                 className="px-2 py-0.5 text-[10px]"
