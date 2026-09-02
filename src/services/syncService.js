@@ -1,6 +1,7 @@
 import { get, set } from 'idb-keyval';
 import toast from 'react-hot-toast';
 import { processSale } from './salesService';
+import { addDebt } from './debtsService';
 
 const OFFLINE_SALES_KEY = 'offline_sales';
 
@@ -87,6 +88,26 @@ export const syncOfflineSales = async (queryClient) => {
 
                 if (saleError) throw saleError;
                 syncedCount++;
+
+                // Une vente à crédit passée hors-ligne devient une dette dès
+                // que la synchro réussit — même logique que la caisse en
+                // ligne (useCaisseCart), juste décalée dans le temps. Un
+                // échec ici ne remet pas la vente en file (elle a bien été
+                // synchronisée) : juste un avertissement distinct.
+                if (receipt.payment_method === 'credit') {
+                    try {
+                        await addDebt({
+                            businessId: receipt.business_id,
+                            customerName: receipt.customer_name,
+                            customerPhone: receipt.customer_phone,
+                            amount: receipt.total_amount,
+                            note: 'Vente à crédit',
+                        });
+                    } catch (debtError) {
+                        console.error("Erreur lors de l'enregistrement de la dette (vente hors-ligne synchronisée):", debtError.message);
+                        toast.error(`⚠️ Vente à ${receipt.customer_name} synchronisée, mais la dette n'a pas pu être enregistrée.`, { duration: 10000 });
+                    }
+                }
             } catch (e) {
                 console.error("Erreur lors de la synchronisation de la vente:", e);
                 failedSales.push(receipt);
@@ -111,6 +132,7 @@ export const syncOfflineSales = async (queryClient) => {
             queryClient.invalidateQueries(['receipts']);
             queryClient.invalidateQueries(['products']);
             queryClient.invalidateQueries(['sales']);
+            queryClient.invalidateQueries(['debts']);
         }
 
         if (syncedCount > 0) {

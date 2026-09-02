@@ -11,10 +11,18 @@ vi.mock('idb-keyval', () => ({
     set: setMock,
 }));
 
-const { rpcMock } = vi.hoisted(() => ({ rpcMock: vi.fn() }));
+function createDebtsInsertBuilder(result) {
+    const builder = {
+        insert: vi.fn(() => builder),
+        then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+    };
+    return builder;
+}
+
+const { rpcMock, fromMock } = vi.hoisted(() => ({ rpcMock: vi.fn(), fromMock: vi.fn() }));
 
 vi.mock('../lib/supabase', () => ({
-    supabase: { rpc: rpcMock },
+    supabase: { rpc: rpcMock, from: fromMock },
 }));
 
 const { toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
@@ -82,6 +90,7 @@ describe('syncOfflineSales', () => {
         getMock.mockReset();
         setMock.mockReset();
         rpcMock.mockReset();
+        fromMock.mockReset();
         toastErrorMock.mockReset();
         toastSuccessMock.mockReset();
         onlineSpy.mockReturnValue(true);
@@ -135,6 +144,55 @@ describe('syncOfflineSales', () => {
         expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['receipts']);
         expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['products']);
         expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['sales']);
+        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['debts']);
+        expect(fromMock).not.toHaveBeenCalled();
+    });
+
+    it('records a debt once a queued credit sale is synced', async () => {
+        const receipt = {
+            id: 'temp-1',
+            business_id: 'biz-1',
+            customer_name: 'Moussa Diop',
+            customer_phone: '77000',
+            payment_method: 'credit',
+            total_amount: 5000,
+            created_at: '2026-09-02T10:00:00.000Z',
+            sales: [{ product_id: 'p1', quantity: 1 }],
+        };
+        getMock.mockResolvedValueOnce([receipt]);
+        rpcMock.mockResolvedValueOnce({ data: { id: 'real-receipt-1' }, error: null });
+        const debtsBuilder = createDebtsInsertBuilder({ data: null, error: null });
+        fromMock.mockImplementation(() => debtsBuilder);
+
+        const queryClient = { invalidateQueries: vi.fn() };
+        await syncOfflineSales(queryClient);
+
+        expect(fromMock).toHaveBeenCalledWith('debts');
+        expect(debtsBuilder.insert).toHaveBeenCalledWith([expect.objectContaining({
+            business_id: 'biz-1', customer_name: 'Moussa Diop', amount: 5000,
+        })]);
+        expect(setMock).toHaveBeenCalledWith('offline_sales', []);
+    });
+
+    it('warns but still counts the sale as synced when debt registration fails for a credit sale', async () => {
+        const receipt = {
+            id: 'temp-1', business_id: 'biz-1', customer_name: 'Moussa Diop',
+            payment_method: 'credit', total_amount: 5000,
+            sales: [{ product_id: 'p1', quantity: 1 }],
+        };
+        getMock.mockResolvedValueOnce([receipt]);
+        rpcMock.mockResolvedValueOnce({ data: { id: 'real-receipt-1' }, error: null });
+        const debtsBuilder = createDebtsInsertBuilder({ data: null, error: new Error('network down') });
+        fromMock.mockImplementation(() => debtsBuilder);
+
+        await syncOfflineSales();
+
+        expect(toastErrorMock).toHaveBeenCalledWith(
+            expect.stringMatching(/Moussa Diop synchronisée, mais la dette n'a pas pu être enregistrée/),
+            expect.objectContaining({ duration: 10000 })
+        );
+        // La vente reste bien synchronisée malgré l'échec de la dette.
+        expect(setMock).toHaveBeenCalledWith('offline_sales', []);
     });
 
     it('invalidates products/sales even when nothing succeeded, to correct optimistic stock from the failed queue', async () => {
