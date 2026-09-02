@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 export const fetchPurchaseOrders = async (businessId) => {
     const { data, error } = await supabase
         .from('purchase_orders')
-        .select('*, supplier:suppliers(id, name), items:purchase_order_items(id, product_id, product_name, quantity, unit_cost)')
+        .select('*, supplier:suppliers(id, name, contact_name, phone, email), items:purchase_order_items(id, product_id, product_name, quantity, unit_cost)')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
     if (error) throw error;

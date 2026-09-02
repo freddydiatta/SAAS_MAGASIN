@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { fetchSuppliers, addSupplier, deleteSupplier } from '../services/suppliersService';
 import { fetchPurchaseOrders, createPurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder } from '../services/purchaseOrdersService';
-import { productKeys } from '../services/productsService';
+import { addProduct, productKeys } from '../services/productsService';
 import { supplierSchema, firstZodError } from '../lib/validation';
 import { supplierKeys } from './useSuppliers';
 
@@ -78,6 +78,8 @@ export function useFournisseurs(selectedBusiness) {
     });
 
     const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
+    const [isCreatingNewProducts, setIsCreatingNewProducts] = useState(false);
+    const [orderToPrint, setOrderToPrint] = useState(null);
 
     const createOrderMutation = useMutation({
         mutationFn: (payload) => createPurchaseOrder({ businessId, ...payload }),
@@ -114,17 +116,52 @@ export function useFournisseurs(selectedBusiness) {
     const openCreateOrderForm = () => setIsCreateOrderOpen(true);
     const closeCreateOrderForm = () => setIsCreateOrderOpen(false);
 
-    const handleCreateOrder = ({ supplierId, items }) => {
+    const handleCreateOrder = async ({ supplierId, items }) => {
         if (items.length === 0) {
             toast.error('Ajoutez au moins un article au bon de commande.');
             return;
         }
-        const invalidItem = items.find((item) => !item.productId || !(item.quantity > 0) || !(item.unitCost >= 0));
+        const invalidItem = items.find((item) => {
+            if (!(item.quantity > 0) || !(item.unitCost >= 0)) return true;
+            if (item.isNew) return !item.newProduct?.name || !(item.newProduct.price >= 0);
+            return !item.productId;
+        });
         if (invalidItem) {
             toast.error('Vérifiez les articles : produit, quantité et prix doivent être valides.');
             return;
         }
-        createOrderMutation.mutate({ supplierId, items });
+
+        // Un article "+ Créer un nouveau produit" doit d'abord exister comme
+        // un vrai produit (stock à 0 : le stock n'est ajouté qu'à la
+        // réception du bon, comme pour tout autre article) avant de pouvoir
+        // être rattaché à la ligne de commande.
+        setIsCreatingNewProducts(true);
+        let resolvedItems;
+        try {
+            resolvedItems = await Promise.all(items.map(async (item) => {
+                if (!item.isNew) return item;
+                const created = await addProduct({
+                    businessId,
+                    name: item.newProduct.name,
+                    type: 'standard',
+                    price: item.newProduct.price,
+                    costPrice: item.unitCost,
+                    stockQuantity: 0,
+                });
+                return { productId: created.id, quantity: item.quantity, unitCost: item.unitCost };
+            }));
+        } catch (error) {
+            toast.error(error.message || "Erreur lors de la création d'un nouveau produit.");
+            setIsCreatingNewProducts(false);
+            return;
+        }
+        setIsCreatingNewProducts(false);
+
+        if (items.some((item) => item.isNew)) {
+            queryClient.invalidateQueries({ queryKey: productKeys.all(businessId) });
+        }
+
+        createOrderMutation.mutate({ supplierId, items: resolvedItems });
     };
 
     const handleReceiveOrder = (order) => {
@@ -137,6 +174,19 @@ export function useFournisseurs(selectedBusiness) {
         if (window.confirm('Annuler ce bon de commande ?')) {
             cancelOrderMutation.mutate(order.id);
         }
+    };
+
+    // Document imprimable/partageable du bon de commande (voir
+    // PurchaseOrderPrint, même technique que la facture de vente).
+    const handlePrintOrder = (order) => {
+        setOrderToPrint({
+            orderId: order.id,
+            date: order.created_at,
+            status: order.status,
+            supplier: order.supplier,
+            items: (order.items || []).map((item) => ({ name: item.product_name, quantity: item.quantity, price: item.unit_cost })),
+            total: order.total_amount,
+        });
     };
 
     return {
@@ -159,6 +209,10 @@ export function useFournisseurs(selectedBusiness) {
         handleCreateOrder,
         handleReceiveOrder,
         handleCancelOrder,
-        isSavingOrder: createOrderMutation.isPending,
+        isSavingOrder: isCreatingNewProducts || createOrderMutation.isPending,
+
+        orderToPrint,
+        setOrderToPrint,
+        handlePrintOrder,
     };
 }

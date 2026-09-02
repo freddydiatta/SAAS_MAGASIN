@@ -4,7 +4,8 @@ import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
-import { Plus, Trash2, Truck, PackageCheck, XCircle } from 'lucide-react';
+import { PurchaseOrderPrint } from '../../components/PurchaseOrderPrint';
+import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer } from 'lucide-react';
 
 const ORDER_STATUS = {
     pending: { label: 'En attente', tone: 'amber' },
@@ -21,6 +22,7 @@ export const Fournisseurs = () => {
         purchaseOrders, isLoadingOrders,
         isCreateOrderOpen, openCreateOrderForm, closeCreateOrderForm,
         handleCreateOrder, handleReceiveOrder, handleCancelOrder, isSavingOrder,
+        orderToPrint, setOrderToPrint, handlePrintOrder,
     } = useFournisseurs(selectedBusiness);
 
     const supplierColumns = [
@@ -113,24 +115,35 @@ export const Fournisseurs = () => {
             header: '',
             headerClassName: 'py-4 px-6',
             cellClassName: 'py-4 px-6 text-right',
-            render: (order) => order.status === 'pending' ? (
+            render: (order) => (
                 <div className="flex justify-end gap-2">
                     <button
-                        onClick={() => handleReceiveOrder(order)}
-                        title="Marquer comme reçu (met à jour le stock)"
-                        className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                        onClick={() => handlePrintOrder(order)}
+                        title="Voir / imprimer le bon de commande"
+                        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
                     >
-                        <PackageCheck className="w-4 h-4" />
+                        <Printer className="w-4 h-4" />
                     </button>
-                    <button
-                        onClick={() => handleCancelOrder(order)}
-                        title="Annuler"
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                    >
-                        <XCircle className="w-4 h-4" />
-                    </button>
+                    {order.status === 'pending' && (
+                        <>
+                            <button
+                                onClick={() => handleReceiveOrder(order)}
+                                title="Marquer comme reçu (met à jour le stock)"
+                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                            >
+                                <PackageCheck className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => handleCancelOrder(order)}
+                                title="Annuler"
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                            >
+                                <XCircle className="w-4 h-4" />
+                            </button>
+                        </>
+                    )}
                 </div>
-            ) : null,
+            ),
         },
     ];
 
@@ -245,6 +258,14 @@ export const Fournisseurs = () => {
                 isSaving={isSavingOrder}
                 suppliers={suppliers}
             />
+
+            {orderToPrint && (
+                <PurchaseOrderPrint
+                    orderDetails={orderToPrint}
+                    business={selectedBusiness}
+                    onClose={() => setOrderToPrint(null)}
+                />
+            )}
         </div>
     );
 };

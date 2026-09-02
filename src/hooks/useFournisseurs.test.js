@@ -32,8 +32,11 @@ vi.mock('../services/purchaseOrdersService', () => ({
 // productKeys est une simple fabrique de clé de requête, sans effet de
 // bord — mais productsService.js importe le vrai client Supabase, qu'on ne
 // veut pas charger ici.
+const { addProductMock } = vi.hoisted(() => ({ addProductMock: vi.fn() }));
+
 vi.mock('../services/productsService', () => ({
     productKeys: { all: (businessId) => ['products', businessId] },
+    addProduct: addProductMock,
 }));
 
 const { toastSuccessMock, toastErrorMock } = vi.hoisted(() => ({
@@ -56,6 +59,7 @@ describe('useFournisseurs', () => {
         createPurchaseOrderMock.mockReset();
         receivePurchaseOrderMock.mockReset();
         cancelPurchaseOrderMock.mockReset();
+        addProductMock.mockReset();
         toastSuccessMock.mockReset();
         toastErrorMock.mockReset();
         fetchSuppliersMock.mockResolvedValue([{ id: 's1', name: 'Import Moto' }]);
@@ -107,7 +111,11 @@ describe('useFournisseurs', () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
-        act(() => result.current.handleCreateOrder({ supplierId: '', items: [] }));
+        // handleCreateOrder est async depuis l'ajout de la création de
+        // produit à la volée : ne pas retourner sa promesse à act() (sinon
+        // act() passe en mode asynchrone sans être await, ce qui fait
+        // déraper le rendu du test suivant).
+        act(() => { result.current.handleCreateOrder({ supplierId: '', items: [] }); });
 
         expect(toastErrorMock).toHaveBeenCalled();
         expect(createPurchaseOrderMock).not.toHaveBeenCalled();
@@ -117,7 +125,7 @@ describe('useFournisseurs', () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
-        act(() => result.current.handleCreateOrder({ supplierId: '', items: [{ productId: '', quantity: 1, unitCost: 100 }] }));
+        act(() => { result.current.handleCreateOrder({ supplierId: '', items: [{ productId: '', quantity: 1, unitCost: 100 }] }); });
 
         expect(toastErrorMock).toHaveBeenCalled();
         expect(createPurchaseOrderMock).not.toHaveBeenCalled();
@@ -137,6 +145,65 @@ describe('useFournisseurs', () => {
             businessId: 'biz-1', supplierId: 's1', items: [{ productId: 'p1', quantity: 2, unitCost: 500 }],
         });
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+    });
+
+    it('rejects an inline new-product item with no name', async () => {
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => {
+            result.current.handleCreateOrder({
+                supplierId: '',
+                items: [{ isNew: true, newProduct: { name: '', price: 5000 }, quantity: 2, unitCost: 3000 }],
+            });
+        });
+
+        expect(toastErrorMock).toHaveBeenCalled();
+        expect(addProductMock).not.toHaveBeenCalled();
+        expect(createPurchaseOrderMock).not.toHaveBeenCalled();
+    });
+
+    it('creates the new product first, then the order with its id', async () => {
+        addProductMock.mockResolvedValueOnce({ id: 'p-new' });
+        createPurchaseOrderMock.mockResolvedValueOnce({ id: 'po2' });
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        await act(async () => result.current.handleCreateOrder({
+            supplierId: 's1',
+            items: [{ isNew: true, newProduct: { name: 'Plaquette de frein', price: 5000 }, quantity: 2, unitCost: 3000 }],
+        }));
+
+        expect(addProductMock).toHaveBeenCalledWith(expect.objectContaining({
+            businessId: 'biz-1', name: 'Plaquette de frein', price: 5000, costPrice: 3000, stockQuantity: 0,
+        }));
+        expect(createPurchaseOrderMock).toHaveBeenCalledWith({
+            businessId: 'biz-1', supplierId: 's1', items: [{ productId: 'p-new', quantity: 2, unitCost: 3000 }],
+        });
+        await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+    });
+
+    it('shapes an order for the print component', async () => {
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.handlePrintOrder({
+            id: 'po1',
+            created_at: '2026-09-02T10:00:00.000Z',
+            status: 'received',
+            supplier: { name: 'Import Moto' },
+            total_amount: 6000,
+            items: [{ product_name: 'Plaquette de frein', quantity: 2, unit_cost: 3000 }],
+        }));
+
+        expect(result.current.orderToPrint).toEqual({
+            orderId: 'po1',
+            date: '2026-09-02T10:00:00.000Z',
+            status: 'received',
+            supplier: { name: 'Import Moto' },
+            total: 6000,
+            items: [{ name: 'Plaquette de frein', quantity: 2, price: 3000 }],
+        });
     });
 
     it('receives a purchase order after confirmation', async () => {

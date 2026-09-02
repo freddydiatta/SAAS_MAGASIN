@@ -15,8 +15,11 @@ export const fetchProducts = async (businessId) => {
     return data;
 };
 
+// Retourne la ligne créée (id inclus) : nécessaire quand un bon de commande
+// crée un nouveau produit à la volée (voir useFournisseurs.handleCreateOrder)
+// pour connaître l'id à rattacher à la ligne de commande.
 export const addProduct = async ({ businessId, name, type, price, costPrice, supplierId, stockQuantity, imageUrl }) => {
-    const { error } = await supabase.from('products').insert([{
+    const { data, error } = await supabase.from('products').insert([{
         business_id: businessId,
         name,
         type,
@@ -25,8 +28,9 @@ export const addProduct = async ({ businessId, name, type, price, costPrice, sup
         supplier_id: supplierId || null,
         stock_quantity: stockQuantity,
         image_url: imageUrl || null,
-    }]);
+    }]).select().single();
     if (error) throw error;
+    return data;
 };
 
 export const updateProduct = async ({ id, name, type, price, costPrice, supplierId, stockQuantity, imageUrl, previousImageUrl }) => {

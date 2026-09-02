@@ -6,6 +6,8 @@ function createQueryBuilder(result) {
         insert: vi.fn(() => builder),
         update: vi.fn(() => builder),
         delete: vi.fn(() => builder),
+        select: vi.fn(() => builder),
+        single: vi.fn(() => builder),
         eq: vi.fn(() => builder),
         then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
     };
@@ -33,7 +35,7 @@ describe('productsService', () => {
 
     describe('addProduct', () => {
         it('stores image_url as null when no photo was attached', async () => {
-            const builder = createQueryBuilder({ data: null, error: null });
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
             fromMock.mockImplementation(() => builder);
 
             await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: '' });
@@ -42,7 +44,7 @@ describe('productsService', () => {
         });
 
         it('stores cost_price as null when none was provided', async () => {
-            const builder = createQueryBuilder({ data: null, error: null });
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
             fromMock.mockImplementation(() => builder);
 
             await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: '' });
@@ -51,7 +53,7 @@ describe('productsService', () => {
         });
 
         it('stores the provided cost_price', async () => {
-            const builder = createQueryBuilder({ data: null, error: null });
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
             fromMock.mockImplementation(() => builder);
 
             await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, costPrice: 600, stockQuantity: 5, imageUrl: '' });
@@ -60,7 +62,7 @@ describe('productsService', () => {
         });
 
         it('stores supplier_id as null when no supplier was selected', async () => {
-            const builder = createQueryBuilder({ data: null, error: null });
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
             fromMock.mockImplementation(() => builder);
 
             await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: '' });
@@ -69,12 +71,21 @@ describe('productsService', () => {
         });
 
         it('stores the uploaded image URL', async () => {
-            const builder = createQueryBuilder({ data: null, error: null });
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
             fromMock.mockImplementation(() => builder);
 
             await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: 'https://x/casque.jpg' });
 
             expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ image_url: 'https://x/casque.jpg' })]);
+        });
+
+        it('returns the created row (needed to attach it to a purchase order line)', async () => {
+            const builder = createQueryBuilder({ data: { id: 'p1', name: 'Casque' }, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            const created = await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 0, imageUrl: '' });
+
+            expect(created).toEqual({ id: 'p1', name: 'Casque' });
         });
     });
 
