@@ -34,6 +34,9 @@ export const DashboardLayout = () => {
         // dépenses (transport, divers...) partagent la même logique quel
         // que soit le vertical, pas de raison de la dupliquer par métier.
         const depensesItem = { path: '/dashboard/depenses', label: 'Dépenses', icon: '💸' };
+        // Juste après les dépenses partout, même raison : l'argent prêté à
+        // un client ne dépend pas du métier.
+        const dettesItem = { path: '/dashboard/dettes', label: 'Dettes', icon: '🤝' };
         let items;
 
         if (type === 'villa') {
@@ -43,6 +46,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
                 depensesItem,
+                dettesItem,
             ];
         } else if (type === 'restaurant') {
             items = [
@@ -51,6 +55,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
                 depensesItem,
+                dettesItem,
             ];
         } else {
             // Default (Retail: pieces_moto, quincaillerie, boutique)
@@ -64,6 +69,7 @@ export const DashboardLayout = () => {
                 items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
             }
             items.push(depensesItem);
+            items.push(dettesItem);
         }
 
         // Réservé au propriétaire : programme d'affiliation, logs de

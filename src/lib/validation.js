@@ -122,6 +122,18 @@ export const expenseSchema = z.object({
     path: ['label'],
 });
 
+export const debtSchema = z.object({
+    customerName: z.string().trim().min(1, 'Le nom du client est requis.').max(200, 'Le nom est trop long.'),
+    customerPhone: z.string().trim()
+        .regex(/^[0-9+\s()-]*$/, 'Numéro de téléphone invalide.')
+        .max(30, 'Le numéro est trop long.')
+        .optional()
+        .or(z.literal('')),
+    amount: z.coerce.number({ invalid_type_error: 'Le montant doit être un nombre.' })
+        .positive('Le montant doit être supérieur à 0.'),
+    note: z.string().trim().max(200, 'La description est trop longue.').optional().or(z.literal('')),
+});
+
 // Extrait le premier message d'erreur d'un résultat zod.safeParse échoué,
 // pour l'afficher dans la bannière d'erreur déjà présente sur ces formulaires.
 export const firstZodError = (result) => result.error.issues[0]?.message || 'Formulaire invalide.';

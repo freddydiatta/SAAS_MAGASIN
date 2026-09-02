@@ -41,6 +41,7 @@ const Calendrier = named(() => import('./pages/villas/Calendrier'), 'Calendrier'
 const AffiliateDashboard = named(() => import('./pages/affiliate/AffiliateDashboard'), 'AffiliateDashboard');
 const Parametres = named(() => import('./pages/settings/Parametres'), 'Parametres');
 const Depenses = named(() => import('./pages/Depenses'), 'Depenses');
+const Dettes = named(() => import('./pages/Dettes'), 'Dettes');
 
 function RouteFallback() {
   return (
@@ -168,6 +169,7 @@ function App() {
                   </RequireOwner>
                 } />
                 <Route path="depenses" element={<Depenses />} />
+                <Route path="dettes" element={<Dettes />} />
                 <Route path="parametres" element={
                   <RequireOwner>
                     <Parametres />

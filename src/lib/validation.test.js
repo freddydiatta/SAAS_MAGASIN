@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { businessSchema, restaurantOrderSchema, villaSchema, productSchema, supplierSchema, firstZodError } from './validation';
+import { businessSchema, restaurantOrderSchema, villaSchema, productSchema, supplierSchema, debtSchema, firstZodError } from './validation';
 
 describe('businessSchema', () => {
     it('accepts a valid business with optional fields left blank', () => {
@@ -82,6 +82,25 @@ describe('supplierSchema', () => {
         const result = supplierSchema.safeParse({ name: 'Import Moto', email: 'not-an-email' });
         expect(result.success).toBe(false);
         expect(firstZodError(result)).toMatch(/email invalide/);
+    });
+});
+
+describe('debtSchema', () => {
+    it('accepts a debt with only a name and an amount', () => {
+        const result = debtSchema.safeParse({ customerName: 'Moussa Diop', customerPhone: '', amount: 5000, note: '' });
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects a blank customer name', () => {
+        const result = debtSchema.safeParse({ customerName: '   ', amount: 1000 });
+        expect(result.success).toBe(false);
+        expect(firstZodError(result)).toMatch(/nom du client est requis/);
+    });
+
+    it('rejects a zero or negative amount', () => {
+        const result = debtSchema.safeParse({ customerName: 'Moussa Diop', amount: 0 });
+        expect(result.success).toBe(false);
+        expect(firstZodError(result)).toMatch(/montant doit être supérieur à 0/);
     });
 });
 
