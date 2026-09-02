@@ -15,22 +15,23 @@ export const fetchProducts = async (businessId) => {
     return data;
 };
 
-export const addProduct = async ({ businessId, name, type, price, stockQuantity, imageUrl }) => {
+export const addProduct = async ({ businessId, name, type, price, costPrice, stockQuantity, imageUrl }) => {
     const { error } = await supabase.from('products').insert([{
         business_id: businessId,
         name,
         type,
         price,
+        cost_price: costPrice ?? null,
         stock_quantity: stockQuantity,
         image_url: imageUrl || null,
     }]);
     if (error) throw error;
 };
 
-export const updateProduct = async ({ id, name, type, price, stockQuantity, imageUrl, previousImageUrl }) => {
+export const updateProduct = async ({ id, name, type, price, costPrice, stockQuantity, imageUrl, previousImageUrl }) => {
     const { error } = await supabase
         .from('products')
-        .update({ name, type, price, stock_quantity: stockQuantity, image_url: imageUrl || null })
+        .update({ name, type, price, cost_price: costPrice ?? null, stock_quantity: stockQuantity, image_url: imageUrl || null })
         .eq('id', id);
     if (error) throw error;
 

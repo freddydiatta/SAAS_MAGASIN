@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { businessSchema, restaurantOrderSchema, villaSchema, firstZodError } from './validation';
+import { businessSchema, restaurantOrderSchema, villaSchema, productSchema, firstZodError } from './validation';
 
 describe('businessSchema', () => {
     it('accepts a valid business with optional fields left blank', () => {
@@ -43,6 +43,26 @@ describe('villaSchema', () => {
         const result = villaSchema.safeParse({ name: 'Villa Saly', address: '', price_per_night: 100000, image_url: '' });
         expect(result.success).toBe(true);
         expect(result.data.image_url).toBe('');
+    });
+});
+
+describe('productSchema', () => {
+    it('accepts a product with no cost price (leaves it undefined)', () => {
+        const result = productSchema.safeParse({ name: 'Casque', price: 5000, quantity: 10, costPrice: '' });
+        expect(result.success).toBe(true);
+        expect(result.data.costPrice).toBeUndefined();
+    });
+
+    it('coerces a valid cost price to a number', () => {
+        const result = productSchema.safeParse({ name: 'Casque', price: 5000, quantity: 10, costPrice: '3000' });
+        expect(result.success).toBe(true);
+        expect(result.data.costPrice).toBe(3000);
+    });
+
+    it('rejects a negative cost price', () => {
+        const result = productSchema.safeParse({ name: 'Casque', price: 5000, quantity: 10, costPrice: -100 });
+        expect(result.success).toBe(false);
+        expect(firstZodError(result)).toMatch(/prix d'achat ne peut pas être négatif/);
     });
 });
 

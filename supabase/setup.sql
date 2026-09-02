@@ -178,6 +178,9 @@ CREATE TABLE public.products (
     name TEXT NOT NULL,
     type TEXT,
     price DECIMAL(10, 2) CHECK (price >= 0),
+    -- Optionnel : permet d'afficher la marge (price - cost_price) dans
+    -- Stock.jsx sans obliger à le renseigner pour vendre un produit.
+    cost_price DECIMAL(10, 2) CHECK (cost_price >= 0),
     stock_quantity INTEGER DEFAULT 0 CHECK (stock_quantity >= 0),
     image_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

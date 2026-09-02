@@ -122,6 +122,23 @@ export const Motos = () => {
             ),
         },
         {
+            key: 'margin',
+            header: 'Marge',
+            headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-right',
+            cellClassName: 'p-4 text-right',
+            render: (moto) => {
+                if (moto.cost_price == null) {
+                    return <span className="text-slate-400 text-sm">—</span>;
+                }
+                const margin = moto.price - moto.cost_price;
+                return (
+                    <span className={`text-sm font-semibold ${margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        {margin.toLocaleString('fr-FR')} FCFA
+                    </span>
+                );
+            },
+        },
+        {
             key: 'status',
             header: 'Statut',
             headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center',

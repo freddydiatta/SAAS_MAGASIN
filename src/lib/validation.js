@@ -33,6 +33,14 @@ export const productSchema = z.object({
     quantity: z.coerce.number({ invalid_type_error: 'La quantité doit être un nombre.' })
         .int('La quantité doit être un nombre entier.')
         .nonnegative('La quantité ne peut pas être négative.'),
+    // Optionnel : champ vide -> undefined plutôt que NaN, pour ne pas
+    // obliger à renseigner un prix d'achat pour ajouter un produit.
+    costPrice: z.preprocess(
+        (val) => (val === '' || val === null || val === undefined ? undefined : val),
+        z.coerce.number({ invalid_type_error: "Le prix d'achat doit être un nombre." })
+            .nonnegative("Le prix d'achat ne peut pas être négatif.")
+            .optional()
+    ),
 });
 
 export const villaSchema = z.object({

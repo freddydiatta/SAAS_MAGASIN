@@ -12,6 +12,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
 
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
+    const [costPrice, setCostPrice] = useState('');
     const [quantity, setQuantity] = useState('');
     const [imageUrl, setImageUrl] = useState('');
 
@@ -24,7 +25,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
         e.preventDefault();
         setError('');
 
-        const result = productSchema.safeParse({ name, price, quantity });
+        const result = productSchema.safeParse({ name, price, quantity, costPrice });
         if (!result.success) {
             setError(firstZodError(result));
             return;
@@ -37,6 +38,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                 name: result.data.name,
                 type,
                 price: result.data.price,
+                costPrice: result.data.costPrice,
                 stockQuantity: result.data.quantity,
                 imageUrl,
             });
@@ -47,6 +49,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
             // Fermer et reset
             setName('');
             setPrice('');
+            setCostPrice('');
             setQuantity('');
             setImageUrl('');
             onClose();
@@ -99,7 +102,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-semibold text-primary mb-1.5">Prix (FCFA)</label>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Prix de vente (FCFA)</label>
                         <input
                             type="number"
                             required
@@ -112,6 +115,18 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                         />
                     </div>
                     <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Prix d'achat (optionnel)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={costPrice}
+                            onChange={(e) => setCostPrice(e.target.value)}
+                            className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                            placeholder="3000"
+                        />
+                    </div>
+                    <div className="col-span-2">
                         <label className="block text-sm font-semibold text-primary mb-1.5">Quantité initiale</label>
                         <input
                             type="number"

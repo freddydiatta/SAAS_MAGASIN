@@ -41,6 +41,24 @@ describe('productsService', () => {
             expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ image_url: null })]);
         });
 
+        it('stores cost_price as null when none was provided', async () => {
+            const builder = createQueryBuilder({ data: null, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: '' });
+
+            expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ cost_price: null })]);
+        });
+
+        it('stores the provided cost_price', async () => {
+            const builder = createQueryBuilder({ data: null, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, costPrice: 600, stockQuantity: 5, imageUrl: '' });
+
+            expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ cost_price: 600 })]);
+        });
+
         it('stores the uploaded image URL', async () => {
             const builder = createQueryBuilder({ data: null, error: null });
             fromMock.mockImplementation(() => builder);
@@ -52,6 +70,18 @@ describe('productsService', () => {
     });
 
     describe('updateProduct', () => {
+        it('stores the provided cost_price', async () => {
+            const builder = createQueryBuilder({ data: null, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await updateProduct({
+                id: 'p1', name: 'Casque', type: 'moto', price: 1000, costPrice: 600, stockQuantity: 5,
+                imageUrl: 'https://x/casque.jpg', previousImageUrl: 'https://x/casque.jpg',
+            });
+
+            expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ cost_price: 600 }));
+        });
+
         it('cleans up the previous photo (best-effort) when it is replaced by a new one', async () => {
             const builder = createQueryBuilder({ data: null, error: null });
             fromMock.mockImplementation(() => builder);
