@@ -19,6 +19,18 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // injectManifest (au lieu de generateSW, utilisé jusqu'ici) : requis
+      // pour pouvoir écouter les événements push/notificationclick dans
+      // notre propre service worker (src/sw.js) — generateSW ne génère
+      // qu'un service worker de cache, sans point d'extension pour du code
+      // personnalisé. Le comportement de cache (précache + photos
+      // produits) est repris à l'identique dans src/sw.js.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      injectManifest: {
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
+      },
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
@@ -43,27 +55,8 @@ export default defineConfig({
         ]
       },
       devOptions: {
-        enabled: true
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-        // Photos produits/menu/villas (bucket Supabase Storage product-images) :
-        // sans cette règle, le service worker ne touche que les fichiers de
-        // build précachés — une photo déjà vue disparaîtrait dès qu'on repasse
-        // hors-ligne. CacheFirst car ce sont des fichiers immuables (nouvelle
-        // photo = nouveau chemin, jamais réécrits sur place).
-        runtimeCaching: [
-          {
-            urlPattern: ({ url }) => url.pathname.includes('/storage/v1/object/public/product-images/'),
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'product-images',
-              expiration: { maxEntries: 300, maxAgeSeconds: 60 * 24 * 60 * 60 },
-              cacheableResponse: { statuses: [0, 200] }
-            }
-          }
-        ]
+        enabled: true,
+        type: 'module'
       }
     })
   ],
