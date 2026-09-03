@@ -26,6 +26,12 @@ vi.mock('../services/purchaseOrdersService', () => ({
     fetchPurchaseOrders: fetchPurchaseOrdersMock,
 }));
 
+const { useProductsMock } = vi.hoisted(() => ({ useProductsMock: vi.fn() }));
+
+vi.mock('./useProducts', () => ({
+    useProducts: useProductsMock,
+}));
+
 const BUSINESS = { id: 'biz-1' };
 
 const now = new Date();
@@ -55,10 +61,12 @@ describe('useFinances', () => {
         fetchExpensesMock.mockReset();
         fetchDebtsMock.mockReset();
         fetchPurchaseOrdersMock.mockReset();
+        useProductsMock.mockReset();
         fetchAllSalesMock.mockResolvedValue(SALES);
         fetchExpensesMock.mockResolvedValue(EXPENSES);
         fetchDebtsMock.mockResolvedValue(DEBTS);
         fetchPurchaseOrdersMock.mockResolvedValue([]);
+        useProductsMock.mockReturnValue({ data: [], isLoading: false });
     });
 
     it('computes total revenue as collected sales plus repaid debts, excluding credit sales and unpaid debts', async () => {
@@ -118,5 +126,33 @@ describe('useFinances', () => {
         expect(result.current.totalExpenses).toBe(3100);
         expect(result.current.expensesThisMonth).toBe(700 + 2000);
         expect(result.current.netProfit).toBe(7500 - 3100);
+    });
+
+    it('computes the potential profit of the current stock, excluding products with no cost price', async () => {
+        useProductsMock.mockReturnValue({
+            data: [
+                { id: 'p1', name: 'Casque Moto', price: 5000, cost_price: 3000, stock_quantity: 10 },
+                { id: 'p2', name: 'Pneu', price: 8000, cost_price: null, stock_quantity: 5 },
+            ],
+            isLoading: false,
+        });
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // sale value: 5000*10 (Casque) + 8000*5 (Pneu, no cost price) = 90000
+        expect(result.current.stockSaleValue).toBe(90000);
+        // cost/profit only count the product with a cost price (Casque)
+        expect(result.current.stockCost).toBe(30000);
+        expect(result.current.stockPotentialProfit).toBe(20000);
+        expect(result.current.productsWithoutCostPriceCount).toBe(1);
+        // already-realized net profit (6400, from the default fixtures) + stock potential
+        expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
+    });
+
+    it('reports isLoading while the product list is still loading', async () => {
+        useProductsMock.mockReturnValue({ data: undefined, isLoading: true });
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+
+        expect(result.current.isLoading).toBe(true);
     });
 });

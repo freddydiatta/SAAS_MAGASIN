@@ -3,6 +3,7 @@ import { fetchAllSales } from '../services/financesService';
 import { fetchExpenses } from '../services/expensesService';
 import { fetchDebts } from '../services/debtsService';
 import { fetchPurchaseOrders } from '../services/purchaseOrdersService';
+import { useProducts } from './useProducts';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -47,7 +48,11 @@ export function useFinances(selectedBusiness) {
         enabled: !!businessId,
     });
 
-    const isLoading = loadingSales || loadingExpenses || loadingDebts || loadingOrders;
+    // Même clé que useProducts (Stock.jsx) : sert au bénéfice potentiel du
+    // stock restant, pas seulement à ce qui a déjà été vendu.
+    const { data: products = [], isLoading: loadingProducts } = useProducts(businessId);
+
+    const isLoading = loadingSales || loadingExpenses || loadingDebts || loadingOrders || loadingProducts;
 
     const collectedSales = sales.filter(s => s.receipts?.payment_method !== 'credit');
     const paidDebts = debts.filter(d => d.status === 'paid');
@@ -116,6 +121,28 @@ export function useFinances(selectedBusiness) {
         });
     }
 
+    // --- Potentiel du stock restant ---
+    // Ce que rapporterait le stock actuel s'il était entièrement vendu — un
+    // stock a de la valeur même avant d'être vendu, ce que ne montrent ni la
+    // caisse du jour ni le chiffre d'affaires (qui ne comptent que ce qui
+    // est déjà arrivé). Le prix de vente est toujours connu, mais un produit
+    // sans prix d'achat renseigné (voir Stock.jsx) ne peut pas entrer dans
+    // le coût / bénéfice potentiel — juste dans la valeur de vente brute.
+    const productsWithCostPrice = products.filter(p => p.cost_price != null);
+    const productsWithoutCostPriceCount = products.length - productsWithCostPrice.length;
+
+    const stockSaleValue = products.reduce((sum, p) => sum + Number(p.price) * Number(p.stock_quantity), 0);
+    const stockCost = productsWithCostPrice.reduce((sum, p) => sum + Number(p.cost_price) * Number(p.stock_quantity), 0);
+    const stockPotentialProfit = productsWithCostPrice.reduce(
+        (sum, p) => sum + (Number(p.price) - Number(p.cost_price)) * Number(p.stock_quantity),
+        0
+    );
+
+    // "Si on vend tout ce qu'il reste" = ce qui est déjà gagné + ce que le
+    // stock restant rapporterait — la vraie réponse à "est-ce qu'on est
+    // gagnant au total", pas juste sur le mois en cours.
+    const projectedTotalProfit = netProfit + stockPotentialProfit;
+
     return {
         isLoading,
         totalRevenue,
@@ -127,6 +154,11 @@ export function useFinances(selectedBusiness) {
         percentChangeMonth,
         pendingDebtsTotal,
         monthlyTrend,
+        stockSaleValue,
+        stockCost,
+        stockPotentialProfit,
+        productsWithoutCostPriceCount,
+        projectedTotalProfit,
         formatFCFA,
     };
 }

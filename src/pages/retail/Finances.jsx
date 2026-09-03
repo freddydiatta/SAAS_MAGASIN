@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins } from 'lucide-react';
+import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Finances = () => {
@@ -17,6 +17,11 @@ export const Finances = () => {
         percentChangeMonth,
         pendingDebtsTotal,
         monthlyTrend,
+        stockSaleValue,
+        stockCost,
+        stockPotentialProfit,
+        productsWithoutCostPriceCount,
+        projectedTotalProfit,
         formatFCFA,
     } = useFinances(selectedBusiness);
 
@@ -101,6 +106,48 @@ export const Finances = () => {
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(pendingDebtsTotal)} <span className="text-sm font-medium">F</span></h3>
                     <p className="text-xs text-slate-400 mt-1">Pas encore compté dans le chiffre d'affaires</p>
                 </motion.div>
+            </div>
+
+            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-accent">
+                        <Package className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-primary">Si vous vendez tout votre stock</h2>
+                        <p className="text-xs text-secondary">Ce que rapporterait le stock restant, en plus de ce qui est déjà gagné.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+                    <div>
+                        <p className="text-secondary text-sm font-medium mb-1">Valeur de vente du stock</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(stockSaleValue)} F</p>
+                    </div>
+                    <div>
+                        <p className="text-secondary text-sm font-medium mb-1">Coût du stock</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(stockCost)} F</p>
+                    </div>
+                    <div>
+                        <p className="text-secondary text-sm font-medium mb-1">Bénéfice potentiel</p>
+                        <p className={`text-xl font-bold ${stockPotentialProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                            {isLoading ? '…' : formatFCFA(stockPotentialProfit)} F
+                        </p>
+                    </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 dark:border-border-theme flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <span className="text-secondary font-medium">Bénéfice total si vous vendez tout</span>
+                    <span className={`text-2xl font-bold ${projectedTotalProfit >= 0 ? 'text-accent' : 'text-red-500'}`}>
+                        {isLoading ? '…' : formatFCFA(projectedTotalProfit)} F
+                    </span>
+                </div>
+
+                {productsWithoutCostPriceCount > 0 && (
+                    <p className="text-xs text-slate-400 mt-4">
+                        {productsWithoutCostPriceCount} produit{productsWithoutCostPriceCount > 1 ? 's' : ''} sans prix d'achat renseigné, non compté{productsWithoutCostPriceCount > 1 ? 's' : ''} dans le coût ni le bénéfice potentiel du stock.
+                    </p>
+                )}
             </div>
 
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
