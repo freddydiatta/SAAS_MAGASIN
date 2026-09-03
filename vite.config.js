@@ -40,7 +40,10 @@ export default defineConfig({
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
-        start_url: '/',
+        // Ouvrir sur la Landing (page marketing publique) à chaque lancement
+        // de l'app installée n'a pas de sens pour un usage quotidien : direct
+        // sur /login, qui redirige elle-même vers /dashboard si déjà connecté.
+        start_url: '/login',
         icons: [
           {
             // pwa-192x192.png/pwa-512x512.png étaient référencées mais

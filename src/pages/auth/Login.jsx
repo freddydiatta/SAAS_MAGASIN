@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { motion } from 'framer-motion';
 import { ShieldCheck, TrendingUp, Users, Loader2, AlertCircle } from 'lucide-react';
 import { loginSchema } from '../../lib/validation';
@@ -26,6 +27,14 @@ export const Login = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [lockoutCountdown, setLockoutCountdown] = useState(0);
     const navigate = useNavigate();
+    const { user } = useAuth();
+
+    // La PWA installée ouvre directement sur /login (voir vite.config.js) —
+    // sans ça, un propriétaire déjà connecté qui rouvre l'app tomberait sur
+    // un formulaire de connexion au lieu de son tableau de bord.
+    useEffect(() => {
+        if (user) navigate('/dashboard', { replace: true });
+    }, [user, navigate]);
 
     useEffect(() => {
         let timer;

@@ -16,11 +16,12 @@ function fakeThenable(result) {
     };
 }
 
-const { invokeMock, setSessionMock, rpcMock, navigateMock } = vi.hoisted(() => ({
+const { invokeMock, setSessionMock, rpcMock, navigateMock, useAuthMock } = vi.hoisted(() => ({
     invokeMock: vi.fn(),
     setSessionMock: vi.fn(),
     rpcMock: vi.fn(),
     navigateMock: vi.fn(),
+    useAuthMock: vi.fn(),
 }));
 
 vi.mock('../../lib/supabase', () => ({
@@ -30,6 +31,8 @@ vi.mock('../../lib/supabase', () => ({
         rpc: rpcMock,
     },
 }));
+
+vi.mock('../../contexts/AuthContext', () => ({ useAuth: useAuthMock }));
 
 vi.mock('react-router-dom', async (importOriginal) => {
     const actual = await importOriginal();
@@ -42,14 +45,33 @@ const fillAndSubmit = async (user, { email = 'owner@test.com', password = 'passw
     await user.click(screen.getByRole('button', { name: /se connecter/i }));
 };
 
+describe('Login — already authenticated', () => {
+    beforeEach(() => {
+        navigateMock.mockReset();
+        useAuthMock.mockReset();
+    });
+
+    it('redirects to the dashboard immediately when a session is already active', async () => {
+        // La PWA installée ouvre sur /login (voir vite.config.js) — un
+        // propriétaire déjà connecté qui la rouvre ne doit pas rester coincé
+        // sur le formulaire.
+        useAuthMock.mockReturnValue({ user: { id: 'u1', email: 'owner@test.com' } });
+        render(<Login />, { wrapper: MemoryRouter });
+
+        await waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard', { replace: true }));
+    });
+});
+
 describe('Login', () => {
     beforeEach(() => {
         invokeMock.mockReset();
         setSessionMock.mockReset();
         rpcMock.mockReset();
         navigateMock.mockReset();
+        useAuthMock.mockReset();
         rpcMock.mockImplementation(() => fakeThenable({ data: null, error: null }));
         setSessionMock.mockResolvedValue({ error: null });
+        useAuthMock.mockReturnValue({ user: null });
     });
 
     it('logs a real user in via owner-login and navigates to the dashboard', async () => {
