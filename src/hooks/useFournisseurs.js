@@ -26,6 +26,11 @@ export function useFournisseurs(selectedBusiness) {
 
     const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
     const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
+    // Une seule confirmation à la fois pour supprimer un fournisseur, recevoir
+    // ou annuler un bon de commande — remplace window.confirm (popup
+    // navigateur générique) par ConfirmModal, cohérent avec le reste de
+    // l'app. { type: 'deleteSupplier' | 'receiveOrder' | 'cancelOrder', item }
+    const [confirmAction, setConfirmAction] = useState(null);
 
     const addSupplierMutation = useMutation({
         mutationFn: (supplier) => addSupplier({ businessId, ...supplier }),
@@ -42,6 +47,7 @@ export function useFournisseurs(selectedBusiness) {
         mutationFn: deleteSupplier,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: supplierQueryKey });
+            setConfirmAction(null);
             toast.success('Fournisseur supprimé.');
         },
         onError: () => toast.error('Erreur lors de la suppression du fournisseur.'),
@@ -63,11 +69,7 @@ export function useFournisseurs(selectedBusiness) {
         addSupplierMutation.mutate(result.data);
     };
 
-    const handleDeleteSupplier = (supplier) => {
-        if (window.confirm(`Supprimer le fournisseur "${supplier.name}" ? Les produits qui lui étaient rattachés resteront, juste sans fournisseur.`)) {
-            deleteSupplierMutation.mutate(supplier.id);
-        }
-    };
+    const handleDeleteSupplier = (supplier) => setConfirmAction({ type: 'deleteSupplier', item: supplier });
 
     // --- Bons de commande ---
     const poQueryKey = ['purchase_orders', businessId];
@@ -99,6 +101,7 @@ export function useFournisseurs(selectedBusiness) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: poQueryKey });
             queryClient.invalidateQueries({ queryKey: productKeys.all(businessId) });
+            setConfirmAction(null);
             toast.success('Stock mis à jour, commande marquée reçue.');
         },
         onError: (error) => toast.error(error.message || 'Erreur lors de la réception.'),
@@ -108,6 +111,7 @@ export function useFournisseurs(selectedBusiness) {
         mutationFn: cancelPurchaseOrder,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: poQueryKey });
+            setConfirmAction(null);
             toast.success('Bon de commande annulé.');
         },
         onError: () => toast.error("Erreur lors de l'annulation."),
@@ -164,17 +168,19 @@ export function useFournisseurs(selectedBusiness) {
         createOrderMutation.mutate({ supplierId, items: resolvedItems });
     };
 
-    const handleReceiveOrder = (order) => {
-        if (window.confirm('Confirmer la réception ? Le stock des produits sera mis à jour automatiquement.')) {
-            receiveOrderMutation.mutate(order.id);
-        }
+    const handleReceiveOrder = (order) => setConfirmAction({ type: 'receiveOrder', item: order });
+    const handleCancelOrder = (order) => setConfirmAction({ type: 'cancelOrder', item: order });
+
+    const closeConfirmAction = () => setConfirmAction(null);
+
+    const confirmPendingAction = () => {
+        if (!confirmAction) return;
+        if (confirmAction.type === 'deleteSupplier') deleteSupplierMutation.mutate(confirmAction.item.id);
+        else if (confirmAction.type === 'receiveOrder') receiveOrderMutation.mutate(confirmAction.item.id);
+        else if (confirmAction.type === 'cancelOrder') cancelOrderMutation.mutate(confirmAction.item.id);
     };
 
-    const handleCancelOrder = (order) => {
-        if (window.confirm('Annuler ce bon de commande ?')) {
-            cancelOrderMutation.mutate(order.id);
-        }
-    };
+    const isConfirmingAction = deleteSupplierMutation.isPending || receiveOrderMutation.isPending || cancelOrderMutation.isPending;
 
     // Document imprimable/partageable du bon de commande (voir
     // PurchaseOrderPrint, même technique que la facture de vente).
@@ -210,6 +216,11 @@ export function useFournisseurs(selectedBusiness) {
         handleReceiveOrder,
         handleCancelOrder,
         isSavingOrder: isCreatingNewProducts || createOrderMutation.isPending,
+
+        confirmAction,
+        closeConfirmAction,
+        confirmPendingAction,
+        isConfirmingAction,
 
         orderToPrint,
         setOrderToPrint,

@@ -96,15 +96,37 @@ describe('useFournisseurs', () => {
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });
 
-    it('deletes a supplier only after confirmation', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    it('queues a supplier deletion for confirmation without deleting immediately', async () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.suppliers).toHaveLength(1));
 
         act(() => result.current.handleDeleteSupplier({ id: 's1', name: 'Import Moto' }));
 
+        expect(result.current.confirmAction).toEqual({ type: 'deleteSupplier', item: { id: 's1', name: 'Import Moto' } });
         expect(deleteSupplierMock).not.toHaveBeenCalled();
-        confirmSpy.mockRestore();
+    });
+
+    it('deletes a supplier once the pending confirmation is confirmed', async () => {
+        deleteSupplierMock.mockResolvedValueOnce('s1');
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.suppliers).toHaveLength(1));
+
+        act(() => result.current.handleDeleteSupplier({ id: 's1', name: 'Import Moto' }));
+        await act(async () => result.current.confirmPendingAction());
+
+        expect(deleteSupplierMock.mock.calls[0]?.[0]).toBe('s1');
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
+    });
+
+    it('discards a pending confirmation when cancelled', async () => {
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.suppliers).toHaveLength(1));
+
+        act(() => result.current.handleDeleteSupplier({ id: 's1', name: 'Import Moto' }));
+        act(() => result.current.closeConfirmAction());
+
+        expect(result.current.confirmAction).toBeNull();
+        expect(deleteSupplierMock).not.toHaveBeenCalled();
     });
 
     it('rejects creating a purchase order with no items', async () => {
@@ -206,40 +228,42 @@ describe('useFournisseurs', () => {
         });
     });
 
-    it('receives a purchase order after confirmation', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    it('receives a purchase order once the pending confirmation is confirmed', async () => {
         receivePurchaseOrderMock.mockResolvedValueOnce({ id: 'po1', status: 'received' });
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleReceiveOrder({ id: 'po1' }));
+        expect(result.current.confirmAction).toEqual({ type: 'receiveOrder', item: { id: 'po1' } });
+
+        await act(async () => result.current.confirmPendingAction());
 
         // React Query v5 calls mutationFn with a second (context) argument;
         // only the id we passed in actually matters here.
-        await waitFor(() => expect(receivePurchaseOrderMock.mock.calls[0]?.[0]).toBe('po1'));
-        confirmSpy.mockRestore();
+        expect(receivePurchaseOrderMock.mock.calls[0]?.[0]).toBe('po1');
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
     });
 
     it('does not receive when the confirmation is cancelled', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleReceiveOrder({ id: 'po1' }));
+        act(() => result.current.closeConfirmAction());
 
         expect(receivePurchaseOrderMock).not.toHaveBeenCalled();
-        confirmSpy.mockRestore();
+        expect(result.current.confirmAction).toBeNull();
     });
 
-    it('cancels a purchase order after confirmation', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    it('cancels a purchase order once the pending confirmation is confirmed', async () => {
         cancelPurchaseOrderMock.mockResolvedValueOnce('po1');
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleCancelOrder({ id: 'po1' }));
+        await act(async () => result.current.confirmPendingAction());
 
-        await waitFor(() => expect(cancelPurchaseOrderMock.mock.calls[0]?.[0]).toBe('po1'));
-        confirmSpy.mockRestore();
+        expect(cancelPurchaseOrderMock.mock.calls[0]?.[0]).toBe('po1');
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
     });
 });

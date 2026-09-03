@@ -75,38 +75,48 @@ describe('useDebts', () => {
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });
 
-    it('marks a debt paid only after confirmation', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    it('queues a mark-paid action for confirmation without mutating immediately', async () => {
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
+        await waitFor(() => expect(result.current.debts).toHaveLength(2));
+
+        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
+
+        expect(result.current.confirmAction).toEqual({ type: 'markPaid', item: { id: 'd1', customer_name: 'Moussa', amount: 5000 } });
+        expect(markDebtPaidMock).not.toHaveBeenCalled();
+    });
+
+    it('marks a debt paid once the pending confirmation is confirmed', async () => {
         markDebtPaidMock.mockResolvedValueOnce('d1');
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
+        await act(async () => result.current.confirmPendingAction());
 
-        await waitFor(() => expect(markDebtPaidMock.mock.calls[0]?.[0]).toBe('d1'));
-        confirmSpy.mockRestore();
+        expect(markDebtPaidMock.mock.calls[0]?.[0]).toBe('d1');
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
     });
 
     it('does not mark paid when the confirmation is cancelled', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
+        act(() => result.current.closeConfirmAction());
 
         expect(markDebtPaidMock).not.toHaveBeenCalled();
-        confirmSpy.mockRestore();
+        expect(result.current.confirmAction).toBeNull();
     });
 
-    it('deletes a debt after confirmation', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    it('deletes a debt once the pending confirmation is confirmed', async () => {
         deleteDebtMock.mockResolvedValueOnce('d1');
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleDelete({ id: 'd1' }));
+        await act(async () => result.current.confirmPendingAction());
 
-        await waitFor(() => expect(deleteDebtMock.mock.calls[0]?.[0]).toBe('d1'));
-        confirmSpy.mockRestore();
+        expect(deleteDebtMock.mock.calls[0]?.[0]).toBe('d1');
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
     });
 });

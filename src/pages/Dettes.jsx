@@ -1,11 +1,28 @@
 import { useBusiness } from '../contexts/BusinessContext';
 import { useDebts } from '../hooks/useDebts';
 import { Modal } from '../components/Modal';
+import { ConfirmModal } from '../components/ConfirmModal';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { Plus, Trash2, CheckCircle2, HandCoins } from 'lucide-react';
 
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
+
+// Contenu du ConfirmModal selon l'action en attente (voir useDebts.confirmAction).
+const CONFIRM_CONFIG = {
+    markPaid: (debt) => ({
+        title: 'Marquer comme remboursé ?',
+        message: `Confirmer que ${debt.customer_name} a remboursé ${formatFCFA(debt.amount)} FCFA. Ce montant sera compté comme encaissé.`,
+        confirmLabel: 'Oui, remboursé',
+        tone: 'emerald',
+    }),
+    delete: () => ({
+        title: 'Supprimer cette dette ?',
+        message: 'Cette dette sera définitivement supprimée.',
+        confirmLabel: 'Oui, supprimer',
+        tone: 'red',
+    }),
+};
 
 export const Dettes = () => {
     const { selectedBusiness } = useBusiness();
@@ -14,6 +31,7 @@ export const Dettes = () => {
         isAddOpen, openAddForm, closeForm,
         formData, setFormData,
         handleSubmit, handleMarkPaid, handleDelete, isSaving,
+        confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
     } = useDebts(selectedBusiness);
 
     const columns = [
@@ -186,6 +204,14 @@ export const Dettes = () => {
                     </div>
                 </form>
             </Modal>
+
+            <ConfirmModal
+                isOpen={!!confirmAction}
+                onCancel={closeConfirmAction}
+                onConfirm={confirmPendingAction}
+                isConfirming={isConfirmingAction}
+                {...(confirmAction ? CONFIRM_CONFIG[confirmAction.type](confirmAction.item) : {})}
+            />
         </div>
     );
 };

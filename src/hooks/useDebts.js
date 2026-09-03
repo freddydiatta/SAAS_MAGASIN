@@ -12,6 +12,9 @@ export function useDebts(selectedBusiness) {
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [formData, setFormData] = useState(EMPTY_FORM);
+    // { type: 'markPaid' | 'delete', item: debt } — remplace window.confirm
+    // par ConfirmModal, cohérent avec le reste de l'app.
+    const [confirmAction, setConfirmAction] = useState(null);
 
     const queryKey = ['debts', selectedBusiness?.id];
 
@@ -39,6 +42,7 @@ export function useDebts(selectedBusiness) {
         mutationFn: markDebtPaid,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey });
+            setConfirmAction(null);
             toast.success('Dette marquée comme remboursée.');
         },
         onError: () => toast.error('Erreur lors de la mise à jour de la dette.'),
@@ -48,6 +52,7 @@ export function useDebts(selectedBusiness) {
         mutationFn: deleteDebt,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey });
+            setConfirmAction(null);
             toast.success('Dette supprimée.');
         },
         onError: () => toast.error('Erreur lors de la suppression.'),
@@ -70,17 +75,18 @@ export function useDebts(selectedBusiness) {
         addDebtMutation.mutate(result.data);
     };
 
-    const handleMarkPaid = (debt) => {
-        if (window.confirm(`Confirmer que ${debt.customer_name} a remboursé ${Number(debt.amount).toLocaleString('fr-FR')} FCFA ?`)) {
-            markPaidMutation.mutate(debt.id);
-        }
+    const handleMarkPaid = (debt) => setConfirmAction({ type: 'markPaid', item: debt });
+    const handleDelete = (debt) => setConfirmAction({ type: 'delete', item: debt });
+
+    const closeConfirmAction = () => setConfirmAction(null);
+
+    const confirmPendingAction = () => {
+        if (!confirmAction) return;
+        if (confirmAction.type === 'markPaid') markPaidMutation.mutate(confirmAction.item.id);
+        else if (confirmAction.type === 'delete') deleteDebtMutation.mutate(confirmAction.item.id);
     };
 
-    const handleDelete = (debt) => {
-        if (window.confirm('Supprimer cette dette ?')) {
-            deleteDebtMutation.mutate(debt.id);
-        }
-    };
+    const isConfirmingAction = markPaidMutation.isPending || deleteDebtMutation.isPending;
 
     return {
         debts,
@@ -96,5 +102,10 @@ export function useDebts(selectedBusiness) {
         handleMarkPaid,
         handleDelete,
         isSaving: addDebtMutation.isPending,
+
+        confirmAction,
+        closeConfirmAction,
+        confirmPendingAction,
+        isConfirmingAction,
     };
 }

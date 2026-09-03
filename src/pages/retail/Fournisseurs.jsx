@@ -1,6 +1,7 @@
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFournisseurs } from '../../hooks/useFournisseurs';
 import { Modal } from '../../components/Modal';
+import { ConfirmModal } from '../../components/ConfirmModal';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
@@ -13,6 +14,28 @@ const ORDER_STATUS = {
     cancelled: { label: 'Annulé', tone: 'red' },
 };
 
+// Contenu du ConfirmModal selon l'action en attente (voir useFournisseurs.confirmAction).
+const CONFIRM_CONFIG = {
+    deleteSupplier: (item) => ({
+        title: 'Supprimer ce fournisseur ?',
+        message: `Le fournisseur "${item.name}" sera supprimé. Les produits qui lui étaient rattachés resteront, juste sans fournisseur.`,
+        confirmLabel: 'Oui, supprimer',
+        tone: 'red',
+    }),
+    receiveOrder: () => ({
+        title: 'Confirmer la réception ?',
+        message: 'Le stock des produits de ce bon de commande sera mis à jour automatiquement.',
+        confirmLabel: 'Oui, marquer reçu',
+        tone: 'emerald',
+    }),
+    cancelOrder: () => ({
+        title: 'Annuler ce bon de commande ?',
+        message: 'Cette commande sera marquée comme annulée. Cette action est irréversible.',
+        confirmLabel: 'Oui, annuler',
+        tone: 'red',
+    }),
+};
+
 export const Fournisseurs = () => {
     const { selectedBusiness } = useBusiness();
     const {
@@ -22,6 +45,7 @@ export const Fournisseurs = () => {
         purchaseOrders, isLoadingOrders,
         isCreateOrderOpen, openCreateOrderForm, closeCreateOrderForm,
         handleCreateOrder, handleReceiveOrder, handleCancelOrder, isSavingOrder,
+        confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
         orderToPrint, setOrderToPrint, handlePrintOrder,
     } = useFournisseurs(selectedBusiness);
 
@@ -266,6 +290,14 @@ export const Fournisseurs = () => {
                     onClose={() => setOrderToPrint(null)}
                 />
             )}
+
+            <ConfirmModal
+                isOpen={!!confirmAction}
+                onCancel={closeConfirmAction}
+                onConfirm={confirmPendingAction}
+                isConfirming={isConfirmingAction}
+                {...(confirmAction ? CONFIRM_CONFIG[confirmAction.type](confirmAction.item) : {})}
+            />
         </div>
     );
 };
