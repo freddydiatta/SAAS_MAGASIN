@@ -3,10 +3,11 @@ import { waitFor } from '@testing-library/react';
 import { useFinances } from './useFinances';
 import { renderHookWithQueryClient } from '../test/testUtils';
 
-const { fetchAllSalesMock, fetchExpensesMock, fetchDebtsMock } = vi.hoisted(() => ({
+const { fetchAllSalesMock, fetchExpensesMock, fetchDebtsMock, fetchPurchaseOrdersMock } = vi.hoisted(() => ({
     fetchAllSalesMock: vi.fn(),
     fetchExpensesMock: vi.fn(),
     fetchDebtsMock: vi.fn(),
+    fetchPurchaseOrdersMock: vi.fn(),
 }));
 
 vi.mock('../services/financesService', () => ({
@@ -19,6 +20,10 @@ vi.mock('../services/expensesService', () => ({
 
 vi.mock('../services/debtsService', () => ({
     fetchDebts: fetchDebtsMock,
+}));
+
+vi.mock('../services/purchaseOrdersService', () => ({
+    fetchPurchaseOrders: fetchPurchaseOrdersMock,
 }));
 
 const BUSINESS = { id: 'biz-1' };
@@ -49,9 +54,11 @@ describe('useFinances', () => {
         fetchAllSalesMock.mockReset();
         fetchExpensesMock.mockReset();
         fetchDebtsMock.mockReset();
+        fetchPurchaseOrdersMock.mockReset();
         fetchAllSalesMock.mockResolvedValue(SALES);
         fetchExpensesMock.mockResolvedValue(EXPENSES);
         fetchDebtsMock.mockResolvedValue(DEBTS);
+        fetchPurchaseOrdersMock.mockResolvedValue([]);
     });
 
     it('computes total revenue as collected sales plus repaid debts, excluding credit sales and unpaid debts', async () => {
@@ -96,5 +103,20 @@ describe('useFinances', () => {
 
         expect(result.current.percentChangeMonth).toBe(0);
         expect(result.current.totalRevenue).toBe(0);
+    });
+
+    it('counts a received purchase order as an expense, but not a pending or cancelled one', async () => {
+        fetchPurchaseOrdersMock.mockResolvedValue([
+            { id: 'po1', status: 'received', total_amount: 2000, received_at: thisMonth.toISOString(), created_at: thisMonth.toISOString() },
+            { id: 'po2', status: 'pending', total_amount: 9000, created_at: thisMonth.toISOString() },
+            { id: 'po3', status: 'cancelled', total_amount: 5000, created_at: thisMonth.toISOString() },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // 1100 (expenses) + 2000 (the received order only)
+        expect(result.current.totalExpenses).toBe(3100);
+        expect(result.current.expensesThisMonth).toBe(700 + 2000);
+        expect(result.current.netProfit).toBe(7500 - 3100);
     });
 });

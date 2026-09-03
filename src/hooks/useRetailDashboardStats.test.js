@@ -57,6 +57,7 @@ describe('useRetailDashboardStats', () => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: [], error: null });
+            if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES, error: null });
         });
     });
@@ -94,6 +95,7 @@ describe('useRetailDashboardStats', () => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: [], error: null });
+            if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
         });
         const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
@@ -115,6 +117,7 @@ describe('useRetailDashboardStats', () => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: [], error: null });
+            if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
         });
         const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
@@ -139,6 +142,7 @@ describe('useRetailDashboardStats', () => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
             if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: DEBTS, error: null });
+            if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES, error: null });
         });
         const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
@@ -150,6 +154,26 @@ describe('useRetailDashboardStats', () => {
         // still only 2 actual sales today -> unaffected average basket
         expect(result.current.panierMoyen).toBe(1500);
         expect(result.current.beneficeDuJour).toBe(7000 - 500);
+    });
+
+    it('counts a purchase order received today as an expense, but not a pending one', async () => {
+        const ORDERS = [
+            { id: 'po1', status: 'received', total_amount: 15000, received_at: today9am.toISOString() },
+            { id: 'po2', status: 'pending', total_amount: 9000 },
+        ];
+        fromMock.mockImplementation((table) => {
+            if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            if (table === 'debts') return createQueryBuilder({ data: [], error: null });
+            if (table === 'purchase_orders') return createQueryBuilder({ data: ORDERS, error: null });
+            return createQueryBuilder({ data: SALES, error: null });
+        });
+        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
+        await waitFor(() => expect(result.current.loadingSales).toBe(false));
+
+        // 500 (transport expense) + 15000 (the received order only, not the pending one)
+        expect(result.current.depensesDuJour).toBe(15500);
+        expect(result.current.beneficeDuJour).toBe(3000 - 15500);
     });
 
     it('returns 0% change (not a divide-by-zero) when there were no sales yesterday and none today', async () => {

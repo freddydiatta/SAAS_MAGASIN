@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAllSales } from '../services/financesService';
 import { fetchExpenses } from '../services/expensesService';
 import { fetchDebts } from '../services/debtsService';
+import { fetchPurchaseOrders } from '../services/purchaseOrdersService';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -39,7 +40,14 @@ export function useFinances(selectedBusiness) {
         enabled: !!businessId,
     });
 
-    const isLoading = loadingSales || loadingExpenses || loadingDebts;
+    // Même clé que useFournisseurs (['purchase_orders', businessId]).
+    const { data: purchaseOrders = [], isLoading: loadingOrders } = useQuery({
+        queryKey: ['purchase_orders', businessId],
+        queryFn: () => fetchPurchaseOrders(businessId),
+        enabled: !!businessId,
+    });
+
+    const isLoading = loadingSales || loadingExpenses || loadingDebts || loadingOrders;
 
     const collectedSales = sales.filter(s => s.receipts?.payment_method !== 'credit');
     const paidDebts = debts.filter(d => d.status === 'paid');
@@ -47,7 +55,13 @@ export function useFinances(selectedBusiness) {
         .filter(d => d.status !== 'paid')
         .reduce((sum, d) => sum + Number(d.amount), 0);
 
-    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+    // Un bon de commande "en attente" n'est pas encore payé au fournisseur —
+    // seul un bon "reçu" représente de l'argent réellement sorti (et donc
+    // une vraie dépense), daté du jour de la réception, pas de la commande.
+    const receivedOrders = purchaseOrders.filter(o => o.status === 'received');
+
+    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+        + receivedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
     const totalRevenue = collectedSales.reduce((sum, s) => sum + Number(s.total_price), 0)
         + paidDebts.reduce((sum, d) => sum + Number(d.amount), 0);
     const netProfit = totalRevenue - totalExpenses;
@@ -67,6 +81,10 @@ export function useFinances(selectedBusiness) {
     expenses.forEach(e => {
         const key = monthKey(e.created_at);
         expensesByMonth[key] = (expensesByMonth[key] || 0) + Number(e.amount);
+    });
+    receivedOrders.forEach(o => {
+        const key = monthKey(o.received_at || o.created_at);
+        expensesByMonth[key] = (expensesByMonth[key] || 0) + Number(o.total_amount);
     });
 
     const now = new Date();

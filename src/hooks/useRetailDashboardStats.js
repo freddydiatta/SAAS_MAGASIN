@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useProducts } from './useProducts';
 import { fetchExpenses } from '../services/expensesService';
 import { fetchDebts } from '../services/debtsService';
+import { fetchPurchaseOrders } from '../services/purchaseOrdersService';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -50,6 +51,15 @@ export function useRetailDashboardStats(selectedBusiness) {
     const { data: debts = [] } = useQuery({
         queryKey: ['debts', selectedBusiness?.id],
         queryFn: () => fetchDebts(selectedBusiness.id),
+        enabled: !!user && !!selectedBusiness
+    });
+
+    // Même clé que useFournisseurs : un bon de commande reçu aujourd'hui est
+    // de l'argent réellement sorti vers un fournisseur, une vraie dépense du
+    // jour au même titre que transport/loyer/divers.
+    const { data: purchaseOrders = [] } = useQuery({
+        queryKey: ['purchase_orders', selectedBusiness?.id],
+        queryFn: () => fetchPurchaseOrders(selectedBusiness.id),
         enabled: !!user && !!selectedBusiness
     });
 
@@ -114,9 +124,15 @@ export function useRetailDashboardStats(selectedBusiness) {
     const lowStockProducts = products.filter(p => p.stock_quantity <= 2);
     const alertesStock = lowStockProducts.length;
 
+    const receivedOrdersToday = purchaseOrders.filter(o => {
+        if (o.status !== 'received' || !o.received_at) return false;
+        return new Date(o.received_at).getTime() >= today;
+    });
+
     const depensesDuJour = expenses
         .filter(e => new Date(e.created_at).getTime() >= today)
-        .reduce((sum, e) => sum + Number(e.amount), 0);
+        .reduce((sum, e) => sum + Number(e.amount), 0)
+        + receivedOrdersToday.reduce((sum, o) => sum + Number(o.total_amount), 0);
     const beneficeDuJour = caisseDuJour - depensesDuJour;
 
     // --- Chart Data (Last 7 Days) ---
