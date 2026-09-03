@@ -145,6 +145,7 @@ describe('useFinances', () => {
         expect(result.current.stockCost).toBe(30000);
         expect(result.current.stockPotentialProfit).toBe(20000);
         expect(result.current.productsWithoutCostPriceCount).toBe(1);
+        expect(result.current.productsWithoutCostPrice).toEqual([{ id: 'p2', name: 'Pneu' }]);
         // already-realized net profit (6400, from the default fixtures) + stock potential
         expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
     });

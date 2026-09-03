@@ -20,6 +20,7 @@ export const Finances = () => {
         stockSaleValue,
         stockCost,
         stockPotentialProfit,
+        productsWithoutCostPrice,
         productsWithoutCostPriceCount,
         projectedTotalProfit,
         formatFCFA,
@@ -144,9 +145,22 @@ export const Finances = () => {
                 </div>
 
                 {productsWithoutCostPriceCount > 0 && (
-                    <p className="text-xs text-slate-400 mt-4">
-                        {productsWithoutCostPriceCount} produit{productsWithoutCostPriceCount > 1 ? 's' : ''} sans prix d'achat renseigné, non compté{productsWithoutCostPriceCount > 1 ? 's' : ''} dans le coût ni le bénéfice potentiel du stock.
-                    </p>
+                    <div className="text-xs text-slate-400 mt-4">
+                        <p className="mb-2">
+                            {productsWithoutCostPriceCount} produit{productsWithoutCostPriceCount > 1 ? 's' : ''} sans prix d'achat renseigné, non compté{productsWithoutCostPriceCount > 1 ? 's' : ''} dans le coût ni le bénéfice potentiel du stock :
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {productsWithoutCostPrice.map((product) => (
+                                <button
+                                    key={product.id}
+                                    onClick={() => navigate(`/dashboard/stock?q=${encodeURIComponent(product.name)}`)}
+                                    className="px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-colors"
+                                >
+                                    {product.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 )}
             </div>
 

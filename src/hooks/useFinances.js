@@ -129,7 +129,10 @@ export function useFinances(selectedBusiness) {
     // sans prix d'achat renseigné (voir Stock.jsx) ne peut pas entrer dans
     // le coût / bénéfice potentiel — juste dans la valeur de vente brute.
     const productsWithCostPrice = products.filter(p => p.cost_price != null);
-    const productsWithoutCostPriceCount = products.length - productsWithCostPrice.length;
+    // Le nombre seul ne dit pas lesquels aller corriger dans Stock — le nom
+    // de chacun permet de les retrouver directement par la recherche.
+    const productsWithoutCostPrice = products.filter(p => p.cost_price == null).map(p => ({ id: p.id, name: p.name }));
+    const productsWithoutCostPriceCount = productsWithoutCostPrice.length;
 
     const stockSaleValue = products.reduce((sum, p) => sum + Number(p.price) * Number(p.stock_quantity), 0);
     const stockCost = productsWithCostPrice.reduce((sum, p) => sum + Number(p.cost_price) * Number(p.stock_quantity), 0);
@@ -157,6 +160,7 @@ export function useFinances(selectedBusiness) {
         stockSaleValue,
         stockCost,
         stockPotentialProfit,
+        productsWithoutCostPrice,
         productsWithoutCostPriceCount,
         projectedTotalProfit,
         formatFCFA,

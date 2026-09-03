@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
@@ -16,7 +17,11 @@ export const Stock = () => {
     const [isAddProductOpen, setIsAddProductOpen] = useState(false);
     const [isEditProductOpen, setIsEditProductOpen] = useState(false);
     const [productToEdit, setProductToEdit] = useState(null);
-    const [searchTerm, setSearchTerm] = useState('');
+    // Pré-rempli depuis ?q=... (voir Finances.jsx, lien "Voir dans Stock" sur
+    // un produit sans prix d'achat) pour retrouver directement un article
+    // précis sans avoir à le chercher à la main.
+    const [searchParams] = useSearchParams();
+    const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
 
     const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
 
