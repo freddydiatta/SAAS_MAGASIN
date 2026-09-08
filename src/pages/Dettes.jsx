@@ -37,7 +37,7 @@ export const Dettes = () => {
     const columns = [
         {
             key: 'date',
-            header: 'Date',
+            header: 'Date de la dette',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
             render: (debt) => new Date(debt.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
@@ -79,6 +79,15 @@ export const Dettes = () => {
                     tone={debt.status === 'paid' ? 'emerald' : 'amber'}
                 />
             ),
+        },
+        {
+            key: 'paid_at',
+            header: 'Date de remboursement',
+            headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
+            cellClassName: 'py-4 px-6 text-secondary text-sm',
+            render: (debt) => debt.paid_at
+                ? new Date(debt.paid_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                : '—',
         },
         {
             key: 'actions',
