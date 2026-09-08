@@ -7,7 +7,7 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
 import { PurchaseOrderPrint } from '../../components/PurchaseOrderPrint';
-import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2, RotateCcw } from 'lucide-react';
 
 const ORDER_STATUS = {
     pending: { label: 'En attente', tone: 'amber' },
@@ -35,6 +35,18 @@ const CONFIRM_CONFIG = {
         confirmLabel: 'Oui, annuler',
         tone: 'red',
     }),
+    unreceiveOrder: () => ({
+        title: 'Annuler la réception de ce bon ?',
+        message: 'Le stock ajouté par ce bon de commande sera retiré et le bon repassera en attente (modifiable ou re-recevable). Refusé si une partie du stock a déjà été revendue.',
+        confirmLabel: 'Oui, annuler la réception',
+        tone: 'red',
+    }),
+    deleteOrder: () => ({
+        title: 'Supprimer ce bon de commande ?',
+        message: 'Ce bon de commande sera définitivement supprimé. Cette action est irréversible.',
+        confirmLabel: 'Oui, supprimer',
+        tone: 'red',
+    }),
 };
 
 export const Fournisseurs = () => {
@@ -49,7 +61,7 @@ export const Fournisseurs = () => {
         supplierForm, setSupplierForm, handleSupplierSubmit, handleDeleteSupplier, isSavingSupplier,
         purchaseOrders, isLoadingOrders,
         isCreateOrderOpen, editingOrder, openCreateOrderForm, openEditOrderForm, closeCreateOrderForm,
-        handleSubmitOrder, handleReceiveOrder, handleCancelOrder, isSavingOrder,
+        handleSubmitOrder, handleReceiveOrder, handleCancelOrder, handleUnreceiveOrder, handleDeleteOrder, isSavingOrder,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
         orderToPrint, setOrderToPrint, handlePrintOrder,
     } = useFournisseurs(selectedBusiness, actorLabel);
@@ -176,7 +188,32 @@ export const Fournisseurs = () => {
                             >
                                 <XCircle className="w-4 h-4" />
                             </button>
+                            <button
+                                onClick={() => handleDeleteOrder(order)}
+                                title="Supprimer"
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
                         </>
+                    )}
+                    {order.status === 'received' && (
+                        <button
+                            onClick={() => handleUnreceiveOrder(order)}
+                            title="Annuler la réception (retire le stock ajouté)"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                        </button>
+                    )}
+                    {order.status === 'cancelled' && (
+                        <button
+                            onClick={() => handleDeleteOrder(order)}
+                            title="Supprimer"
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </button>
                     )}
                 </div>
             ),

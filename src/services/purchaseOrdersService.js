@@ -63,3 +63,27 @@ export const cancelPurchaseOrder = async (id) => {
     if (error) throw error;
     return id;
 };
+
+// Corrige un bon marqué reçu par erreur : retire le stock ajouté et repasse
+// le bon en attente (voir unreceive_purchase_order) — refuse explicitement
+// si une partie de ce stock a déjà été revendue. Journalisée.
+export const unreceivePurchaseOrder = async ({ orderId, userEmail }) => {
+    const { data, error } = await supabase.rpc('unreceive_purchase_order', {
+        p_purchase_order_id: orderId,
+        p_user_email: userEmail,
+    });
+    if (error) throw error;
+    return data;
+};
+
+// Suppression définitive d'un bon jamais reçu (voir delete_purchase_order) —
+// un bon reçu doit d'abord passer par unreceivePurchaseOrder. Journalisée
+// avant suppression (les lignes disparaissent avec le bon).
+export const deletePurchaseOrder = async ({ orderId, userEmail }) => {
+    const { error } = await supabase.rpc('delete_purchase_order', {
+        p_purchase_order_id: orderId,
+        p_user_email: userEmail,
+    });
+    if (error) throw error;
+    return orderId;
+};

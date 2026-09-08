@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { fetchSuppliers, addSupplier, deleteSupplier } from '../services/suppliersService';
-import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder } from '../services/purchaseOrdersService';
+import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, unreceivePurchaseOrder, cancelPurchaseOrder, deletePurchaseOrder } from '../services/purchaseOrdersService';
 import { addProduct, productKeys } from '../services/productsService';
 import { supplierSchema, firstZodError } from '../lib/validation';
 import { supplierKeys } from './useSuppliers';
@@ -26,10 +26,11 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
 
     const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
     const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
-    // Une seule confirmation à la fois pour supprimer un fournisseur, recevoir
-    // ou annuler un bon de commande — remplace window.confirm (popup
-    // navigateur générique) par ConfirmModal, cohérent avec le reste de
-    // l'app. { type: 'deleteSupplier' | 'receiveOrder' | 'cancelOrder', item }
+    // Une seule confirmation à la fois pour supprimer un fournisseur, recevoir,
+    // annuler, corriger la réception ou supprimer un bon de commande —
+    // remplace window.confirm (popup navigateur générique) par ConfirmModal,
+    // cohérent avec le reste de l'app.
+    // { type: 'deleteSupplier' | 'receiveOrder' | 'cancelOrder' | 'unreceiveOrder' | 'deleteOrder', item }
     const [confirmAction, setConfirmAction] = useState(null);
 
     const addSupplierMutation = useMutation({
@@ -134,6 +135,34 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
         onError: () => toast.error("Erreur lors de l'annulation."),
     });
 
+    // Corrige un bon marqué reçu par erreur : retire le stock qui avait été
+    // ajouté (voir unreceive_purchase_order) — invalide products en plus des
+    // bons, comme la réception. Journalisée.
+    const unreceiveOrderMutation = useMutation({
+        mutationFn: (id) => unreceivePurchaseOrder({ orderId: id, userEmail: actorLabel }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: poQueryKey });
+            queryClient.invalidateQueries({ queryKey: productKeys.all(businessId) });
+            queryClient.invalidateQueries({ queryKey: ['audit_logs', businessId] });
+            setConfirmAction(null);
+            toast.success('Réception annulée, stock retiré.');
+        },
+        onError: (error) => toast.error(error.message || "Erreur lors de l'annulation de la réception."),
+    });
+
+    // Suppression définitive (voir delete_purchase_order) — un bon reçu doit
+    // d'abord passer par handleUnreceiveOrder. Journalisée.
+    const deleteOrderMutation = useMutation({
+        mutationFn: (id) => deletePurchaseOrder({ orderId: id, userEmail: actorLabel }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: poQueryKey });
+            queryClient.invalidateQueries({ queryKey: ['audit_logs', businessId] });
+            setConfirmAction(null);
+            toast.success('Bon de commande supprimé.');
+        },
+        onError: (error) => toast.error(error.message || 'Erreur lors de la suppression du bon de commande.'),
+    });
+
     const openCreateOrderForm = () => {
         setEditingOrder(null);
         setIsCreateOrderOpen(true);
@@ -201,6 +230,8 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
 
     const handleReceiveOrder = (order) => setConfirmAction({ type: 'receiveOrder', item: order });
     const handleCancelOrder = (order) => setConfirmAction({ type: 'cancelOrder', item: order });
+    const handleUnreceiveOrder = (order) => setConfirmAction({ type: 'unreceiveOrder', item: order });
+    const handleDeleteOrder = (order) => setConfirmAction({ type: 'deleteOrder', item: order });
 
     const closeConfirmAction = () => setConfirmAction(null);
 
@@ -209,9 +240,12 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
         if (confirmAction.type === 'deleteSupplier') deleteSupplierMutation.mutate(confirmAction.item.id);
         else if (confirmAction.type === 'receiveOrder') receiveOrderMutation.mutate(confirmAction.item.id);
         else if (confirmAction.type === 'cancelOrder') cancelOrderMutation.mutate(confirmAction.item.id);
+        else if (confirmAction.type === 'unreceiveOrder') unreceiveOrderMutation.mutate(confirmAction.item.id);
+        else if (confirmAction.type === 'deleteOrder') deleteOrderMutation.mutate(confirmAction.item.id);
     };
 
-    const isConfirmingAction = deleteSupplierMutation.isPending || receiveOrderMutation.isPending || cancelOrderMutation.isPending;
+    const isConfirmingAction = deleteSupplierMutation.isPending || receiveOrderMutation.isPending || cancelOrderMutation.isPending
+        || unreceiveOrderMutation.isPending || deleteOrderMutation.isPending;
 
     // Document imprimable/partageable du bon de commande (voir
     // PurchaseOrderPrint, même technique que la facture de vente).
@@ -248,6 +282,8 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
         handleSubmitOrder,
         handleReceiveOrder,
         handleCancelOrder,
+        handleUnreceiveOrder,
+        handleDeleteOrder,
         isSavingOrder: isCreatingNewProducts || createOrderMutation.isPending || updateOrderMutation.isPending,
 
         confirmAction,

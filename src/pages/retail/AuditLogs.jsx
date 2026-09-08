@@ -27,6 +27,10 @@ export const AuditLogs = () => {
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Dette Modifiée</span>;
             case 'MODIFY_PURCHASE_ORDER':
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Bon de Commande Modifié</span>;
+            case 'UNRECEIVE_PURCHASE_ORDER':
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Réception de Bon Annulée</span>;
+            case 'DELETE_PURCHASE_ORDER':
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Bon de Commande Supprimé</span>;
             case 'LOGIN_SUCCESS':
                 return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"><LogIn className="w-3 h-3" /> Connexion réussie</span>;
             case 'LOGIN_FAILED':
@@ -128,6 +132,27 @@ export const AuditLogs = () => {
                     <div className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme space-y-1">
                         <div className="text-slate-500 line-through">{formatItems(details.before?.items)}</div>
                         <div><strong className="text-amber-600">{formatItems(details.after?.items)}</strong></div>
+                    </div>
+                </div>
+            );
+        }
+
+        if (log.action === 'UNRECEIVE_PURCHASE_ORDER') {
+            return (
+                <div className="text-sm text-secondary">
+                    Le stock ajouté par ce bon (<strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>) a été retiré ; le bon est repassé en attente.
+                </div>
+            );
+        }
+
+        if (log.action === 'DELETE_PURCHASE_ORDER') {
+            const formatItems = (items) =>
+                (items || []).map((item) => `${item.product_name} ×${item.quantity}`).join(', ') || '—';
+            return (
+                <div className="text-sm space-y-1">
+                    <div className="text-secondary text-xs">Statut au moment de la suppression : {details.status}</div>
+                    <div className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme">
+                        {formatItems(details.items)} — <strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>
                     </div>
                 </div>
             );

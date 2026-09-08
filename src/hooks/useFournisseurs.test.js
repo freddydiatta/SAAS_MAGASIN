@@ -15,12 +15,17 @@ vi.mock('../services/suppliersService', () => ({
     deleteSupplier: deleteSupplierMock,
 }));
 
-const { fetchPurchaseOrdersMock, createPurchaseOrderMock, updatePurchaseOrderMock, receivePurchaseOrderMock, cancelPurchaseOrderMock } = vi.hoisted(() => ({
+const {
+    fetchPurchaseOrdersMock, createPurchaseOrderMock, updatePurchaseOrderMock,
+    receivePurchaseOrderMock, unreceivePurchaseOrderMock, cancelPurchaseOrderMock, deletePurchaseOrderMock,
+} = vi.hoisted(() => ({
     fetchPurchaseOrdersMock: vi.fn(),
     createPurchaseOrderMock: vi.fn(),
     updatePurchaseOrderMock: vi.fn(),
     receivePurchaseOrderMock: vi.fn(),
+    unreceivePurchaseOrderMock: vi.fn(),
     cancelPurchaseOrderMock: vi.fn(),
+    deletePurchaseOrderMock: vi.fn(),
 }));
 
 vi.mock('../services/purchaseOrdersService', () => ({
@@ -28,7 +33,9 @@ vi.mock('../services/purchaseOrdersService', () => ({
     createPurchaseOrder: createPurchaseOrderMock,
     updatePurchaseOrder: updatePurchaseOrderMock,
     receivePurchaseOrder: receivePurchaseOrderMock,
+    unreceivePurchaseOrder: unreceivePurchaseOrderMock,
     cancelPurchaseOrder: cancelPurchaseOrderMock,
+    deletePurchaseOrder: deletePurchaseOrderMock,
 }));
 
 // productKeys est une simple fabrique de clé de requête, sans effet de
@@ -61,7 +68,9 @@ describe('useFournisseurs', () => {
         createPurchaseOrderMock.mockReset();
         updatePurchaseOrderMock.mockReset();
         receivePurchaseOrderMock.mockReset();
+        unreceivePurchaseOrderMock.mockReset();
         cancelPurchaseOrderMock.mockReset();
+        deletePurchaseOrderMock.mockReset();
         addProductMock.mockReset();
         toastSuccessMock.mockReset();
         toastErrorMock.mockReset();
@@ -303,5 +312,46 @@ describe('useFournisseurs', () => {
         expect(createPurchaseOrderMock).not.toHaveBeenCalled();
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
         expect(result.current.editingOrder).toBeNull();
+    });
+
+    it('unreceives a purchase order once the pending confirmation is confirmed', async () => {
+        unreceivePurchaseOrderMock.mockResolvedValueOnce({ id: 'po1', status: 'pending' });
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.handleUnreceiveOrder({ id: 'po1' }));
+        expect(result.current.confirmAction).toEqual({ type: 'unreceiveOrder', item: { id: 'po1' } });
+
+        await act(async () => result.current.confirmPendingAction());
+
+        expect(unreceivePurchaseOrderMock).toHaveBeenCalledWith({ orderId: 'po1', userEmail: 'gerant@test.com' });
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
+        await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+    });
+
+    it('surfaces the explicit stock error when unreceiving fails because stock was already resold', async () => {
+        unreceivePurchaseOrderMock.mockRejectedValueOnce(new Error('Impossible d\'annuler la réception : stock actuel de "Casque Moto" insuffisant (disponible 1, à retirer 3)'));
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.handleUnreceiveOrder({ id: 'po1' }));
+        await act(async () => result.current.confirmPendingAction());
+
+        expect(toastErrorMock).toHaveBeenCalledWith(expect.stringContaining('stock actuel de "Casque Moto" insuffisant'));
+    });
+
+    it('deletes a purchase order once the pending confirmation is confirmed', async () => {
+        deletePurchaseOrderMock.mockResolvedValueOnce('po1');
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.handleDeleteOrder({ id: 'po1' }));
+        expect(result.current.confirmAction).toEqual({ type: 'deleteOrder', item: { id: 'po1' } });
+
+        await act(async () => result.current.confirmPendingAction());
+
+        expect(deletePurchaseOrderMock).toHaveBeenCalledWith({ orderId: 'po1', userEmail: 'gerant@test.com' });
+        await waitFor(() => expect(result.current.confirmAction).toBeNull());
+        await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });
 });

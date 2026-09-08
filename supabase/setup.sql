@@ -1307,8 +1307,12 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.create_purchase_order(uuid, uuid, jsonb) TO authenticated;
 
--- Réception : augmente le stock de chaque produit de la quantité commandée,
--- puis marque le bon comme reçu. Refuse un bon déjà reçu/annulé (pas de
+-- Réception : augmente le stock de chaque produit de la quantité commandée
+-- et aligne son prix d'achat (cost_price) sur celui payé sur ce bon — c'est
+-- le seul moment où le prix d'achat "officiel" d'un produit change, pour
+-- qu'il reste toujours celui réellement payé au dernier réapprovisionnement
+-- plutôt qu'une valeur saisie à la main qui dérive de Fournisseurs. Puis
+-- marque le bon comme reçu. Refuse un bon déjà reçu/annulé (pas de
 -- double-incrément de stock en cliquant deux fois).
 CREATE OR REPLACE FUNCTION public.receive_purchase_order(p_purchase_order_id uuid)
 RETURNS public.purchase_orders
@@ -1330,7 +1334,10 @@ BEGIN
     FOR v_item IN SELECT * FROM public.purchase_order_items WHERE purchase_order_id = p_purchase_order_id
     LOOP
         IF v_item.product_id IS NOT NULL THEN
-            UPDATE public.products SET stock_quantity = stock_quantity + v_item.quantity WHERE id = v_item.product_id;
+            UPDATE public.products
+            SET stock_quantity = stock_quantity + v_item.quantity,
+                cost_price = v_item.unit_cost
+            WHERE id = v_item.product_id;
         END IF;
     END LOOP;
 
@@ -1451,3 +1458,117 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.update_purchase_order(uuid, text, uuid, jsonb) TO authenticated;
+
+-- ==========================================
+-- ANNULER LA RÉCEPTION D'UN BON DE COMMANDE (CORRECTION)
+-- Un bon marqué reçu par erreur doit pouvoir être corrigé : repasse en
+-- 'pending' et retire le stock qui avait été ajouté. Refuse explicitement
+-- (avec le détail produit/quantité, même style que process_sale) si une
+-- partie de ce stock a déjà été revendue depuis — impossible de repasser
+-- sous zéro sans le dire clairement. SECURITY INVOKER, journalisé dans
+-- audit_logs comme toute correction de cette famille (update_debt,
+-- update_purchase_order).
+-- ==========================================
+
+CREATE OR REPLACE FUNCTION public.unreceive_purchase_order(
+    p_purchase_order_id uuid,
+    p_user_email text
+)
+RETURNS public.purchase_orders
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+    v_order public.purchase_orders;
+    v_item RECORD;
+    v_product public.products%ROWTYPE;
+BEGIN
+    SELECT * INTO v_order FROM public.purchase_orders WHERE id = p_purchase_order_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Bon de commande introuvable';
+    END IF;
+    IF v_order.status <> 'received' THEN
+        RAISE EXCEPTION 'Seul un bon de commande marqué reçu peut voir sa réception annulée.';
+    END IF;
+
+    FOR v_item IN SELECT * FROM public.purchase_order_items WHERE purchase_order_id = p_purchase_order_id
+    LOOP
+        IF v_item.product_id IS NOT NULL THEN
+            SELECT * INTO v_product FROM public.products WHERE id = v_item.product_id;
+            IF FOUND AND v_product.stock_quantity < v_item.quantity THEN
+                RAISE EXCEPTION 'Impossible d''annuler la réception : stock actuel de "%" insuffisant (disponible %, à retirer %) — une partie a probablement déjà été revendue.', v_product.name, v_product.stock_quantity, v_item.quantity;
+            END IF;
+        END IF;
+    END LOOP;
+
+    FOR v_item IN SELECT * FROM public.purchase_order_items WHERE purchase_order_id = p_purchase_order_id
+    LOOP
+        IF v_item.product_id IS NOT NULL THEN
+            UPDATE public.products SET stock_quantity = stock_quantity - v_item.quantity WHERE id = v_item.product_id;
+        END IF;
+    END LOOP;
+
+    UPDATE public.purchase_orders
+    SET status = 'pending', received_at = NULL
+    WHERE id = p_purchase_order_id;
+
+    INSERT INTO public.audit_logs (business_id, user_email, action, details)
+    VALUES (v_order.business_id, p_user_email, 'UNRECEIVE_PURCHASE_ORDER', jsonb_build_object(
+        'order_id', p_purchase_order_id,
+        'total_amount', v_order.total_amount
+    ));
+
+    SELECT * INTO v_order FROM public.purchase_orders WHERE id = p_purchase_order_id;
+    RETURN v_order;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.unreceive_purchase_order(uuid, text) TO authenticated;
+
+-- ==========================================
+-- SUPPRIMER UN BON DE COMMANDE
+-- Un bon en attente ou annulé (jamais reçu, donc sans effet sur le stock)
+-- peut être supprimé définitivement. Un bon reçu doit d'abord passer par
+-- unreceive_purchase_order (pour retirer le stock proprement) avant de
+-- pouvoir être supprimé — jamais de suppression directe d'un bon qui a
+-- déjà bougé du stock. Journalisé avant suppression (les lignes sont
+-- perdues avec le bon via ON DELETE CASCADE) pour garder une trace.
+-- ==========================================
+
+CREATE OR REPLACE FUNCTION public.delete_purchase_order(
+    p_purchase_order_id uuid,
+    p_user_email text
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+AS $$
+DECLARE
+    v_order public.purchase_orders;
+    v_items jsonb;
+BEGIN
+    SELECT * INTO v_order FROM public.purchase_orders WHERE id = p_purchase_order_id FOR UPDATE;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Bon de commande introuvable';
+    END IF;
+    IF v_order.status = 'received' THEN
+        RAISE EXCEPTION 'Un bon de commande reçu ne peut pas être supprimé (le stock a déjà été mis à jour) : annulez d''abord sa réception.';
+    END IF;
+
+    SELECT COALESCE(jsonb_agg(jsonb_build_object('product_name', product_name, 'quantity', quantity, 'unit_cost', unit_cost)), '[]'::jsonb)
+        INTO v_items
+        FROM public.purchase_order_items WHERE purchase_order_id = p_purchase_order_id;
+
+    DELETE FROM public.purchase_orders WHERE id = p_purchase_order_id;
+
+    INSERT INTO public.audit_logs (business_id, user_email, action, details)
+    VALUES (v_order.business_id, p_user_email, 'DELETE_PURCHASE_ORDER', jsonb_build_object(
+        'order_id', p_purchase_order_id,
+        'status', v_order.status,
+        'total_amount', v_order.total_amount,
+        'items', v_items
+    ));
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_purchase_order(uuid, text) TO authenticated;
