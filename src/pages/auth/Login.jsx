@@ -109,10 +109,14 @@ export const Login = () => {
     return (
         <div className="min-h-screen bg-surface flex">
             {/* Colonne Gauche - Formulaire */}
-            <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-12 lg:px-24 xl:px-32 relative">
-                
+            {/* Logo en flux normal (plus d'absolute) : sur grand écran, le
+                contenu centré verticalement (justify-center) remontait
+                jusqu'à chevaucher le logo, faute d'espace réservé pour lui —
+                même correctif que Register.jsx. */}
+            <div className="w-full lg:w-1/2 flex flex-col px-8 sm:px-12 lg:px-24 xl:px-32 relative">
+
                 {/* Logo */}
-                <div className="absolute top-8 left-8 sm:left-12 lg:left-24">
+                <div className="pt-8">
                     <Link to="/" className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
                             <span className="text-white font-bold text-2xl">G</span>
@@ -121,11 +125,12 @@ export const Login = () => {
                     </Link>
                 </div>
 
-                <motion.div 
+                <div className="flex-1 flex flex-col justify-center">
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="max-w-md w-full mx-auto mt-16 lg:mt-0"
+                    className="max-w-md w-full mx-auto py-12"
                 >
                     <div className="mb-10">
                         <h2 className="text-4xl font-extrabold text-primary tracking-tight mb-3">
@@ -201,10 +206,15 @@ export const Login = () => {
                         </Link>
                     </p>
                 </motion.div>
+                </div>
             </div>
 
             {/* Colonne Droite - Illustration */}
-            <div className="hidden lg:flex w-1/2 bg-panel relative overflow-hidden items-center justify-center p-12">
+            {/* Toujours sombre, jamais bg-panel (blanc de façon permanente
+                depuis la suppression du mode nuit — voir index.css) : sinon
+                le texte blanc et les cartes translucides white/10 ci-dessous
+                deviennent illisibles sur fond blanc. */}
+            <div className="hidden lg:flex w-1/2 bg-slate-900 relative overflow-hidden items-center justify-center p-12">
                 {/* Décoration de fond */}
                 <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg width=\\'60\\' height=\\'60\\' viewBox=\\'0 0 60 60\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'none\\' fill-rule=\\'evenodd\\'%3E%3Cg fill=\\'%23ffffff\\' fill-opacity=\\'1\\'%3E%3Cpath d=\\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')" }}></div>
                 <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-accent/20 rounded-full blur-[120px] -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>

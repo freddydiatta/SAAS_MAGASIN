@@ -73,7 +73,12 @@ export const Register = () => {
         <div className="min-h-screen bg-surface flex">
             
             {/* Colonne Gauche - Illustration (On inverse par rapport au Login pour varier un peu) */}
-            <div className="hidden lg:flex w-1/2 bg-panel relative overflow-hidden items-center justify-center p-12 order-2 lg:order-1">
+            {/* Toujours sombre, jamais bg-panel (blanc de façon permanente
+                depuis la suppression du mode nuit — voir index.css) : le
+                texte blanc et les cartes translucides white/10 de ce panneau
+                marketing ont besoin d'un fond sombre pour rester lisibles,
+                indépendamment du thème clair du reste de l'app. */}
+            <div className="hidden lg:flex w-1/2 bg-slate-900 relative overflow-hidden items-center justify-center p-12 order-2 lg:order-1">
                 <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "url('data:image/svg+xml,%3Csvg width=\\'60\\' height=\\'60\\' viewBox=\\'0 0 60 60\\' xmlns=\\'http://www.w3.org/2000/svg\\'%3E%3Cg fill=\\'none\\' fill-rule=\\'evenodd\\'%3E%3Cg fill=\\'%23ffffff\\' fill-opacity=\\'1\\'%3E%3Cpath d=\\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')" }}></div>
                 <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-accent/20 rounded-full blur-[120px] -translate-y-1/2 -translate-x-1/3 pointer-events-none"></div>
                 <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-emerald-500/10 rounded-full blur-[100px] translate-y-1/3 translate-x-1/4 pointer-events-none"></div>
@@ -115,10 +120,15 @@ export const Register = () => {
             </div>
             
             {/* Colonne Droite - Formulaire */}
-            <div className="w-full lg:w-1/2 flex flex-col justify-center px-8 sm:px-12 lg:px-24 xl:px-32 relative order-1 lg:order-2">
-                
+            {/* Le logo occupe maintenant sa propre place dans le flux (plus
+                d'absolute) : avec justify-center sur toute la colonne et le
+                logo en position absolute top-8, le formulaire centré
+                verticalement remontait jusqu'à chevaucher le logo sur grand
+                écran (mt-16 lg:mt-0 ne réservait aucun espace pour lui). */}
+            <div className="w-full lg:w-1/2 flex flex-col px-8 sm:px-12 lg:px-24 xl:px-32 relative order-1 lg:order-2">
+
                 {/* Logo */}
-                <div className="absolute top-8 left-8 sm:left-12 lg:left-24">
+                <div className="pt-8">
                     <Link to="/" className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center shadow-lg shadow-accent/20">
                             <span className="text-white font-bold text-2xl">G</span>
@@ -127,11 +137,12 @@ export const Register = () => {
                     </Link>
                 </div>
 
-                <motion.div 
+                <div className="flex-1 flex flex-col justify-center">
+                <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="max-w-md w-full mx-auto mt-16 lg:mt-0"
+                    className="max-w-md w-full mx-auto py-12"
                 >
                     <div className="mb-10">
                         <div className="inline-block px-3 py-1 bg-accent/10 text-accent font-bold rounded-full text-sm mb-4">
@@ -260,6 +271,7 @@ export const Register = () => {
                         </Link>
                     </p>
                 </motion.div>
+                </div>
             </div>
         </div>
     );
