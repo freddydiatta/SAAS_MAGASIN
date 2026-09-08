@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
-import { adjustStock, deleteProduct, productKeys } from '../../services/productsService';
-import { Plus, Search, Edit2, Bike, Tag, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { deleteProduct, productKeys } from '../../services/productsService';
+import { Plus, Search, Edit2, Bike, Tag, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { AddProductModal } from '../../components/AddProductModal';
@@ -34,17 +34,6 @@ export const Motos = () => {
     );
 
     const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: productKeys.all(selectedBusiness?.id) });
-
-    const updateStockMutation = useMutation({
-        mutationFn: adjustStock,
-        onSuccess: () => {
-            invalidateProducts();
-            toast.success('Stock de la moto mis à jour');
-        },
-        onError: () => {
-            toast.error('Erreur lors de la mise à jour du stock');
-        }
-    });
 
     const deleteMotoMutation = useMutation({
         mutationFn: deleteProduct,
@@ -88,26 +77,16 @@ export const Motos = () => {
             header: 'Quantité (Stock)',
             headerClassName: 'p-4 font-semibold border-b border-slate-100 dark:border-border-theme text-center',
             cellClassName: 'p-4 text-center',
+            // Lecture seule à dessein : le stock ne doit bouger que par une
+            // vente (Caisse) ou la réception d'un bon de commande
+            // (Fournisseurs), jamais par un +/- à main levée sans trace.
             render: (moto) => (
-                <div className="flex items-center justify-center gap-3">
-                    <button
-                        onClick={() => updateStockMutation.mutate({ id: moto.id, change: -1 })}
-                        className="text-slate-400 hover:text-red-500 transition-colors"
-                        title="Diminuer le stock"
-                    >
-                        <MinusCircle className="w-5 h-5" />
-                    </button>
-                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${moto.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}>
-                        {moto.stock_quantity}
-                    </span>
-                    <button
-                        onClick={() => updateStockMutation.mutate({ id: moto.id, change: 1 })}
-                        className="text-slate-400 hover:text-emerald-500 transition-colors"
-                        title="Augmenter le stock"
-                    >
-                        <PlusCircle className="w-5 h-5" />
-                    </button>
-                </div>
+                <span
+                    title="Le stock ne se modifie que par une vente ou la réception d'un bon de commande."
+                    className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold ${moto.stock_quantity > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400'}`}
+                >
+                    {moto.stock_quantity}
+                </span>
             ),
         },
         {

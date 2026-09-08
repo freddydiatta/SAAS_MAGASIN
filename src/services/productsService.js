@@ -61,15 +61,3 @@ export const deleteProduct = async ({ id, imageUrl }) => {
 
     return id;
 };
-
-// Ajustement atomique côté base de données (voir adjust_stock dans
-// supabase/patches/2026-08-21_critical_fixes.sql) : évite la race condition
-// d'un "lire le stock puis écrire" fait depuis le client.
-export const adjustStock = async ({ id, change }) => {
-    const { data, error } = await supabase.rpc('adjust_stock', {
-        p_product_id: id,
-        p_change: change,
-    });
-    if (error) throw error;
-    return data;
-};

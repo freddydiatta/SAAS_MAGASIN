@@ -3,10 +3,10 @@ import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
-import { adjustStock, deleteProduct, productKeys } from '../../services/productsService';
+import { deleteProduct, productKeys } from '../../services/productsService';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
-import { Plus, Search, Edit2, Trash2, PlusCircle, MinusCircle } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
@@ -26,21 +26,6 @@ export const Stock = () => {
     const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
 
     const invalidateProducts = () => queryClient.invalidateQueries({ queryKey: productKeys.all(selectedBusiness?.id) });
-
-    const updateStockMutation = useMutation({
-        // Ajustement atomique côté base de données (évite la race condition
-        // d'un "lire le stock puis écrire" fait depuis le client en cas de
-        // clics concurrents, voir adjust_stock dans
-        // supabase/patches/2026-08-21_critical_fixes.sql).
-        mutationFn: adjustStock,
-        onSuccess: () => {
-            invalidateProducts();
-            toast.success('Stock mis à jour');
-        },
-        onError: () => {
-            toast.error('Erreur lors de la mise à jour du stock');
-        }
-    });
 
     const deleteProductMutation = useMutation({
         mutationFn: deleteProduct,
@@ -102,32 +87,22 @@ export const Stock = () => {
             header: 'En Stock',
             headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'px-6 py-4',
+            // Lecture seule à dessein : le stock ne doit bouger que par une
+            // vente (Caisse) ou la réception d'un bon de commande
+            // (Fournisseurs), jamais par un +/- à main levée sans trace.
             render: (product) => (
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => updateStockMutation.mutate({ id: product.id, change: -1 })}
-                        className="text-slate-400 hover:text-red-500 transition-colors"
-                        title="Diminuer de 1"
-                    >
-                        <MinusCircle className="w-5 h-5" />
-                    </button>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                <span
+                    title="Le stock ne se modifie que par une vente ou la réception d'un bon de commande."
+                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
                         product.stock_quantity > 10
                             ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'
                             : product.stock_quantity > 0
                                 ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'
                                 : 'bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-                    }`}>
-                        {product.stock_quantity}
-                    </span>
-                    <button
-                        onClick={() => updateStockMutation.mutate({ id: product.id, change: 1 })}
-                        className="text-slate-400 hover:text-emerald-500 transition-colors"
-                        title="Ajouter 1"
-                    >
-                        <PlusCircle className="w-5 h-5" />
-                    </button>
-                </div>
+                    }`}
+                >
+                    {product.stock_quantity}
+                </span>
             ),
         },
         {

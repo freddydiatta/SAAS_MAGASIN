@@ -16,8 +16,6 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
     const [price, setPrice] = useState('');
     const [costPrice, setCostPrice] = useState('');
     const [supplierId, setSupplierId] = useState('');
-    const [quantity, setQuantity] = useState('');
-    const [addQuantity, setAddQuantity] = useState('');
     const [imageUrl, setImageUrl] = useState('');
 
     const [type, setType] = useState('standard');
@@ -31,8 +29,6 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
             setPrice(product.price || '');
             setCostPrice(product.cost_price ?? '');
             setSupplierId(product.supplier_id || '');
-            setQuantity(product.stock_quantity || '');
-            setAddQuantity('');
             setType(product.type || 'standard');
             setImageUrl(product.image_url || '');
         }
@@ -42,7 +38,11 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
         e.preventDefault();
         setError('');
 
-        const result = productSchema.safeParse({ name, price, quantity, costPrice });
+        // Le stock ne se modifie plus depuis cette fiche (voir Stock.jsx) :
+        // seule une vente ou la réception d'un bon de commande le fait
+        // bouger, pour qu'il y ait toujours une trace de pourquoi. On
+        // renvoie donc la quantité déjà connue du produit, inchangée.
+        const result = productSchema.safeParse({ name, price, costPrice, quantity: product.stock_quantity });
         if (!result.success) {
             setError(firstZodError(result));
             return;
@@ -57,7 +57,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                 price: result.data.price,
                 costPrice: result.data.costPrice,
                 supplierId,
-                stockQuantity: result.data.quantity,
+                stockQuantity: product.stock_quantity,
                 imageUrl,
                 previousImageUrl: product.image_url,
             });
@@ -152,44 +152,13 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                         </select>
                     </div>
                     <div className="col-span-2">
-                        <label className="block text-sm font-semibold text-primary mb-1.5 flex items-center justify-between">
-                            Ajouter au stock (+)
-                        </label>
-                        <input
-                            type="number"
-                            step="1"
-                            placeholder="ex: 100"
-                            value={addQuantity}
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                setAddQuantity(val);
-                                const base = product?.stock_quantity || 0;
-                                if (val === '') {
-                                    setQuantity(base);
-                                } else {
-                                    setQuantity(base + parseInt(val || 0, 10));
-                                }
-                            }}
-                            className="w-full bg-emerald-50/50 border border-emerald-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all placeholder:text-emerald-300 text-emerald-700 font-bold"
-                        />
-                    </div>
-                    <div className="col-span-2">
-                        <label className="block text-sm font-semibold text-primary mb-1.5 flex justify-between">
-                            <span>Quantité finale en stock</span>
-                            <span className="text-slate-400 font-normal">Ancien stock : {product?.stock_quantity || 0}</span>
-                        </label>
-                        <input
-                            type="number"
-                            required
-                            min="0"
-                            step="1"
-                            value={quantity}
-                            onChange={(e) => {
-                                setQuantity(e.target.value);
-                                setAddQuantity(''); // Reset add if manually changed
-                            }}
-                            className="w-full bg-surface border border-slate-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-accent/50 text-lg font-bold"
-                        />
+                        <div className="flex justify-between items-center bg-surface border border-slate-200 rounded-lg px-4 py-3">
+                            <span className="text-sm font-semibold text-primary">Stock actuel</span>
+                            <span className="text-lg font-bold text-primary">{product?.stock_quantity ?? 0}</span>
+                        </div>
+                        <p className="text-xs text-secondary mt-1.5">
+                            Le stock ne se modifie que par une vente (Caisse) ou la réception d'un bon de commande (Fournisseurs).
+                        </p>
                     </div>
                 </div>
 
