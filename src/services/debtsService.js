@@ -1,22 +1,26 @@
 import { supabase } from '../lib/supabase';
 
+// Jointe au reçu d'origine (s'il y en a un — une dette née d'une vente à
+// crédit en a un, une dette saisie manuellement non) pour pouvoir afficher
+// les articles pris par le client, pas juste le montant total.
 export const fetchDebts = async (businessId) => {
     const { data, error } = await supabase
         .from('debts')
-        .select('*')
+        .select('*, receipt:receipts(id, sales(quantity, total_price, products(name)))')
         .eq('business_id', businessId)
         .order('created_at', { ascending: false });
     if (error) throw error;
     return data;
 };
 
-export const addDebt = async ({ businessId, customerName, customerPhone, amount, note }) => {
+export const addDebt = async ({ businessId, customerName, customerPhone, amount, note, receiptId }) => {
     const { error } = await supabase.from('debts').insert([{
         business_id: businessId,
         customer_name: customerName,
         customer_phone: customerPhone || null,
         amount,
         note: note || null,
+        receipt_id: receiptId || null,
     }]);
     if (error) throw error;
 };

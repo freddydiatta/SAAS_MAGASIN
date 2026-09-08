@@ -60,11 +60,21 @@ export const Dettes = () => {
             ),
         },
         {
-            key: 'note',
-            header: 'Description',
+            key: 'detail',
+            header: 'Articles / Description',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
-            render: (debt) => debt.note || '—',
+            // Une dette née d'une vente à crédit (Caisse.jsx) est reliée au
+            // reçu d'origine : on liste ce qui a été pris plutôt que de
+            // laisser le seul montant total. Une dette saisie manuellement
+            // n'a pas de reçu — sa description reste le seul détail.
+            render: (debt) => {
+                const items = debt.receipt?.sales;
+                if (items?.length > 0) {
+                    return items.map((sale) => `${sale.products?.name || 'Produit'} ×${sale.quantity}`).join(', ');
+                }
+                return debt.note || '—';
+            },
         },
         {
             key: 'amount',

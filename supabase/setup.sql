@@ -881,6 +881,11 @@ CREATE TABLE public.debts (
     amount DECIMAL(10, 2) NOT NULL CHECK (amount > 0),
     note TEXT,
     status TEXT NOT NULL DEFAULT 'unpaid', -- 'unpaid', 'paid'
+    -- Relie une dette née d'une vente à crédit (Caisse.jsx) au reçu
+    -- d'origine, pour afficher les articles concernés dans Dettes.jsx
+    -- plutôt que juste le montant total. NULL pour une dette saisie
+    -- manuellement (prêt sans vente associée).
+    receipt_id UUID REFERENCES public.receipts(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     paid_at TIMESTAMP WITH TIME ZONE
 );

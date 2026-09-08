@@ -169,6 +169,7 @@ export function useCaisseCart(selectedBusiness) {
                         customerPhone,
                         amount: receiptData.total_amount,
                         note: 'Vente à crédit',
+                        receiptId,
                     });
                     queryClient.invalidateQueries(['debts', selectedBusiness.id]);
                 } catch (debtError) {

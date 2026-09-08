@@ -170,6 +170,10 @@ describe('syncOfflineSales', () => {
         expect(fromMock).toHaveBeenCalledWith('debts');
         expect(debtsBuilder.insert).toHaveBeenCalledWith([expect.objectContaining({
             business_id: 'biz-1', customer_name: 'Moussa Diop', amount: 5000,
+            // l'id du VRAI reçu créé par la synchro, pas l'id temporaire de
+            // la file hors-ligne — pour que Dettes.jsx puisse retrouver les
+            // articles pris.
+            receipt_id: 'real-receipt-1',
         })]);
         expect(setMock).toHaveBeenCalledWith('offline_sales', []);
     });

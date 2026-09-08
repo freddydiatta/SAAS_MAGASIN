@@ -180,6 +180,9 @@ describe('useCaisseCart', () => {
         expect(debtsBuilder.insert).toHaveBeenCalledWith([expect.objectContaining({
             customer_name: 'Moussa Diop',
             amount: 1000,
+            // pour que Dettes.jsx puisse lister les articles pris, pas
+            // seulement le montant total.
+            receipt_id: 'receipt-1',
         })]);
         expect(result.current.toastMessage).toMatch(/vente à crédit enregistrée/i);
         expect(result.current.cart).toEqual([]);

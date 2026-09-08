@@ -26,7 +26,7 @@ describe('debtsService', () => {
         rpcMock.mockReset();
     });
 
-    it('fetchDebts orders by most recent first', async () => {
+    it('fetchDebts joins the linked receipt (for the item detail) and orders by most recent first', async () => {
         const builder = createQueryBuilder({ data: [{ id: 'd1' }], error: null });
         fromMock.mockImplementation(() => builder);
 
@@ -38,15 +38,24 @@ describe('debtsService', () => {
         expect(data).toEqual([{ id: 'd1' }]);
     });
 
-    it('addDebt defaults blank optional fields to null', async () => {
+    it('addDebt defaults blank optional fields and a missing receiptId to null', async () => {
         const builder = createQueryBuilder({ data: null, error: null });
         fromMock.mockImplementation(() => builder);
 
         await addDebt({ businessId: 'biz-1', customerName: 'Moussa Diop', customerPhone: '', amount: 5000, note: '' });
 
         expect(builder.insert).toHaveBeenCalledWith([{
-            business_id: 'biz-1', customer_name: 'Moussa Diop', customer_phone: null, amount: 5000, note: null,
+            business_id: 'biz-1', customer_name: 'Moussa Diop', customer_phone: null, amount: 5000, note: null, receipt_id: null,
         }]);
+    });
+
+    it('addDebt stores the linked receipt id when a credit sale created it', async () => {
+        const builder = createQueryBuilder({ data: null, error: null });
+        fromMock.mockImplementation(() => builder);
+
+        await addDebt({ businessId: 'biz-1', customerName: 'Moussa Diop', amount: 5000, receiptId: 'r1' });
+
+        expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ receipt_id: 'r1' })]);
     });
 
     it('updateDebt calls the audited RPC with snake_case params, defaulting blanks to null', async () => {

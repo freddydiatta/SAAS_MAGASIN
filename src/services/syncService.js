@@ -77,7 +77,7 @@ export const syncOfflineSales = async (queryClient) => {
                 // Créée via la même fonction transactionnelle que la caisse en ligne
                 // (process_sale) : insertion du reçu, des lignes de vente et décrément
                 // du stock en une seule opération atomique côté base de données.
-                const { error: saleError } = await processSale({
+                const { data: syncedReceipt, error: saleError } = await processSale({
                     businessId: receipt.business_id,
                     customerName: receipt.customer_name,
                     customerPhone: receipt.customer_phone,
@@ -102,6 +102,7 @@ export const syncOfflineSales = async (queryClient) => {
                             customerPhone: receipt.customer_phone,
                             amount: receipt.total_amount,
                             note: 'Vente à crédit',
+                            receiptId: syncedReceipt?.id,
                         });
                     } catch (debtError) {
                         console.error("Erreur lors de l'enregistrement de la dette (vente hors-ligne synchronisée):", debtError.message);
