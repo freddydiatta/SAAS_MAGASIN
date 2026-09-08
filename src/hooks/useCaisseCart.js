@@ -221,7 +221,11 @@ export function useCaisseCart(selectedBusiness) {
 
         } catch (error) {
             console.error("Erreur lors de l'encaissement:", error.message);
-            showToast('❌ Erreur lors de l\'encaissement');
+            // process_sale renvoie un message précis en cas de stock
+            // insuffisant ("Stock insuffisant pour "X" : disponible Y,
+            // demandé Z") — l'afficher tel quel plutôt qu'un message
+            // générique qui n'aide pas le caissier à comprendre quoi faire.
+            showToast(`❌ ${error.message || "Erreur lors de l'encaissement"}`);
         }
     };
 

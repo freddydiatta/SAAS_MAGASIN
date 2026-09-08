@@ -87,8 +87,14 @@ describe('useCaisseCart', () => {
         expect(result.current.toastMessage).toMatch(/encaissée avec succès/);
     });
 
-    it('keeps the cart and surfaces a toast when process_sale rejects', async () => {
-        rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Stock insuffisant') });
+    it('keeps the cart and surfaces process_sale\'s own message, not a generic one', async () => {
+        // process_sale raises a precise "Stock insuffisant pour X: disponible
+        // Y, demandé Z" — the cashier needs to see exactly that, not a
+        // generic "erreur d'encaissement" that doesn't say what to fix.
+        rpcMock.mockResolvedValueOnce({
+            data: null,
+            error: new Error('Stock insuffisant pour "Casque Moto": disponible 2, demandé 5'),
+        });
         const { result } = renderHookWithQueryClient(() => useCaisseCart(BUSINESS));
         act(() => result.current.addToCart(PRODUCT));
 
@@ -97,7 +103,19 @@ describe('useCaisseCart', () => {
         });
 
         expect(result.current.cart).toEqual([{ ...PRODUCT, quantity: 1 }]);
-        expect(result.current.toastMessage).toMatch(/Erreur lors de l'encaissement/);
+        expect(result.current.toastMessage).toBe('❌ Stock insuffisant pour "Casque Moto": disponible 2, demandé 5');
+    });
+
+    it('falls back to a generic toast when the error carries no message', async () => {
+        rpcMock.mockResolvedValueOnce({ data: null, error: {} });
+        const { result } = renderHookWithQueryClient(() => useCaisseCart(BUSINESS));
+        act(() => result.current.addToCart(PRODUCT));
+
+        await act(async () => {
+            await result.current.handleCheckout(false);
+        });
+
+        expect(result.current.toastMessage).toBe("❌ Erreur lors de l'encaissement");
     });
 
     it('queues the sale offline via saveOfflineSale when there is no connection', async () => {

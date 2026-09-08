@@ -95,7 +95,10 @@ describe('Caisse checkout', () => {
 
         await user.click(screen.getByRole('button', { name: 'Encaisser' }));
 
-        expect(await screen.findByText(/Erreur lors de l'encaissement/)).toBeInTheDocument();
+        // Le message précis du serveur s'affiche tel quel (pas un "erreur
+        // d'encaissement" générique) : le caissier voit tout de suite quel
+        // produit manque et combien il en reste.
+        expect(await screen.findByText(/Stock insuffisant pour "Casque Moto": disponible 0, demandé 1/)).toBeInTheDocument();
         // cart untouched -> item still there, not the empty state
         expect(screen.queryByText('Le panier est vide')).not.toBeInTheDocument();
     });
