@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchDebts, addDebt, markDebtPaid, deleteDebt } from './debtsService';
+import { fetchDebts, addDebt, updateDebt, markDebtPaid, deleteDebt } from './debtsService';
 
 function createQueryBuilder(result) {
     const builder = {
@@ -14,15 +14,16 @@ function createQueryBuilder(result) {
     return builder;
 }
 
-const { fromMock } = vi.hoisted(() => ({ fromMock: vi.fn() }));
+const { fromMock, rpcMock } = vi.hoisted(() => ({ fromMock: vi.fn(), rpcMock: vi.fn() }));
 
 vi.mock('../lib/supabase', () => ({
-    supabase: { from: fromMock },
+    supabase: { from: fromMock, rpc: rpcMock },
 }));
 
 describe('debtsService', () => {
     beforeEach(() => {
         fromMock.mockReset();
+        rpcMock.mockReset();
     });
 
     it('fetchDebts orders by most recent first', async () => {
@@ -46,6 +47,30 @@ describe('debtsService', () => {
         expect(builder.insert).toHaveBeenCalledWith([{
             business_id: 'biz-1', customer_name: 'Moussa Diop', customer_phone: null, amount: 5000, note: null,
         }]);
+    });
+
+    it('updateDebt calls the audited RPC with snake_case params, defaulting blanks to null', async () => {
+        rpcMock.mockResolvedValue({ data: { id: 'd1' }, error: null });
+
+        await updateDebt({
+            debtId: 'd1', userEmail: 'owner@test.com', customerName: 'Moussa Diop', customerPhone: '', amount: 6000, note: '',
+        });
+
+        expect(rpcMock).toHaveBeenCalledWith('update_debt', {
+            p_debt_id: 'd1',
+            p_user_email: 'owner@test.com',
+            p_customer_name: 'Moussa Diop',
+            p_customer_phone: null,
+            p_amount: 6000,
+            p_note: null,
+        });
+    });
+
+    it('propagates a database error from updateDebt', async () => {
+        rpcMock.mockResolvedValue({ data: null, error: new Error('Dette introuvable') });
+
+        await expect(updateDebt({ debtId: 'd1', userEmail: 'owner@test.com', customerName: 'x', amount: 100 }))
+            .rejects.toThrow('Dette introuvable');
     });
 
     it('markDebtPaid sets the status and a paid timestamp', async () => {

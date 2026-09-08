@@ -1,10 +1,11 @@
 import { useBusiness } from '../contexts/BusinessContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useDebts } from '../hooks/useDebts';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { Plus, Trash2, CheckCircle2, HandCoins } from 'lucide-react';
+import { Plus, Trash2, Edit2, CheckCircle2, HandCoins } from 'lucide-react';
 
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
 
@@ -25,14 +26,18 @@ const CONFIRM_CONFIG = {
 };
 
 export const Dettes = () => {
-    const { selectedBusiness } = useBusiness();
+    const { selectedBusiness, currentMember } = useBusiness();
+    const { user } = useAuth();
+    // Un caissier a un compte auto-généré (email interne illisible) : on
+    // journalise son nom d'affichage plutôt que cet email quand disponible.
+    const actorLabel = currentMember?.name || user?.email || 'unknown';
     const {
         debts, unpaidDebts, totalOwed, isLoading,
-        isAddOpen, openAddForm, closeForm,
+        isAddOpen, editingDebt, openAddForm, openEditForm, closeForm,
         formData, setFormData,
         handleSubmit, handleMarkPaid, handleDelete, isSaving,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
-    } = useDebts(selectedBusiness);
+    } = useDebts(selectedBusiness, actorLabel);
 
     const columns = [
         {
@@ -106,6 +111,13 @@ export const Dettes = () => {
                         </button>
                     )}
                     <button
+                        onClick={() => openEditForm(debt)}
+                        title="Modifier"
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
                         onClick={() => handleDelete(debt)}
                         aria-label="Supprimer la dette"
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
@@ -159,7 +171,7 @@ export const Dettes = () => {
                 />
             </div>
 
-            <Modal isOpen={isAddOpen} onClose={closeForm} title="Nouvelle dette" maxWidth="max-w-sm">
+            <Modal isOpen={isAddOpen} onClose={closeForm} title={editingDebt ? 'Modifier la dette' : 'Nouvelle dette'} maxWidth="max-w-sm">
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-primary mb-1.5">Nom du client</label>
@@ -208,7 +220,7 @@ export const Dettes = () => {
                             Annuler
                         </button>
                         <button type="submit" disabled={isSaving} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50">
-                            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+                            {isSaving ? 'Enregistrement...' : editingDebt ? 'Enregistrer les modifications' : 'Enregistrer'}
                         </button>
                     </div>
                 </form>

@@ -112,6 +112,23 @@ describe('useSalesHistory', () => {
         expect(result.current.toastMessage).toMatch(/modifiée avec succès/);
     });
 
+    it('filters receipts by date range while keeping the unfiltered total available', async () => {
+        const today = new Date();
+        const oldReceipt = { ...RECEIPT, id: 'r-old', created_at: '2020-01-01T10:00:00.000Z' };
+        const recentReceipt = { ...RECEIPT, id: 'r-recent', created_at: today.toISOString() };
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [recentReceipt, oldReceipt], error: null }));
+
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        await waitFor(() => expect(result.current.receipts).toHaveLength(2));
+        expect(result.current.totalReceiptsCount).toBe(2);
+
+        act(() => result.current.setDateFilter('7d'));
+
+        await waitFor(() => expect(result.current.receipts).toEqual([recentReceipt]));
+        // the unfiltered total doesn't change just because a filter is applied
+        expect(result.current.totalReceiptsCount).toBe(2);
+    });
+
     it('handlePrint maps a receipt into per-unit-price print details', async () => {
         const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));

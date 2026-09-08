@@ -2,10 +2,11 @@ import { useBusiness } from '../../contexts/BusinessContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSalesHistory } from '../../hooks/useSalesHistory';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { FileText, Edit2, Ban, Calendar, AlertTriangle, Plus, Minus } from 'lucide-react';
+import { FileText, Edit2, Ban, AlertTriangle, Plus, Minus } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
+import { DateRangeFilter } from '../../components/DateRangeFilter';
 
 export const HistoriqueVentes = () => {
     const { selectedBusiness, currentMember } = useBusiness();
@@ -15,7 +16,8 @@ export const HistoriqueVentes = () => {
     const actorLabel = currentMember?.name || user?.email || 'unknown';
 
     const {
-        receipts, isLoading,
+        receipts, totalReceiptsCount, isLoading,
+        dateFilter, setDateFilter, customFrom, setCustomFrom, customTo, setCustomTo,
         toastMessage,
         receiptToCancel, setReceiptToCancel, confirmCancel, isCancelling,
         receiptToPrint, setReceiptToPrint, handlePrint,
@@ -239,17 +241,14 @@ export const HistoriqueVentes = () => {
                     <h1 className="text-3xl font-bold text-primary tracking-tight">Historique des ventes</h1>
                     <p className="text-secondary mt-1">Consultez vos transactions et gérez les annulations</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                        7 jours
-                    </button>
-                    <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors bg-slate-50 dark:bg-slate-800">
-                        30 jours
-                    </button>
-                    <button className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
-                        Période <Calendar className="w-4 h-4" />
-                    </button>
-                </div>
+                <DateRangeFilter
+                    value={dateFilter}
+                    onChange={setDateFilter}
+                    customFrom={customFrom}
+                    customTo={customTo}
+                    onCustomFromChange={setCustomFrom}
+                    onCustomToChange={setCustomTo}
+                />
             </div>
 
             <div className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden print:hidden">
@@ -257,7 +256,7 @@ export const HistoriqueVentes = () => {
                     columns={columns}
                     data={receipts}
                     keyField="id"
-                    emptyContent="Aucune vente enregistrée pour le moment."
+                    emptyContent={dateFilter !== 'all' && totalReceiptsCount > 0 ? 'Aucune vente sur cette période.' : 'Aucune vente enregistrée pour le moment.'}
                 />
             </div>
         </div>

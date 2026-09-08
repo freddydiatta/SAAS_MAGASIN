@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { fetchDebts, addDebt, markDebtPaid, deleteDebt } from '../services/debtsService';
+import { fetchDebts, addDebt, updateDebt, markDebtPaid, deleteDebt } from '../services/debtsService';
 import { debtSchema, firstZodError } from '../lib/validation';
 
 const EMPTY_FORM = { customerName: '', customerPhone: '', amount: '', note: '' };
 
 // Dettes clients (crédit) : partagé par tous les verticaux, même logique
 // que useExpenses.js.
-export function useDebts(selectedBusiness) {
+export function useDebts(selectedBusiness, actorLabel) {
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [formData, setFormData] = useState(EMPTY_FORM);
+    // null = mode ajout ; une dette = mode modification (même formulaire,
+    // voir openEditForm).
+    const [editingDebt, setEditingDebt] = useState(null);
     // { type: 'markPaid' | 'delete', item: debt } — remplace window.confirm
     // par ConfirmModal, cohérent avec le reste de l'app.
     const [confirmAction, setConfirmAction] = useState(null);
@@ -38,6 +41,21 @@ export function useDebts(selectedBusiness) {
         onError: () => toast.error("Erreur lors de l'enregistrement de la dette."),
     });
 
+    // Journalisée côté base (voir update_debt) : jamais une correction
+    // silencieuse, toujours une trace consultable dans Sécurité.
+    const updateDebtMutation = useMutation({
+        mutationFn: (debt) => updateDebt({ debtId: editingDebt.id, userEmail: actorLabel, ...debt }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey });
+            queryClient.invalidateQueries({ queryKey: ['audit_logs', selectedBusiness?.id] });
+            setIsAddOpen(false);
+            setEditingDebt(null);
+            setFormData(EMPTY_FORM);
+            toast.success('Dette modifiée.');
+        },
+        onError: (error) => toast.error(error.message || 'Erreur lors de la modification de la dette.'),
+    });
+
     const markPaidMutation = useMutation({
         mutationFn: markDebtPaid,
         onSuccess: () => {
@@ -59,11 +77,26 @@ export function useDebts(selectedBusiness) {
     });
 
     const openAddForm = () => {
+        setEditingDebt(null);
         setFormData(EMPTY_FORM);
         setIsAddOpen(true);
     };
 
-    const closeForm = () => setIsAddOpen(false);
+    const openEditForm = (debt) => {
+        setEditingDebt(debt);
+        setFormData({
+            customerName: debt.customer_name || '',
+            customerPhone: debt.customer_phone || '',
+            amount: String(debt.amount),
+            note: debt.note || '',
+        });
+        setIsAddOpen(true);
+    };
+
+    const closeForm = () => {
+        setIsAddOpen(false);
+        setEditingDebt(null);
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -72,7 +105,11 @@ export function useDebts(selectedBusiness) {
             toast.error(firstZodError(result));
             return;
         }
-        addDebtMutation.mutate(result.data);
+        if (editingDebt) {
+            updateDebtMutation.mutate(result.data);
+        } else {
+            addDebtMutation.mutate(result.data);
+        }
     };
 
     const handleMarkPaid = (debt) => setConfirmAction({ type: 'markPaid', item: debt });
@@ -94,14 +131,16 @@ export function useDebts(selectedBusiness) {
         totalOwed,
         isLoading,
         isAddOpen,
+        editingDebt,
         openAddForm,
+        openEditForm,
         closeForm,
         formData,
         setFormData,
         handleSubmit,
         handleMarkPaid,
         handleDelete,
-        isSaving: addDebtMutation.isPending,
+        isSaving: addDebtMutation.isPending || updateDebtMutation.isPending,
 
         confirmAction,
         closeConfirmAction,

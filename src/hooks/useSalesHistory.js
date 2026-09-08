@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { cancelSale, modifySale } from '../services/salesService';
+import { filterByDateRange } from '../lib/dateFilter';
 
 // Requêtes, mutations et calculs de l'historique des ventes (annulation,
 // modification, préparation de l'impression) : sorti de HistoriqueVentes.jsx
@@ -14,13 +15,18 @@ export function useSalesHistory(selectedBusiness, actorLabel) {
     const [receiptToPrint, setReceiptToPrint] = useState(null);
     const [receiptToModify, setReceiptToModify] = useState(null);
     const [modifiedItems, setModifiedItems] = useState([]);
+    // Les boutons "7 jours"/"30 jours"/"Période" existaient déjà dans le
+    // rendu mais n'étaient reliés à rien.
+    const [dateFilter, setDateFilter] = useState('all');
+    const [customFrom, setCustomFrom] = useState('');
+    const [customTo, setCustomTo] = useState('');
 
     const showToast = (message) => {
         setToastMessage(message);
         setTimeout(() => setToastMessage(''), 3000);
     };
 
-    const { data: receipts = [], isLoading } = useQuery({
+    const { data: allReceipts = [], isLoading } = useQuery({
         queryKey: ['receipts', selectedBusiness?.id],
         queryFn: async () => {
             const { data, error } = await supabase
@@ -33,6 +39,11 @@ export function useSalesHistory(selectedBusiness, actorLabel) {
         },
         enabled: !!selectedBusiness
     });
+
+    const receipts = useMemo(
+        () => filterByDateRange(allReceipts, (r) => r.created_at, { dateFilter, customFrom, customTo }),
+        [allReceipts, dateFilter, customFrom, customTo]
+    );
 
     const invalidateAfterSaleChange = () => {
         queryClient.invalidateQueries(['receipts']);
@@ -140,7 +151,14 @@ export function useSalesHistory(selectedBusiness, actorLabel) {
 
     return {
         receipts,
+        totalReceiptsCount: allReceipts.length,
         isLoading,
+        dateFilter,
+        setDateFilter,
+        customFrom,
+        setCustomFrom,
+        customTo,
+        setCustomTo,
         toastMessage,
         receiptToCancel,
         setReceiptToCancel,

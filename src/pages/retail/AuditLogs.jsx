@@ -1,26 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 import { useBusiness } from '../../contexts/BusinessContext';
+import { useAuditLogs, ACTION_OPTIONS } from '../../hooks/useAuditLogs';
 import { ShieldAlert, ArrowRight, LogIn, XCircle, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
+import { DateRangeFilter } from '../../components/DateRangeFilter';
 
 export const AuditLogs = () => {
     const { selectedBusiness } = useBusiness();
-
-    const { data: logs = [], isLoading } = useQuery({
-        queryKey: ['audit_logs', selectedBusiness?.id],
-        queryFn: async () => {
-            const { data, error } = await supabase
-                .from('audit_logs')
-                .select('*')
-                .eq('business_id', selectedBusiness?.id)
-                .order('created_at', { ascending: false });
-            if (error) throw error;
-            return data;
-        },
-        enabled: !!selectedBusiness
-    });
+    const {
+        logs, totalLogsCount, isLoading,
+        actionFilter, setActionFilter,
+        dateFilter, setDateFilter, customFrom, setCustomFrom, customTo, setCustomTo,
+    } = useAuditLogs(selectedBusiness);
 
     if (isLoading) {
         return <div className="p-8 text-center text-secondary">Chargement des logs de sécurité...</div>;
@@ -32,6 +23,8 @@ export const AuditLogs = () => {
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Vente Annulée</span>;
             case 'MODIFY_SALE':
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Vente Modifiée</span>;
+            case 'MODIFY_DEBT':
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Dette Modifiée</span>;
             case 'LOGIN_SUCCESS':
                 return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"><LogIn className="w-3 h-3" /> Connexion réussie</span>;
             case 'LOGIN_FAILED':
@@ -75,6 +68,26 @@ export const AuditLogs = () => {
                     {details.reason === 'locked'
                         ? 'Tentative pendant un verrouillage temporaire.'
                         : `Code PIN incorrect${details.attempts ? ` (tentative n°${details.attempts})` : ''}.`}
+                </div>
+            );
+        }
+
+        if (log.action === 'MODIFY_DEBT') {
+            const FIELD_LABELS = { customer_name: 'Client', customer_phone: 'Téléphone', amount: 'Montant', note: 'Description' };
+            const changedFields = Object.keys(FIELD_LABELS).filter(
+                (field) => details.before?.[field] !== details.after?.[field]
+            );
+            return (
+                <div className="text-sm space-y-1">
+                    {changedFields.map((field) => (
+                        <div key={field} className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-primary">{FIELD_LABELS[field]}</span>
+                            <span className="text-slate-400 mx-1">|</span>
+                            <span className="text-slate-500 line-through">{details.before?.[field] || '—'}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <strong className="text-amber-600">{details.after?.[field] || '—'}</strong>
+                        </div>
+                    ))}
                 </div>
             );
         }
@@ -165,7 +178,27 @@ export const AuditLogs = () => {
                 </p>
             </div>
 
-            <motion.div 
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <select
+                    value={actionFilter}
+                    onChange={(e) => setActionFilter(e.target.value)}
+                    className="px-4 py-2 rounded-full border border-slate-200 dark:border-border-theme text-sm font-medium bg-surface text-primary focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                    {ACTION_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                </select>
+                <DateRangeFilter
+                    value={dateFilter}
+                    onChange={setDateFilter}
+                    customFrom={customFrom}
+                    customTo={customTo}
+                    onCustomFromChange={setCustomFrom}
+                    onCustomToChange={setCustomTo}
+                />
+            </div>
+
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden"
@@ -173,7 +206,7 @@ export const AuditLogs = () => {
                 <DataTable
                     columns={columns}
                     data={logs}
-                    emptyContent="Aucune activité suspecte détectée."
+                    emptyContent={totalLogsCount > 0 ? 'Aucune activité pour ces filtres.' : 'Aucune activité suspecte détectée.'}
                 />
             </motion.div>
         </div>
