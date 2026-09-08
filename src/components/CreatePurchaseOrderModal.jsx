@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useProducts } from '../hooks/useProducts';
@@ -41,12 +41,37 @@ const resolveQuantityAndCost = (item) => {
     return { quantity: Number(item.quantity) || 0, unitCost: Number(item.unitCost) || 0 };
 };
 
-export const CreatePurchaseOrderModal = ({ isOpen, onClose, onSubmit, isSaving, suppliers = [] }) => {
+// initialOrder (optionnel) : bascule la modale en mode édition d'un bon
+// existant (voir useFournisseurs.openEditOrderForm) — seul un bon 'pending'
+// peut être modifié (même restriction côté base, voir update_purchase_order).
+// Les lignes sont réaffichées en mode "Unité" avec la quantité/le prix déjà
+// résolus : on ne sait pas si elles avaient été saisies en pack à l'origine,
+// seul le résultat calculé est stocké.
+export const CreatePurchaseOrderModal = ({ isOpen, onClose, onSubmit, isSaving, suppliers = [], initialOrder = null }) => {
     const { selectedBusiness } = useBusiness();
     const { data: products = [] } = useProducts(selectedBusiness?.id);
+    const isEditing = !!initialOrder;
 
     const [supplierId, setSupplierId] = useState('');
     const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (initialOrder) {
+            setSupplierId(initialOrder.supplier_id || '');
+            setItems(
+                (initialOrder.items || []).map((item) => ({
+                    ...EMPTY_ITEM,
+                    productId: item.product_id || '',
+                    quantity: item.quantity,
+                    unitCost: item.unit_cost,
+                }))
+            );
+        } else {
+            setSupplierId('');
+            setItems([{ ...EMPTY_ITEM }]);
+        }
+    }, [isOpen, initialOrder]);
 
     const reset = () => {
         setSupplierId('');
@@ -104,7 +129,7 @@ export const CreatePurchaseOrderModal = ({ isOpen, onClose, onSubmit, isSaving, 
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={handleClose} title="Nouveau bon de commande" maxWidth="max-w-2xl">
+        <Modal isOpen={isOpen} onClose={handleClose} title={isEditing ? 'Modifier le bon de commande' : 'Nouveau bon de commande'} maxWidth="max-w-2xl">
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-semibold text-primary mb-1.5">Fournisseur (optionnel)</label>
@@ -282,7 +307,9 @@ export const CreatePurchaseOrderModal = ({ isOpen, onClose, onSubmit, isSaving, 
                         disabled={isSaving}
                         className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50"
                     >
-                        {isSaving ? 'Création...' : 'Créer le bon de commande'}
+                        {isSaving
+                            ? (isEditing ? 'Enregistrement...' : 'Création...')
+                            : (isEditing ? 'Enregistrer les modifications' : 'Créer le bon de commande')}
                     </button>
                 </div>
             </form>

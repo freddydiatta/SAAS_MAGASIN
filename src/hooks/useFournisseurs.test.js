@@ -15,9 +15,10 @@ vi.mock('../services/suppliersService', () => ({
     deleteSupplier: deleteSupplierMock,
 }));
 
-const { fetchPurchaseOrdersMock, createPurchaseOrderMock, receivePurchaseOrderMock, cancelPurchaseOrderMock } = vi.hoisted(() => ({
+const { fetchPurchaseOrdersMock, createPurchaseOrderMock, updatePurchaseOrderMock, receivePurchaseOrderMock, cancelPurchaseOrderMock } = vi.hoisted(() => ({
     fetchPurchaseOrdersMock: vi.fn(),
     createPurchaseOrderMock: vi.fn(),
+    updatePurchaseOrderMock: vi.fn(),
     receivePurchaseOrderMock: vi.fn(),
     cancelPurchaseOrderMock: vi.fn(),
 }));
@@ -25,6 +26,7 @@ const { fetchPurchaseOrdersMock, createPurchaseOrderMock, receivePurchaseOrderMo
 vi.mock('../services/purchaseOrdersService', () => ({
     fetchPurchaseOrders: fetchPurchaseOrdersMock,
     createPurchaseOrder: createPurchaseOrderMock,
+    updatePurchaseOrder: updatePurchaseOrderMock,
     receivePurchaseOrder: receivePurchaseOrderMock,
     cancelPurchaseOrder: cancelPurchaseOrderMock,
 }));
@@ -57,6 +59,7 @@ describe('useFournisseurs', () => {
         deleteSupplierMock.mockReset();
         fetchPurchaseOrdersMock.mockReset();
         createPurchaseOrderMock.mockReset();
+        updatePurchaseOrderMock.mockReset();
         receivePurchaseOrderMock.mockReset();
         cancelPurchaseOrderMock.mockReset();
         addProductMock.mockReset();
@@ -133,11 +136,11 @@ describe('useFournisseurs', () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
-        // handleCreateOrder est async depuis l'ajout de la création de
+        // handleSubmitOrder est async depuis l'ajout de la création de
         // produit à la volée : ne pas retourner sa promesse à act() (sinon
         // act() passe en mode asynchrone sans être await, ce qui fait
         // déraper le rendu du test suivant).
-        act(() => { result.current.handleCreateOrder({ supplierId: '', items: [] }); });
+        act(() => { result.current.handleSubmitOrder({ supplierId: '', items: [] }); });
 
         expect(toastErrorMock).toHaveBeenCalled();
         expect(createPurchaseOrderMock).not.toHaveBeenCalled();
@@ -147,7 +150,7 @@ describe('useFournisseurs', () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
-        act(() => { result.current.handleCreateOrder({ supplierId: '', items: [{ productId: '', quantity: 1, unitCost: 100 }] }); });
+        act(() => { result.current.handleSubmitOrder({ supplierId: '', items: [{ productId: '', quantity: 1, unitCost: 100 }] }); });
 
         expect(toastErrorMock).toHaveBeenCalled();
         expect(createPurchaseOrderMock).not.toHaveBeenCalled();
@@ -158,7 +161,7 @@ describe('useFournisseurs', () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
-        await act(async () => result.current.handleCreateOrder({
+        await act(async () => result.current.handleSubmitOrder({
             supplierId: 's1',
             items: [{ productId: 'p1', quantity: 2, unitCost: 500 }],
         }));
@@ -174,7 +177,7 @@ describe('useFournisseurs', () => {
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => {
-            result.current.handleCreateOrder({
+            result.current.handleSubmitOrder({
                 supplierId: '',
                 items: [{ isNew: true, newProduct: { name: '', price: 5000 }, quantity: 2, unitCost: 3000 }],
             });
@@ -191,7 +194,7 @@ describe('useFournisseurs', () => {
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
-        await act(async () => result.current.handleCreateOrder({
+        await act(async () => result.current.handleSubmitOrder({
             supplierId: 's1',
             items: [{ isNew: true, newProduct: { name: 'Plaquette de frein', price: 5000 }, quantity: 2, unitCost: 3000 }],
         }));
@@ -265,5 +268,40 @@ describe('useFournisseurs', () => {
 
         expect(cancelPurchaseOrderMock.mock.calls[0]?.[0]).toBe('po1');
         await waitFor(() => expect(result.current.confirmAction).toBeNull());
+    });
+
+    it('opens the order form pre-loaded with the order to edit', async () => {
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.openEditOrderForm({ id: 'po1', status: 'pending' }));
+
+        expect(result.current.isCreateOrderOpen).toBe(true);
+        expect(result.current.editingOrder).toEqual({ id: 'po1', status: 'pending' });
+
+        act(() => result.current.closeCreateOrderForm());
+
+        expect(result.current.isCreateOrderOpen).toBe(false);
+        expect(result.current.editingOrder).toBeNull();
+    });
+
+    it('updates a purchase order through updatePurchaseOrder, journalisée avec l\'email de l\'auteur', async () => {
+        updatePurchaseOrderMock.mockResolvedValueOnce({ id: 'po1' });
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.openEditOrderForm({ id: 'po1', status: 'pending' }));
+
+        await act(async () => result.current.handleSubmitOrder({
+            supplierId: 's1',
+            items: [{ productId: 'p1', quantity: 3, unitCost: 400 }],
+        }));
+
+        expect(updatePurchaseOrderMock).toHaveBeenCalledWith({
+            orderId: 'po1', userEmail: 'gerant@test.com', supplierId: 's1', items: [{ productId: 'p1', quantity: 3, unitCost: 400 }],
+        });
+        expect(createPurchaseOrderMock).not.toHaveBeenCalled();
+        await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+        expect(result.current.editingOrder).toBeNull();
     });
 });

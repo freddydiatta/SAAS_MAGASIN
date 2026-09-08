@@ -1,4 +1,5 @@
 import { useBusiness } from '../../contexts/BusinessContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFournisseurs } from '../../hooks/useFournisseurs';
 import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -6,7 +7,7 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
 import { PurchaseOrderPrint } from '../../components/PurchaseOrderPrint';
-import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer } from 'lucide-react';
+import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2 } from 'lucide-react';
 
 const ORDER_STATUS = {
     pending: { label: 'En attente', tone: 'amber' },
@@ -37,17 +38,21 @@ const CONFIRM_CONFIG = {
 };
 
 export const Fournisseurs = () => {
-    const { selectedBusiness } = useBusiness();
+    const { selectedBusiness, currentMember } = useBusiness();
+    const { user } = useAuth();
+    // Un caissier a un compte auto-généré (email interne illisible) : on
+    // journalise son nom d'affichage plutôt que cet email quand disponible.
+    const actorLabel = currentMember?.name || user?.email || 'unknown';
     const {
         suppliers, isLoadingSuppliers,
         isAddSupplierOpen, openAddSupplierForm, closeSupplierForm,
         supplierForm, setSupplierForm, handleSupplierSubmit, handleDeleteSupplier, isSavingSupplier,
         purchaseOrders, isLoadingOrders,
-        isCreateOrderOpen, openCreateOrderForm, closeCreateOrderForm,
-        handleCreateOrder, handleReceiveOrder, handleCancelOrder, isSavingOrder,
+        isCreateOrderOpen, editingOrder, openCreateOrderForm, openEditOrderForm, closeCreateOrderForm,
+        handleSubmitOrder, handleReceiveOrder, handleCancelOrder, isSavingOrder,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
         orderToPrint, setOrderToPrint, handlePrintOrder,
-    } = useFournisseurs(selectedBusiness);
+    } = useFournisseurs(selectedBusiness, actorLabel);
 
     const supplierColumns = [
         {
@@ -150,6 +155,13 @@ export const Fournisseurs = () => {
                     </button>
                     {order.status === 'pending' && (
                         <>
+                            <button
+                                onClick={() => openEditOrderForm(order)}
+                                title="Modifier le bon de commande"
+                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
                             <button
                                 onClick={() => handleReceiveOrder(order)}
                                 title="Marquer comme reçu (met à jour le stock)"
@@ -278,9 +290,10 @@ export const Fournisseurs = () => {
             <CreatePurchaseOrderModal
                 isOpen={isCreateOrderOpen}
                 onClose={closeCreateOrderForm}
-                onSubmit={handleCreateOrder}
+                onSubmit={handleSubmitOrder}
                 isSaving={isSavingOrder}
                 suppliers={suppliers}
+                initialOrder={editingOrder}
             />
 
             {orderToPrint && (

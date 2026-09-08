@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchPurchaseOrders, createPurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder } from './purchaseOrdersService';
+import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder } from './purchaseOrdersService';
 
 function createQueryBuilder(result) {
     const builder = {
@@ -64,6 +64,39 @@ describe('purchaseOrdersService', () => {
         rpcMock.mockResolvedValue({ data: null, error: new Error('Produit introuvable') });
 
         await expect(createPurchaseOrder({ businessId: 'biz-1', supplierId: '', items: [] })).rejects.toThrow('Produit introuvable');
+    });
+
+    it('updatePurchaseOrder maps items to the snake_case RPC shape', async () => {
+        rpcMock.mockResolvedValue({ data: { id: 'po1' }, error: null });
+
+        await updatePurchaseOrder({
+            orderId: 'po1',
+            userEmail: 'gerant@test.com',
+            supplierId: 's1',
+            items: [{ productId: 'p1', quantity: 5, unitCost: 300 }],
+        });
+
+        expect(rpcMock).toHaveBeenCalledWith('update_purchase_order', {
+            p_order_id: 'po1',
+            p_user_email: 'gerant@test.com',
+            p_supplier_id: 's1',
+            p_items: [{ product_id: 'p1', quantity: 5, unit_cost: 300 }],
+        });
+    });
+
+    it('updatePurchaseOrder passes a null supplier when none was selected', async () => {
+        rpcMock.mockResolvedValue({ data: { id: 'po1' }, error: null });
+
+        await updatePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com', supplierId: '', items: [{ productId: 'p1', quantity: 1, unitCost: 100 }] });
+
+        expect(rpcMock).toHaveBeenCalledWith('update_purchase_order', expect.objectContaining({ p_supplier_id: null }));
+    });
+
+    it('propagates a database error from updatePurchaseOrder (e.g. order already received)', async () => {
+        rpcMock.mockResolvedValue({ data: null, error: new Error('Seul un bon de commande en attente peut être modifié.') });
+
+        await expect(updatePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com', supplierId: '', items: [] }))
+            .rejects.toThrow('Seul un bon de commande en attente peut être modifié.');
     });
 
     it('receivePurchaseOrder calls the RPC with the order id', async () => {

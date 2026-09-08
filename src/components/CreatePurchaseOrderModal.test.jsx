@@ -85,4 +85,36 @@ describe('CreatePurchaseOrderModal', () => {
         expect(screen.getByRole('button', { name: 'Unité' })).toHaveClass('bg-accent');
         expect(screen.queryByPlaceholderText('Nb de packs')).not.toBeInTheDocument();
     });
+
+    it('pre-fills the supplier and items from initialOrder and submits an update', async () => {
+        const onSubmit = vi.fn();
+        const user = userEvent.setup();
+        const initialOrder = {
+            supplier_id: 's1',
+            items: [{ product_id: 'p1', product_name: 'Coca-Cola 33cl', quantity: 10, unit_cost: 280 }],
+        };
+        render(
+            <CreatePurchaseOrderModal
+                isOpen
+                onClose={() => {}}
+                onSubmit={onSubmit}
+                isSaving={false}
+                suppliers={[{ id: 's1', name: 'Import Boissons' }]}
+                initialOrder={initialOrder}
+            />
+        );
+
+        expect(screen.getByText('Modifier le bon de commande')).toBeInTheDocument();
+        expect(screen.getAllByRole('combobox')[0]).toHaveValue('s1');
+        expect(screen.getAllByRole('combobox')[1]).toHaveValue('p1');
+        expect(screen.getByPlaceholderText('Qté')).toHaveValue(10);
+        expect(screen.getByPlaceholderText('P.U. achat')).toHaveValue(280);
+
+        await user.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        expect(onSubmit).toHaveBeenCalledWith({
+            supplierId: 's1',
+            items: [{ productId: 'p1', quantity: 10, unitCost: 280 }],
+        });
+    });
 });

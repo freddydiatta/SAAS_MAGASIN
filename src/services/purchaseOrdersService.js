@@ -28,6 +28,24 @@ export const createPurchaseOrder = async ({ businessId, supplierId, items }) => 
     return data;
 };
 
+// Modification d'un bon en attente : journalisée côté base (voir
+// update_purchase_order) — jamais une correction silencieuse, toujours une
+// trace consultable dans Sécurité. Refuse un bon déjà reçu/annulé.
+export const updatePurchaseOrder = async ({ orderId, userEmail, supplierId, items }) => {
+    const { data, error } = await supabase.rpc('update_purchase_order', {
+        p_order_id: orderId,
+        p_user_email: userEmail,
+        p_supplier_id: supplierId || null,
+        p_items: items.map((item) => ({
+            product_id: item.productId,
+            quantity: item.quantity,
+            unit_cost: item.unitCost,
+        })),
+    });
+    if (error) throw error;
+    return data;
+};
+
 // Augmente le stock des produits de la commande et marque le bon comme reçu
 // (voir receive_purchase_order) — refuse un bon déjà traité.
 export const receivePurchaseOrder = async (id) => {

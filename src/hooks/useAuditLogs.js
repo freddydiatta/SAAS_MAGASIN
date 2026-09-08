@@ -8,6 +8,7 @@ export const ACTION_OPTIONS = [
     { value: 'CANCEL_SALE', label: 'Vente annulée' },
     { value: 'MODIFY_SALE', label: 'Vente modifiée' },
     { value: 'MODIFY_DEBT', label: 'Dette modifiée' },
+    { value: 'MODIFY_PURCHASE_ORDER', label: 'Bon de commande modifié' },
     { value: 'LOGIN_SUCCESS', label: 'Connexion réussie' },
     { value: 'LOGIN_FAILED', label: 'Connexion échouée' },
     { value: 'LOGIN_FAILED_PIN', label: 'Code PIN incorrect' },

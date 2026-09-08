@@ -25,6 +25,8 @@ export const AuditLogs = () => {
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Vente Modifiée</span>;
             case 'MODIFY_DEBT':
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Dette Modifiée</span>;
+            case 'MODIFY_PURCHASE_ORDER':
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Bon de Commande Modifié</span>;
             case 'LOGIN_SUCCESS':
                 return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"><LogIn className="w-3 h-3" /> Connexion réussie</span>;
             case 'LOGIN_FAILED':
@@ -109,6 +111,24 @@ export const AuditLogs = () => {
                             <strong className="text-amber-600">{change.new_qty}</strong>
                         </div>
                     ))}
+                </div>
+            );
+        }
+
+        if (log.action === 'MODIFY_PURCHASE_ORDER') {
+            const formatItems = (items) =>
+                (items || []).map((item) => `${item.product_name} ×${item.quantity} (${Number(item.unit_cost).toLocaleString('fr-FR')} F)`).join(', ') || '—';
+            return (
+                <div className="text-sm space-y-2">
+                    <div className="flex gap-2 items-center text-secondary text-xs">
+                        <span className="line-through">{Number(details.before?.total_amount ?? 0).toLocaleString('fr-FR')} F</span>
+                        <ArrowRight className="w-3 h-3" />
+                        <strong className="text-amber-600">{Number(details.after?.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>
+                    </div>
+                    <div className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme space-y-1">
+                        <div className="text-slate-500 line-through">{formatItems(details.before?.items)}</div>
+                        <div><strong className="text-amber-600">{formatItems(details.after?.items)}</strong></div>
+                    </div>
                 </div>
             );
         }

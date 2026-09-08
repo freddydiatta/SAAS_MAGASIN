@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { fetchSuppliers, addSupplier, deleteSupplier } from '../services/suppliersService';
-import { fetchPurchaseOrders, createPurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder } from '../services/purchaseOrdersService';
+import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, cancelPurchaseOrder } from '../services/purchaseOrdersService';
 import { addProduct, productKeys } from '../services/productsService';
 import { supplierSchema, firstZodError } from '../lib/validation';
 import { supplierKeys } from './useSuppliers';
@@ -12,7 +12,7 @@ const EMPTY_SUPPLIER_FORM = { name: '', contactName: '', phone: '', email: '' };
 // Fournisseurs + bons de commande partagent la même page (Fournisseurs.jsx) :
 // deuxième étape du suivi fournisseurs, après le prix d'achat par produit
 // (voir useProducts / AddProductModal).
-export function useFournisseurs(selectedBusiness) {
+export function useFournisseurs(selectedBusiness, actorLabel) {
     const queryClient = useQueryClient();
     const businessId = selectedBusiness?.id;
 
@@ -82,6 +82,9 @@ export function useFournisseurs(selectedBusiness) {
     const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
     const [isCreatingNewProducts, setIsCreatingNewProducts] = useState(false);
     const [orderToPrint, setOrderToPrint] = useState(null);
+    // null = mode création ; un bon = mode modification (même modale, voir
+    // openEditOrderForm). Seul un bon 'pending' est modifiable.
+    const [editingOrder, setEditingOrder] = useState(null);
 
     const createOrderMutation = useMutation({
         mutationFn: (payload) => createPurchaseOrder({ businessId, ...payload }),
@@ -91,6 +94,20 @@ export function useFournisseurs(selectedBusiness) {
             toast.success('Bon de commande créé.');
         },
         onError: (error) => toast.error(error.message || 'Erreur lors de la création du bon de commande.'),
+    });
+
+    // Journalisée côté base (voir update_purchase_order) : jamais une
+    // correction silencieuse, toujours une trace consultable dans Sécurité.
+    const updateOrderMutation = useMutation({
+        mutationFn: (payload) => updatePurchaseOrder({ orderId: editingOrder.id, userEmail: actorLabel, ...payload }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: poQueryKey });
+            queryClient.invalidateQueries({ queryKey: ['audit_logs', businessId] });
+            setIsCreateOrderOpen(false);
+            setEditingOrder(null);
+            toast.success('Bon de commande modifié.');
+        },
+        onError: (error) => toast.error(error.message || 'Erreur lors de la modification du bon de commande.'),
     });
 
     // La réception change aussi le stock des produits (via receive_purchase_order
@@ -117,10 +134,20 @@ export function useFournisseurs(selectedBusiness) {
         onError: () => toast.error("Erreur lors de l'annulation."),
     });
 
-    const openCreateOrderForm = () => setIsCreateOrderOpen(true);
-    const closeCreateOrderForm = () => setIsCreateOrderOpen(false);
+    const openCreateOrderForm = () => {
+        setEditingOrder(null);
+        setIsCreateOrderOpen(true);
+    };
+    const openEditOrderForm = (order) => {
+        setEditingOrder(order);
+        setIsCreateOrderOpen(true);
+    };
+    const closeCreateOrderForm = () => {
+        setIsCreateOrderOpen(false);
+        setEditingOrder(null);
+    };
 
-    const handleCreateOrder = async ({ supplierId, items }) => {
+    const handleSubmitOrder = async ({ supplierId, items }) => {
         if (items.length === 0) {
             toast.error('Ajoutez au moins un article au bon de commande.');
             return;
@@ -165,7 +192,11 @@ export function useFournisseurs(selectedBusiness) {
             queryClient.invalidateQueries({ queryKey: productKeys.all(businessId) });
         }
 
-        createOrderMutation.mutate({ supplierId, items: resolvedItems });
+        if (editingOrder) {
+            updateOrderMutation.mutate({ supplierId, items: resolvedItems });
+        } else {
+            createOrderMutation.mutate({ supplierId, items: resolvedItems });
+        }
     };
 
     const handleReceiveOrder = (order) => setConfirmAction({ type: 'receiveOrder', item: order });
@@ -210,12 +241,14 @@ export function useFournisseurs(selectedBusiness) {
         purchaseOrders,
         isLoadingOrders,
         isCreateOrderOpen,
+        editingOrder,
         openCreateOrderForm,
+        openEditOrderForm,
         closeCreateOrderForm,
-        handleCreateOrder,
+        handleSubmitOrder,
         handleReceiveOrder,
         handleCancelOrder,
-        isSavingOrder: isCreatingNewProducts || createOrderMutation.isPending,
+        isSavingOrder: isCreatingNewProducts || createOrderMutation.isPending || updateOrderMutation.isPending,
 
         confirmAction,
         closeConfirmAction,
