@@ -107,7 +107,7 @@ export const Register = () => {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="bg-surface/5 backdrop-blur-xl border border-white/10 rounded-[2rem] p-6 mt-8"
+                            className="bg-surface/5 backdrop-blur-xl border border-white/10 rounded-[2rem] p-6"
                         >
                             <div className="w-10 h-10 rounded-full bg-accent/20 text-accent flex items-center justify-center mb-4">
                                 <ShieldCheck className="w-5 h-5" />
