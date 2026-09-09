@@ -31,6 +31,8 @@ export const AuditLogs = () => {
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Réception de Bon Annulée</span>;
             case 'DELETE_PURCHASE_ORDER':
                 return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Bon de Commande Supprimé</span>;
+            case 'VALIDATE_INVENTORY':
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Inventaire Validé</span>;
             case 'LOGIN_SUCCESS':
                 return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800"><LogIn className="w-3 h-3" /> Connexion réussie</span>;
             case 'LOGIN_FAILED':
@@ -154,6 +156,27 @@ export const AuditLogs = () => {
                     <div className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme">
                         {formatItems(details.items)} — <strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>
                     </div>
+                </div>
+            );
+        }
+
+        if (log.action === 'VALIDATE_INVENTORY') {
+            const adjustments = details.adjustments || [];
+            return (
+                <div className="text-sm space-y-1">
+                    <div className="text-secondary text-xs mb-1">{adjustments.length} article{adjustments.length > 1 ? 's' : ''} corrigé{adjustments.length > 1 ? 's' : ''}</div>
+                    {adjustments.map((adj, idx) => (
+                        <div key={idx} className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-primary">{adj.product_name}</span>
+                            <span className="text-slate-400 mx-1">|</span>
+                            <span className="text-slate-500 line-through">{adj.expected}</span>
+                            <ArrowRight className="w-3 h-3 text-slate-400" />
+                            <strong className="text-amber-600">{adj.counted}</strong>
+                            <span className={`text-xs font-bold ${adj.difference < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                                ({adj.difference > 0 ? '+' : ''}{adj.difference})
+                            </span>
+                        </div>
+                    ))}
                 </div>
             );
         }

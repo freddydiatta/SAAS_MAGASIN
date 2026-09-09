@@ -37,6 +37,7 @@ const Menu = named(() => import('./pages/restaurant/Menu'), 'Menu');
 const Commandes = named(() => import('./pages/restaurant/Commandes'), 'Commandes');
 const Motos = named(() => import('./pages/retail/Motos'), 'Motos');
 const Fournisseurs = named(() => import('./pages/retail/Fournisseurs'), 'Fournisseurs');
+const Inventaires = named(() => import('./pages/retail/Inventaires'), 'Inventaires');
 const Finances = named(() => import('./pages/retail/Finances'), 'Finances');
 const Calendrier = named(() => import('./pages/villas/Calendrier'), 'Calendrier');
 const AffiliateDashboard = named(() => import('./pages/affiliate/AffiliateDashboard'), 'AffiliateDashboard');
@@ -154,6 +155,7 @@ function App() {
                   </RequireOwner>
                 } />
                 <Route path="motos" element={<Motos />} />
+                <Route path="inventaires" element={<Inventaires />} />
                 <Route path="fournisseurs" element={
                   <RequireOwner>
                     <Fournisseurs />

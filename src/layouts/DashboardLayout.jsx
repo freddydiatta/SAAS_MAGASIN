@@ -64,6 +64,7 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '🛒' },
                 { path: '/dashboard/stock', label: 'Stock / Articles', icon: '📦' },
                 { path: '/dashboard/historique', label: 'Historique', icon: '🕒' },
+                { path: '/dashboard/inventaires', label: 'Inventaires', icon: '🧮' },
             ];
             if (type === 'pieces_moto') {
                 items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
