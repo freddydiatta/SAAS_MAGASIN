@@ -150,6 +150,22 @@ describe('useFinances', () => {
         expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
     });
 
+    it('computes sales margin from total_cost frozen at sale time, excluding sales with an unknown cost', async () => {
+        fetchAllSalesMock.mockResolvedValue([
+            { id: 's1', total_price: 3000, total_cost: 2000, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
+            // à crédit : compte quand même dans la marge, contrairement au chiffre d'affaires encaissé
+            { id: 's2', total_price: 5000, total_cost: 3500, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'credit' } },
+            // vente d'avant l'activation du suivi (total_cost absent) : marge inconnue, pas comptée comme 0
+            { id: 's3', total_price: 1000, total_cost: null, created_at: lastMonth.toISOString(), products: { name: 'Pneu' }, receipts: { status: 'completed', payment_method: 'cash' } },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // (3000-2000) + (5000-3500) = 2500
+        expect(result.current.salesMargin).toBe(2500);
+        expect(result.current.salesWithoutCostCount).toBe(1);
+    });
+
     it('reports isLoading while the product list is still loading', async () => {
         useProductsMock.mockReturnValue({ data: undefined, isLoading: true });
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));

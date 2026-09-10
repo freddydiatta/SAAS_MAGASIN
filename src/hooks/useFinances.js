@@ -56,6 +56,23 @@ export function useFinances(selectedBusiness) {
 
     const collectedSales = sales.filter(s => s.receipts?.payment_method !== 'credit');
     const paidDebts = debts.filter(d => d.status === 'paid');
+
+    // Marge réelle sur les ventes : prix de vente moins le coût réellement
+    // payé AU MOMENT de chaque vente (total_cost, figé par process_sale),
+    // pas le prix d'achat actuel du produit — qui change à chaque
+    // réapprovisionnement (voir receive_purchase_order) et fausserait donc
+    // rétroactivement la marge de ventes déjà passées s'il était réutilisé
+    // ici. Basé sur toutes les ventes complétées (y compris à crédit,
+    // remboursées ou non) : contrairement à totalRevenue, il ne s'agit pas
+    // d'argent encaissé mais de la marge sur la marchandise déjà sortie.
+    const salesWithKnownCost = sales.filter(s => s.total_cost != null);
+    const salesMargin = salesWithKnownCost.reduce(
+        (sum, s) => sum + (Number(s.total_price) - Number(s.total_cost)), 0
+    );
+    // Ventes faites avant l'activation de ce suivi, ou d'un produit sans
+    // prix d'achat renseigné à l'instant de la vente — leur marge est
+    // inconnue plutôt que comptée comme 0.
+    const salesWithoutCostCount = sales.length - salesWithKnownCost.length;
     const pendingDebtsTotal = debts
         .filter(d => d.status !== 'paid')
         .reduce((sum, d) => sum + Number(d.amount), 0);
@@ -155,6 +172,8 @@ export function useFinances(selectedBusiness) {
         expensesThisMonth,
         profitThisMonth,
         percentChangeMonth,
+        salesMargin,
+        salesWithoutCostCount,
         pendingDebtsTotal,
         monthlyTrend,
         stockSaleValue,

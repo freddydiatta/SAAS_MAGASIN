@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package } from 'lucide-react';
+import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Finances = () => {
@@ -23,6 +23,8 @@ export const Finances = () => {
         productsWithoutCostPrice,
         productsWithoutCostPriceCount,
         projectedTotalProfit,
+        salesMargin,
+        salesWithoutCostCount,
         formatFCFA,
     } = useFinances(selectedBusiness);
 
@@ -107,6 +109,28 @@ export const Finances = () => {
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(pendingDebtsTotal)} <span className="text-sm font-medium">F</span></h3>
                     <p className="text-xs text-slate-400 mt-1">Pas encore compté dans le chiffre d'affaires</p>
                 </motion.div>
+            </div>
+
+            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-emerald-500">
+                        <Percent className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-primary">Marge réelle sur vos ventes</h2>
+                        <p className="text-xs text-secondary">Prix de vente moins le prix d'achat réellement payé au moment de chaque vente — ne bouge pas si votre prix d'achat change ensuite.</p>
+                    </div>
+                </div>
+
+                <p className={`text-2xl font-bold ${salesMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                    {isLoading ? '…' : formatFCFA(salesMargin)} <span className="text-sm font-medium">F</span>
+                </p>
+
+                {salesWithoutCostCount > 0 && (
+                    <p className="text-xs text-slate-400 mt-3">
+                        {salesWithoutCostCount} vente{salesWithoutCostCount > 1 ? 's' : ''} sans coût connu au moment de la vente (avant l'activation de ce suivi, ou produit sans prix d'achat renseigné), non comptée{salesWithoutCostCount > 1 ? 's' : ''}.
+                    </p>
+                )}
             </div>
 
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">

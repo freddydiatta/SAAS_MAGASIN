@@ -232,6 +232,12 @@ CREATE TABLE public.sales (
     product_id UUID REFERENCES public.products(id) ON DELETE CASCADE,
     quantity INTEGER NOT NULL CHECK (quantity > 0),
     total_price DECIMAL(10, 2) NOT NULL CHECK (total_price >= 0),
+    -- Coût réellement payé pour ces unités, figé au moment de la vente par
+    -- process_sale (voir plus bas) : contrairement à products.cost_price, ne
+    -- change jamais après coup si le prix d'achat du produit évolue ensuite.
+    -- NULL quand le produit n'avait pas de prix d'achat renseigné à l'instant
+    -- de la vente (marge alors inconnue pour cette ligne, pas comptée comme 0).
+    total_cost DECIMAL(10, 2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -626,8 +632,11 @@ BEGIN
         v_qty := (v_item->>'quantity')::integer;
         SELECT * INTO v_product FROM public.products WHERE id = (v_item->>'product_id')::uuid;
 
-        INSERT INTO public.sales (business_id, receipt_id, product_id, quantity, total_price)
-        VALUES (p_business_id, v_receipt.id, v_product.id, v_qty, v_product.price * v_qty);
+        -- v_product.cost_price peut être NULL (produit sans prix d'achat
+        -- renseigné) : total_cost reste alors NULL, traité comme "coût
+        -- inconnu" côté Finances plutôt que compté comme un coût de 0.
+        INSERT INTO public.sales (business_id, receipt_id, product_id, quantity, total_price, total_cost)
+        VALUES (p_business_id, v_receipt.id, v_product.id, v_qty, v_product.price * v_qty, v_product.cost_price * v_qty);
 
         v_new_stock := v_product.stock_quantity - v_qty;
         UPDATE public.products SET stock_quantity = v_new_stock WHERE id = v_product.id;
