@@ -21,6 +21,19 @@ export const addSupplier = async ({ businessId, name, contactName, phone, email 
     if (error) throw error;
 };
 
+export const updateSupplier = async ({ id, name, contactName, phone, email }) => {
+    const { error } = await supabase
+        .from('suppliers')
+        .update({
+            name,
+            contact_name: contactName || null,
+            phone: phone || null,
+            email: email || null,
+        })
+        .eq('id', id);
+    if (error) throw error;
+};
+
 export const deleteSupplier = async (id) => {
     const { error } = await supabase.from('suppliers').delete().eq('id', id);
     if (error) throw error;

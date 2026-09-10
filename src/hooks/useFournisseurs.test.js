@@ -3,15 +3,17 @@ import { act, waitFor } from '@testing-library/react';
 import { useFournisseurs } from './useFournisseurs';
 import { renderHookWithQueryClient } from '../test/testUtils';
 
-const { fetchSuppliersMock, addSupplierMock, deleteSupplierMock } = vi.hoisted(() => ({
+const { fetchSuppliersMock, addSupplierMock, updateSupplierMock, deleteSupplierMock } = vi.hoisted(() => ({
     fetchSuppliersMock: vi.fn(),
     addSupplierMock: vi.fn(),
+    updateSupplierMock: vi.fn(),
     deleteSupplierMock: vi.fn(),
 }));
 
 vi.mock('../services/suppliersService', () => ({
     fetchSuppliers: fetchSuppliersMock,
     addSupplier: addSupplierMock,
+    updateSupplier: updateSupplierMock,
     deleteSupplier: deleteSupplierMock,
 }));
 
@@ -63,6 +65,7 @@ describe('useFournisseurs', () => {
     beforeEach(() => {
         fetchSuppliersMock.mockReset();
         addSupplierMock.mockReset();
+        updateSupplierMock.mockReset();
         deleteSupplierMock.mockReset();
         fetchPurchaseOrdersMock.mockReset();
         createPurchaseOrderMock.mockReset();
@@ -139,6 +142,38 @@ describe('useFournisseurs', () => {
 
         expect(result.current.confirmAction).toBeNull();
         expect(deleteSupplierMock).not.toHaveBeenCalled();
+    });
+
+    it('opens the supplier form pre-loaded with the supplier to edit', async () => {
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.suppliers).toHaveLength(1));
+
+        act(() => result.current.openEditSupplierForm({ id: 's1', name: 'Import Moto', contact_name: 'Moussa', phone: '77 123 45 67', email: 'moussa@ex.com' }));
+
+        expect(result.current.isAddSupplierOpen).toBe(true);
+        expect(result.current.editingSupplier).toEqual({ id: 's1', name: 'Import Moto', contact_name: 'Moussa', phone: '77 123 45 67', email: 'moussa@ex.com' });
+        expect(result.current.supplierForm).toEqual({ name: 'Import Moto', contactName: 'Moussa', phone: '77 123 45 67', email: 'moussa@ex.com' });
+
+        act(() => result.current.closeSupplierForm());
+
+        expect(result.current.isAddSupplierOpen).toBe(false);
+        expect(result.current.editingSupplier).toBeNull();
+    });
+
+    it('updates a supplier through updateSupplier instead of creating a new one', async () => {
+        updateSupplierMock.mockResolvedValueOnce();
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.suppliers).toHaveLength(1));
+
+        act(() => result.current.openEditSupplierForm({ id: 's1', name: 'Import Moto', contact_name: '', phone: '', email: '' }));
+        act(() => result.current.setSupplierForm({ name: 'Import Moto SARL', contactName: '', phone: '', email: '' }));
+
+        await act(async () => result.current.handleSupplierSubmit({ preventDefault: () => {} }));
+
+        expect(updateSupplierMock).toHaveBeenCalledWith({ id: 's1', name: 'Import Moto SARL', contactName: '', phone: '', email: '' });
+        expect(addSupplierMock).not.toHaveBeenCalled();
+        await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
+        expect(result.current.editingSupplier).toBeNull();
     });
 
     it('rejects creating a purchase order with no items', async () => {

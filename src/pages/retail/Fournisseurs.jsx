@@ -52,7 +52,7 @@ export const Fournisseurs = () => {
     const { selectedBusiness } = useBusiness();
     const {
         suppliers, isLoadingSuppliers,
-        isAddSupplierOpen, openAddSupplierForm, closeSupplierForm,
+        isAddSupplierOpen, editingSupplier, openAddSupplierForm, openEditSupplierForm, closeSupplierForm,
         supplierForm, setSupplierForm, handleSupplierSubmit, handleDeleteSupplier, isSavingSupplier,
         purchaseOrders, isLoadingOrders,
         isCreateOrderOpen, editingOrder, openCreateOrderForm, openEditOrderForm, closeCreateOrderForm,
@@ -96,13 +96,22 @@ export const Fournisseurs = () => {
             headerClassName: 'py-4 px-6',
             cellClassName: 'py-4 px-6 text-right',
             render: (supplier) => (
-                <button
-                    onClick={() => handleDeleteSupplier(supplier)}
-                    aria-label="Supprimer le fournisseur"
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                >
-                    <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex justify-end gap-2">
+                    <button
+                        onClick={() => openEditSupplierForm(supplier)}
+                        aria-label="Modifier le fournisseur"
+                        className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
+                    >
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                        onClick={() => handleDeleteSupplier(supplier)}
+                        aria-label="Supprimer le fournisseur"
+                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
             ),
         },
     ];
@@ -265,7 +274,7 @@ export const Fournisseurs = () => {
                 />
             </div>
 
-            <Modal isOpen={isAddSupplierOpen} onClose={closeSupplierForm} title="Nouveau fournisseur" maxWidth="max-w-sm">
+            <Modal isOpen={isAddSupplierOpen} onClose={closeSupplierForm} title={editingSupplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'} maxWidth="max-w-sm">
                 <form onSubmit={handleSupplierSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-semibold text-primary mb-1.5">Nom</label>
@@ -313,7 +322,7 @@ export const Fournisseurs = () => {
                             Annuler
                         </button>
                         <button type="submit" disabled={isSavingSupplier} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50">
-                            {isSavingSupplier ? 'Enregistrement...' : 'Enregistrer'}
+                            {isSavingSupplier ? 'Enregistrement...' : (editingSupplier ? 'Enregistrer les modifications' : 'Enregistrer')}
                         </button>
                     </div>
                 </form>

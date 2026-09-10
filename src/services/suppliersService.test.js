@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fetchSuppliers, addSupplier, deleteSupplier } from './suppliersService';
+import { fetchSuppliers, addSupplier, updateSupplier, deleteSupplier } from './suppliersService';
 
 function createQueryBuilder(result) {
     const builder = {
@@ -7,6 +7,7 @@ function createQueryBuilder(result) {
         eq: vi.fn(() => builder),
         order: vi.fn(() => builder),
         insert: vi.fn(() => builder),
+        update: vi.fn(() => builder),
         delete: vi.fn(() => builder),
         then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
     };
@@ -45,6 +46,24 @@ describe('suppliersService', () => {
         expect(builder.insert).toHaveBeenCalledWith([{
             business_id: 'biz-1', name: 'Import Moto', contact_name: null, phone: null, email: null,
         }]);
+    });
+
+    it('updateSupplier defaults blank optional fields to null', async () => {
+        const builder = createQueryBuilder({ data: null, error: null });
+        fromMock.mockImplementation(() => builder);
+
+        await updateSupplier({ id: 's1', name: 'Import Moto SARL', contactName: '', phone: '', email: '' });
+
+        expect(builder.update).toHaveBeenCalledWith({
+            name: 'Import Moto SARL', contact_name: null, phone: null, email: null,
+        });
+        expect(builder.eq).toHaveBeenCalledWith('id', 's1');
+    });
+
+    it('propagates a database error from updateSupplier', async () => {
+        fromMock.mockImplementation(() => createQueryBuilder({ data: null, error: new Error('boom') }));
+
+        await expect(updateSupplier({ id: 's1', name: 'x' })).rejects.toThrow('boom');
     });
 
     it('deleteSupplier removes the row by id', async () => {

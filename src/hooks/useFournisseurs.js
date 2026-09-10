@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { fetchSuppliers, addSupplier, deleteSupplier } from '../services/suppliersService';
+import { fetchSuppliers, addSupplier, updateSupplier, deleteSupplier } from '../services/suppliersService';
 import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, unreceivePurchaseOrder, cancelPurchaseOrder, deletePurchaseOrder } from '../services/purchaseOrdersService';
 import { addProduct, productKeys } from '../services/productsService';
 import { supplierSchema, firstZodError } from '../lib/validation';
@@ -26,6 +26,9 @@ export function useFournisseurs(selectedBusiness) {
 
     const [isAddSupplierOpen, setIsAddSupplierOpen] = useState(false);
     const [supplierForm, setSupplierForm] = useState(EMPTY_SUPPLIER_FORM);
+    // null = mode ajout ; un fournisseur = mode modification (même
+    // formulaire, voir openEditSupplierForm).
+    const [editingSupplier, setEditingSupplier] = useState(null);
     // Une seule confirmation à la fois pour supprimer un fournisseur, recevoir,
     // annuler, corriger la réception ou supprimer un bon de commande —
     // remplace window.confirm (popup navigateur générique) par ConfirmModal,
@@ -44,6 +47,18 @@ export function useFournisseurs(selectedBusiness) {
         onError: () => toast.error("Erreur lors de l'ajout du fournisseur."),
     });
 
+    const updateSupplierMutation = useMutation({
+        mutationFn: (supplier) => updateSupplier({ id: editingSupplier.id, ...supplier }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: supplierQueryKey });
+            setIsAddSupplierOpen(false);
+            setEditingSupplier(null);
+            setSupplierForm(EMPTY_SUPPLIER_FORM);
+            toast.success('Fournisseur modifié.');
+        },
+        onError: () => toast.error('Erreur lors de la modification du fournisseur.'),
+    });
+
     const deleteSupplierMutation = useMutation({
         mutationFn: deleteSupplier,
         onSuccess: () => {
@@ -55,10 +70,24 @@ export function useFournisseurs(selectedBusiness) {
     });
 
     const openAddSupplierForm = () => {
+        setEditingSupplier(null);
         setSupplierForm(EMPTY_SUPPLIER_FORM);
         setIsAddSupplierOpen(true);
     };
-    const closeSupplierForm = () => setIsAddSupplierOpen(false);
+    const openEditSupplierForm = (supplier) => {
+        setEditingSupplier(supplier);
+        setSupplierForm({
+            name: supplier.name || '',
+            contactName: supplier.contact_name || '',
+            phone: supplier.phone || '',
+            email: supplier.email || '',
+        });
+        setIsAddSupplierOpen(true);
+    };
+    const closeSupplierForm = () => {
+        setIsAddSupplierOpen(false);
+        setEditingSupplier(null);
+    };
 
     const handleSupplierSubmit = (e) => {
         e.preventDefault();
@@ -67,7 +96,11 @@ export function useFournisseurs(selectedBusiness) {
             toast.error(firstZodError(result));
             return;
         }
-        addSupplierMutation.mutate(result.data);
+        if (editingSupplier) {
+            updateSupplierMutation.mutate(result.data);
+        } else {
+            addSupplierMutation.mutate(result.data);
+        }
     };
 
     const handleDeleteSupplier = (supplier) => setConfirmAction({ type: 'deleteSupplier', item: supplier });
@@ -264,13 +297,15 @@ export function useFournisseurs(selectedBusiness) {
         suppliers,
         isLoadingSuppliers,
         isAddSupplierOpen,
+        editingSupplier,
         openAddSupplierForm,
+        openEditSupplierForm,
         closeSupplierForm,
         supplierForm,
         setSupplierForm,
         handleSupplierSubmit,
         handleDeleteSupplier,
-        isSavingSupplier: addSupplierMutation.isPending,
+        isSavingSupplier: addSupplierMutation.isPending || updateSupplierMutation.isPending,
 
         purchaseOrders,
         isLoadingOrders,
