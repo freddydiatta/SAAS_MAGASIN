@@ -770,31 +770,12 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.modify_sale(uuid, jsonb) TO authenticated;
 
-CREATE OR REPLACE FUNCTION public.adjust_stock(
-    p_product_id uuid,
-    p_change integer
-)
-RETURNS public.products
-LANGUAGE plpgsql
-SECURITY INVOKER
-AS $$
-DECLARE
-    v_product public.products;
-BEGIN
-    UPDATE public.products
-        SET stock_quantity = GREATEST(0, stock_quantity + p_change)
-        WHERE id = p_product_id
-        RETURNING * INTO v_product;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Produit introuvable';
-    END IF;
-
-    RETURN v_product;
-END;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.adjust_stock(uuid, integer) TO authenticated;
+-- adjust_stock (RPC de +/- manuel) supprimée ici — plus utilisée depuis le
+-- retrait des +/- à main levée de Stock.jsx/Motos.jsx : le stock ne bouge
+-- plus que par une vente, un bon de commande reçu ou un inventaire validé,
+-- toujours journalisé. La laisser joignable via l'API aurait laissé un
+-- moyen non tracé de modifier le stock (voir
+-- supabase/patches/2026-09-11_drop_unused_adjust_stock.sql).
 
 -- ==========================================
 -- PHOTOS DE PRODUITS / MENU / VILLAS
