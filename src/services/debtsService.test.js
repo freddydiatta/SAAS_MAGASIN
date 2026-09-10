@@ -62,12 +62,11 @@ describe('debtsService', () => {
         rpcMock.mockResolvedValue({ data: { id: 'd1' }, error: null });
 
         await updateDebt({
-            debtId: 'd1', userEmail: 'owner@test.com', customerName: 'Moussa Diop', customerPhone: '', amount: 6000, note: '',
+            debtId: 'd1', customerName: 'Moussa Diop', customerPhone: '', amount: 6000, note: '',
         });
 
         expect(rpcMock).toHaveBeenCalledWith('update_debt', {
             p_debt_id: 'd1',
-            p_user_email: 'owner@test.com',
             p_customer_name: 'Moussa Diop',
             p_customer_phone: null,
             p_amount: 6000,
@@ -78,7 +77,7 @@ describe('debtsService', () => {
     it('propagates a database error from updateDebt', async () => {
         rpcMock.mockResolvedValue({ data: null, error: new Error('Dette introuvable') });
 
-        await expect(updateDebt({ debtId: 'd1', userEmail: 'owner@test.com', customerName: 'x', amount: 100 }))
+        await expect(updateDebt({ debtId: 'd1', customerName: 'x', amount: 100 }))
             .rejects.toThrow('Dette introuvable');
     });
 

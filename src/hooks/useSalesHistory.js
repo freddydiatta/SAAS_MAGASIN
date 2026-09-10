@@ -7,7 +7,7 @@ import { filterByDateRange } from '../lib/dateFilter';
 // Requêtes, mutations et calculs de l'historique des ventes (annulation,
 // modification, préparation de l'impression) : sorti de HistoriqueVentes.jsx
 // pour que ce composant se concentre sur le rendu du tableau/des modales.
-export function useSalesHistory(selectedBusiness, actorLabel) {
+export function useSalesHistory(selectedBusiness) {
     const queryClient = useQueryClient();
 
     const [toastMessage, setToastMessage] = useState('');
@@ -58,7 +58,6 @@ export function useSalesHistory(selectedBusiness, actorLabel) {
             // supabase/patches/2026-08-21_critical_fixes.sql).
             const { error } = await cancelSale({
                 receiptId: receipt.id,
-                userEmail: actorLabel
             });
             if (error) throw error;
         },
@@ -120,7 +119,6 @@ export function useSalesHistory(selectedBusiness, actorLabel) {
             // dans supabase/patches/2026-08-21_critical_fixes.sql).
             const { error } = await modifySale({
                 receiptId: receipt.id,
-                userEmail: actorLabel,
                 items: items.map(item => ({
                     sale_id: item.id,
                     product_id: item.product_id,

@@ -51,13 +51,13 @@ describe('inventoriesService', () => {
         expect(data).toEqual([{ id: 'item1' }]);
     });
 
-    it('startInventory calls the RPC with the business, author and optional note', async () => {
+    it('startInventory calls the RPC with the business and optional note', async () => {
         rpcMock.mockResolvedValue({ data: { id: 'inv1', status: 'draft' }, error: null });
 
-        const result = await startInventory({ businessId: 'biz-1', userEmail: 'gerant@test.com', note: 'Septembre' });
+        const result = await startInventory({ businessId: 'biz-1', note: 'Septembre' });
 
         expect(rpcMock).toHaveBeenCalledWith('start_inventory', {
-            p_business_id: 'biz-1', p_user_email: 'gerant@test.com', p_note: 'Septembre',
+            p_business_id: 'biz-1', p_note: 'Septembre',
         });
         expect(result).toEqual({ id: 'inv1', status: 'draft' });
     });
@@ -65,7 +65,7 @@ describe('inventoriesService', () => {
     it('startInventory passes a null note when none was given', async () => {
         rpcMock.mockResolvedValue({ data: { id: 'inv1' }, error: null });
 
-        await startInventory({ businessId: 'biz-1', userEmail: 'gerant@test.com', note: '' });
+        await startInventory({ businessId: 'biz-1', note: '' });
 
         expect(rpcMock).toHaveBeenCalledWith('start_inventory', expect.objectContaining({ p_note: null }));
     });
@@ -93,19 +93,19 @@ describe('inventoriesService', () => {
         await expect(saveInventoryCounts([{ id: 'item1', countedQuantity: 5 }])).rejects.toThrow('boom');
     });
 
-    it('validateInventory calls the RPC with the inventory id and author email', async () => {
+    it('validateInventory calls the RPC with the inventory id', async () => {
         rpcMock.mockResolvedValue({ data: { id: 'inv1', status: 'validated' }, error: null });
 
-        const result = await validateInventory({ inventoryId: 'inv1', userEmail: 'gerant@test.com' });
+        const result = await validateInventory({ inventoryId: 'inv1' });
 
-        expect(rpcMock).toHaveBeenCalledWith('validate_inventory', { p_inventory_id: 'inv1', p_user_email: 'gerant@test.com' });
+        expect(rpcMock).toHaveBeenCalledWith('validate_inventory', { p_inventory_id: 'inv1' });
         expect(result).toEqual({ id: 'inv1', status: 'validated' });
     });
 
     it('propagates a database error from validateInventory (e.g. nothing counted)', async () => {
         rpcMock.mockResolvedValue({ data: null, error: new Error('Comptez au moins un article avant de valider l\'inventaire.') });
 
-        await expect(validateInventory({ inventoryId: 'inv1', userEmail: 'gerant@test.com' }))
+        await expect(validateInventory({ inventoryId: 'inv1' }))
             .rejects.toThrow('Comptez au moins un article');
     });
 

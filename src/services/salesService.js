@@ -16,17 +16,20 @@ export const processSale = async ({ businessId, customerName, customerPhone, pay
     });
 };
 
-export const cancelSale = async ({ receiptId, userEmail }) => {
+// L'auteur de la correction est dérivé côté serveur depuis auth.uid()
+// (voir current_actor_label), jamais envoyé par le client : plus de
+// paramètre userEmail ici (audit de sécurité du 2026-09-10 — un email
+// client aurait pu être falsifié pour faire porter la correction à
+// quelqu'un d'autre dans le journal Sécurité).
+export const cancelSale = async ({ receiptId }) => {
     return supabase.rpc('cancel_sale', {
         p_receipt_id: receiptId,
-        p_user_email: userEmail,
     });
 };
 
-export const modifySale = async ({ receiptId, userEmail, items }) => {
+export const modifySale = async ({ receiptId, items }) => {
     return supabase.rpc('modify_sale', {
         p_receipt_id: receiptId,
-        p_user_email: userEmail,
         p_items: items,
     });
 };

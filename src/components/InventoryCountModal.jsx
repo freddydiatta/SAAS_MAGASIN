@@ -7,7 +7,7 @@ import { fetchInventoryItems, saveInventoryCounts, validateInventory } from '../
 
 const toDisplayValue = (raw) => (raw === '' || raw === undefined || raw === null ? null : Number(raw));
 
-export const InventoryCountModal = ({ isOpen, onClose, inventory, actorLabel, onValidated }) => {
+export const InventoryCountModal = ({ isOpen, onClose, inventory, onValidated }) => {
     const queryClient = useQueryClient();
     const isDraft = inventory?.status === 'draft';
     const itemsQueryKey = ['inventory_items', inventory?.id];
@@ -61,7 +61,7 @@ export const InventoryCountModal = ({ isOpen, onClose, inventory, actorLabel, on
     });
 
     const validateMutation = useMutation({
-        mutationFn: () => validateInventory({ inventoryId: inventory.id, userEmail: actorLabel }),
+        mutationFn: () => validateInventory({ inventoryId: inventory.id }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: itemsQueryKey });
             onValidated?.();

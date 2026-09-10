@@ -22,11 +22,12 @@ export const fetchInventoryItems = async (inventoryId) => {
 
 // Fige le stock théorique de chaque produit dans une nouvelle ligne
 // d'inventory_items (voir start_inventory) — le point de départ du
-// comptage.
-export const startInventory = async ({ businessId, userEmail, note }) => {
+// comptage. L'auteur (created_by) est dérivé côté serveur depuis auth.uid()
+// (current_actor_label), jamais envoyé par le client (audit de sécurité du
+// 2026-09-10).
+export const startInventory = async ({ businessId, note }) => {
     const { data, error } = await supabase.rpc('start_inventory', {
         p_business_id: businessId,
-        p_user_email: userEmail,
         p_note: note || null,
     });
     if (error) throw error;
@@ -51,10 +52,9 @@ export const saveInventoryCounts = async (items) => {
 // Applique les comptages comme nouveau stock (voir validate_inventory) —
 // journalisée, refuse un inventaire déjà validé ou sans aucun article
 // compté.
-export const validateInventory = async ({ inventoryId, userEmail }) => {
+export const validateInventory = async ({ inventoryId }) => {
     const { data, error } = await supabase.rpc('validate_inventory', {
         p_inventory_id: inventoryId,
-        p_user_email: userEmail,
     });
     if (error) throw error;
     return data;

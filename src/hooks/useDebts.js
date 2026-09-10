@@ -8,7 +8,7 @@ const EMPTY_FORM = { customerName: '', customerPhone: '', amount: '', note: '' }
 
 // Dettes clients (crédit) : partagé par tous les verticaux, même logique
 // que useExpenses.js.
-export function useDebts(selectedBusiness, actorLabel) {
+export function useDebts(selectedBusiness) {
     const queryClient = useQueryClient();
     const [isAddOpen, setIsAddOpen] = useState(false);
     const [formData, setFormData] = useState(EMPTY_FORM);
@@ -44,7 +44,7 @@ export function useDebts(selectedBusiness, actorLabel) {
     // Journalisée côté base (voir update_debt) : jamais une correction
     // silencieuse, toujours une trace consultable dans Sécurité.
     const updateDebtMutation = useMutation({
-        mutationFn: (debt) => updateDebt({ debtId: editingDebt.id, userEmail: actorLabel, ...debt }),
+        mutationFn: (debt) => updateDebt({ debtId: editingDebt.id, ...debt }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey });
             queryClient.invalidateQueries({ queryKey: ['audit_logs', selectedBusiness?.id] });

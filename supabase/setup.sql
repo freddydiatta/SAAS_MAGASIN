@@ -633,9 +633,34 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.process_sale(uuid, text, text, text, jsonb, timestamptz) TO authenticated;
 
+-- Auteur d'une correction dérivé côté serveur, jamais depuis le client :
+-- nom du caissier s'il est membre actif de ce commerce, sinon son email.
+-- Même choix d'affichage que le frontend utilisait déjà, mais calculé ici
+-- à partir de auth.uid(), donc impossible à falsifier — avant ce correctif
+-- (audit de sécurité du 2026-09-10), chaque fonction ci-dessous acceptait
+-- l'auteur comme simple paramètre texte envoyé par le client, permettant à
+-- n'importe quel membre de faire porter une correction à un autre compte.
+-- SECURITY DEFINER : authenticated n'a pas de droit de lecture sur
+-- auth.users (même contrainte que log_login_success/log_failed_login).
+CREATE OR REPLACE FUNCTION public.current_actor_label(p_business_id uuid)
+RETURNS text
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+    SELECT COALESCE(
+        (SELECT name FROM public.business_members
+            WHERE business_id = p_business_id AND user_id = auth.uid() AND is_active
+            LIMIT 1),
+        (SELECT email FROM auth.users WHERE id = auth.uid())
+    );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.current_actor_label(uuid) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.cancel_sale(
-    p_receipt_id uuid,
-    p_user_email text
+    p_receipt_id uuid
 )
 RETURNS public.receipts
 LANGUAGE plpgsql
@@ -667,18 +692,17 @@ BEGIN
     END LOOP;
 
     INSERT INTO public.audit_logs (business_id, user_email, action, receipt_id, details)
-    VALUES (v_receipt.business_id, p_user_email, 'CANCEL_SALE', p_receipt_id, jsonb_build_object('total_amount', v_receipt.total_amount));
+    VALUES (v_receipt.business_id, public.current_actor_label(v_receipt.business_id), 'CANCEL_SALE', p_receipt_id, jsonb_build_object('total_amount', v_receipt.total_amount));
 
     SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id;
     RETURN v_receipt;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.cancel_sale(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.cancel_sale(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.modify_sale(
     p_receipt_id uuid,
-    p_user_email text,
     p_items jsonb -- [{ "sale_id": uuid, "product_id": uuid|null, "name": text, "original_qty": int, "new_qty": int, "price": numeric }]
 )
 RETURNS public.receipts
@@ -734,7 +758,7 @@ BEGIN
     IF jsonb_array_length(v_changes) > 0 THEN
         INSERT INTO public.audit_logs (business_id, user_email, action, receipt_id, details)
         VALUES (
-            v_receipt.business_id, p_user_email, 'MODIFY_SALE', p_receipt_id,
+            v_receipt.business_id, public.current_actor_label(v_receipt.business_id), 'MODIFY_SALE', p_receipt_id,
             jsonb_build_object('changes', v_changes, 'old_total', v_old_total, 'new_total', v_new_total)
         );
     END IF;
@@ -744,7 +768,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.modify_sale(uuid, text, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.modify_sale(uuid, jsonb) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.adjust_stock(
     p_product_id uuid,
@@ -910,7 +934,6 @@ CREATE INDEX idx_debts_business_id ON public.debts (business_id, created_at DESC
 
 CREATE OR REPLACE FUNCTION public.update_debt(
     p_debt_id uuid,
-    p_user_email text,
     p_customer_name text,
     p_customer_phone text,
     p_amount numeric,
@@ -958,7 +981,7 @@ BEGIN
         WHERE id = p_debt_id;
 
         INSERT INTO public.audit_logs (business_id, user_email, action, details)
-        VALUES (v_debt.business_id, p_user_email, 'MODIFY_DEBT', v_changes);
+        VALUES (v_debt.business_id, public.current_actor_label(v_debt.business_id), 'MODIFY_DEBT', v_changes);
     END IF;
 
     SELECT * INTO v_debt FROM public.debts WHERE id = p_debt_id;
@@ -966,7 +989,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.update_debt(uuid, text, text, text, numeric, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_debt(uuid, text, text, numeric, text) TO authenticated;
 
 -- ==========================================
 -- LIMITE DE MAGASINS PAR FORFAIT
@@ -1147,6 +1170,15 @@ AS $$
 DECLARE
     v_secret text;
 BEGIN
+    -- Sans ce contrôle, n'importe quel utilisateur authentifié (même d'un
+    -- autre commerce) pouvait appeler cette fonction SECURITY DEFINER avec
+    -- un business_id arbitraire et pousser une notification push à un texte
+    -- entièrement libre vers les employés de n'importe quel autre commerce
+    -- (trouvaille de l'audit de sécurité du 2026-09-10).
+    IF NOT public.is_business_member(p_business_id) THEN
+        RETURN;
+    END IF;
+
     SELECT decrypted_secret INTO v_secret FROM vault.decrypted_secrets WHERE name = 'push_notify_secret' LIMIT 1;
     IF v_secret IS NULL THEN
         RETURN;
@@ -1367,7 +1399,6 @@ GRANT EXECUTE ON FUNCTION public.receive_purchase_order(uuid) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.update_purchase_order(
     p_order_id uuid,
-    p_user_email text,
     p_supplier_id uuid,
     p_items jsonb -- [{ "product_id": uuid, "quantity": int, "unit_cost": numeric }, ...]
 )
@@ -1445,7 +1476,7 @@ BEGIN
         OR v_before_items IS DISTINCT FROM v_after_items THEN
 
         INSERT INTO public.audit_logs (business_id, user_email, action, details)
-        VALUES (v_order.business_id, p_user_email, 'MODIFY_PURCHASE_ORDER', jsonb_build_object(
+        VALUES (v_order.business_id, public.current_actor_label(v_order.business_id), 'MODIFY_PURCHASE_ORDER', jsonb_build_object(
             'order_id', p_order_id,
             'before', jsonb_build_object('supplier_id', v_order.supplier_id, 'total_amount', v_order.total_amount, 'items', v_before_items),
             'after', jsonb_build_object('supplier_id', p_supplier_id, 'total_amount', v_total, 'items', v_after_items)
@@ -1457,7 +1488,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.update_purchase_order(uuid, text, uuid, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_purchase_order(uuid, uuid, jsonb) TO authenticated;
 
 -- ==========================================
 -- ANNULER LA RÉCEPTION D'UN BON DE COMMANDE (CORRECTION)
@@ -1471,8 +1502,7 @@ GRANT EXECUTE ON FUNCTION public.update_purchase_order(uuid, text, uuid, jsonb) 
 -- ==========================================
 
 CREATE OR REPLACE FUNCTION public.unreceive_purchase_order(
-    p_purchase_order_id uuid,
-    p_user_email text
+    p_purchase_order_id uuid
 )
 RETURNS public.purchase_orders
 LANGUAGE plpgsql
@@ -1513,7 +1543,7 @@ BEGIN
     WHERE id = p_purchase_order_id;
 
     INSERT INTO public.audit_logs (business_id, user_email, action, details)
-    VALUES (v_order.business_id, p_user_email, 'UNRECEIVE_PURCHASE_ORDER', jsonb_build_object(
+    VALUES (v_order.business_id, public.current_actor_label(v_order.business_id), 'UNRECEIVE_PURCHASE_ORDER', jsonb_build_object(
         'order_id', p_purchase_order_id,
         'total_amount', v_order.total_amount
     ));
@@ -1523,7 +1553,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.unreceive_purchase_order(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.unreceive_purchase_order(uuid) TO authenticated;
 
 -- ==========================================
 -- SUPPRIMER UN BON DE COMMANDE
@@ -1536,8 +1566,7 @@ GRANT EXECUTE ON FUNCTION public.unreceive_purchase_order(uuid, text) TO authent
 -- ==========================================
 
 CREATE OR REPLACE FUNCTION public.delete_purchase_order(
-    p_purchase_order_id uuid,
-    p_user_email text
+    p_purchase_order_id uuid
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -1562,7 +1591,7 @@ BEGIN
     DELETE FROM public.purchase_orders WHERE id = p_purchase_order_id;
 
     INSERT INTO public.audit_logs (business_id, user_email, action, details)
-    VALUES (v_order.business_id, p_user_email, 'DELETE_PURCHASE_ORDER', jsonb_build_object(
+    VALUES (v_order.business_id, public.current_actor_label(v_order.business_id), 'DELETE_PURCHASE_ORDER', jsonb_build_object(
         'order_id', p_purchase_order_id,
         'status', v_order.status,
         'total_amount', v_order.total_amount,
@@ -1571,7 +1600,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.delete_purchase_order(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.delete_purchase_order(uuid) TO authenticated;
 
 -- ==========================================
 -- INVENTAIRES PHYSIQUES (comptage mensuel)
@@ -1630,7 +1659,6 @@ CREATE INDEX idx_inventories_business_id ON public.inventories (business_id, cre
 -- non compté). SECURITY INVOKER, comme create_purchase_order.
 CREATE OR REPLACE FUNCTION public.start_inventory(
     p_business_id uuid,
-    p_user_email text,
     p_note text
 )
 RETURNS public.inventories
@@ -1641,7 +1669,7 @@ DECLARE
     v_inventory public.inventories;
 BEGIN
     INSERT INTO public.inventories (business_id, status, note, created_by)
-    VALUES (p_business_id, 'draft', p_note, p_user_email)
+    VALUES (p_business_id, 'draft', p_note, public.current_actor_label(p_business_id))
     RETURNING * INTO v_inventory;
 
     INSERT INTO public.inventory_items (inventory_id, business_id, product_id, product_name, expected_quantity)
@@ -1653,7 +1681,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.start_inventory(uuid, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.start_inventory(uuid, text) TO authenticated;
 
 -- Valide l'inventaire : applique le compté comme nouveau stock pour chaque
 -- article réellement compté et dont le compté diffère du théorique figé au
@@ -1663,8 +1691,7 @@ GRANT EXECUTE ON FUNCTION public.start_inventory(uuid, text, text) TO authentica
 -- expliquer l'écart dans le journal, pas à calculer la correction. Refuse
 -- un inventaire déjà validé ou sans aucun article compté. Journalisée.
 CREATE OR REPLACE FUNCTION public.validate_inventory(
-    p_inventory_id uuid,
-    p_user_email text
+    p_inventory_id uuid
 )
 RETURNS public.inventories
 LANGUAGE plpgsql
@@ -1675,6 +1702,7 @@ DECLARE
     v_item RECORD;
     v_adjustments jsonb := '[]'::jsonb;
     v_counted_count integer;
+    v_actor text;
 BEGIN
     SELECT * INTO v_inventory FROM public.inventories WHERE id = p_inventory_id FOR UPDATE;
     IF NOT FOUND THEN
@@ -1689,6 +1717,8 @@ BEGIN
     IF v_counted_count = 0 THEN
         RAISE EXCEPTION 'Comptez au moins un article avant de valider l''inventaire.';
     END IF;
+
+    v_actor := public.current_actor_label(v_inventory.business_id);
 
     FOR v_item IN
         SELECT * FROM public.inventory_items
@@ -1707,12 +1737,12 @@ BEGIN
     END LOOP;
 
     UPDATE public.inventories
-    SET status = 'validated', validated_at = timezone('utc'::text, now()), validated_by = p_user_email
+    SET status = 'validated', validated_at = timezone('utc'::text, now()), validated_by = v_actor
     WHERE id = p_inventory_id;
 
     IF jsonb_array_length(v_adjustments) > 0 THEN
         INSERT INTO public.audit_logs (business_id, user_email, action, details)
-        VALUES (v_inventory.business_id, p_user_email, 'VALIDATE_INVENTORY', jsonb_build_object(
+        VALUES (v_inventory.business_id, v_actor, 'VALIDATE_INVENTORY', jsonb_build_object(
             'inventory_id', p_inventory_id,
             'adjustments', v_adjustments
         ));
@@ -1723,4 +1753,4 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.validate_inventory(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.validate_inventory(uuid) TO authenticated;

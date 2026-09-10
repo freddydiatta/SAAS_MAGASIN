@@ -7,7 +7,7 @@ import { productKeys } from '../services/productsService';
 // Inventaires physiques (comptage périodique) : voir InventoryCountModal
 // pour le comptage lui-même — ce hook ne gère que la liste, le démarrage et
 // la suppression d'un brouillon.
-export function useInventories(selectedBusiness, actorLabel) {
+export function useInventories(selectedBusiness) {
     const queryClient = useQueryClient();
     const businessId = selectedBusiness?.id;
 
@@ -29,7 +29,7 @@ export function useInventories(selectedBusiness, actorLabel) {
     const [confirmAction, setConfirmAction] = useState(null);
 
     const startInventoryMutation = useMutation({
-        mutationFn: () => startInventory({ businessId, userEmail: actorLabel, note }),
+        mutationFn: () => startInventory({ businessId, note }),
         onSuccess: (created) => {
             queryClient.invalidateQueries({ queryKey });
             setIsStartFormOpen(false);

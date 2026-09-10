@@ -43,7 +43,7 @@ describe('InventoryCountModal', () => {
 
     it('shows expected vs counted quantities and the resulting écart', async () => {
         renderWithQueryClient(
-            <InventoryCountModal isOpen onClose={() => {}} inventory={DRAFT_INVENTORY} actorLabel="gerant@test.com" />
+            <InventoryCountModal isOpen onClose={() => {}} inventory={DRAFT_INVENTORY} />
         );
 
         await screen.findByText('Coca-Cola 33cl');
@@ -56,7 +56,7 @@ describe('InventoryCountModal', () => {
         saveInventoryCountsMock.mockResolvedValueOnce();
         const user = userEvent.setup();
         renderWithQueryClient(
-            <InventoryCountModal isOpen onClose={() => {}} inventory={DRAFT_INVENTORY} actorLabel="gerant@test.com" />
+            <InventoryCountModal isOpen onClose={() => {}} inventory={DRAFT_INVENTORY} />
         );
         await screen.findByText('Coca-Cola 33cl');
 
@@ -78,7 +78,7 @@ describe('InventoryCountModal', () => {
         const onValidated = vi.fn();
         const user = userEvent.setup();
         renderWithQueryClient(
-            <InventoryCountModal isOpen onClose={onClose} inventory={DRAFT_INVENTORY} actorLabel="gerant@test.com" onValidated={onValidated} />
+            <InventoryCountModal isOpen onClose={onClose} inventory={DRAFT_INVENTORY} onValidated={onValidated} />
         );
         await screen.findByText('Coca-Cola 33cl');
 
@@ -88,14 +88,14 @@ describe('InventoryCountModal', () => {
         await user.click(screen.getByRole('button', { name: /Valider l'inventaire/ }));
 
         await waitFor(() => expect(saveInventoryCountsMock.mock.calls[0]?.[0]).toEqual([{ id: 'item1', countedQuantity: 20 }]));
-        await waitFor(() => expect(validateInventoryMock).toHaveBeenCalledWith({ inventoryId: 'inv1', userEmail: 'gerant@test.com' }));
+        await waitFor(() => expect(validateInventoryMock).toHaveBeenCalledWith({ inventoryId: 'inv1' }));
         await waitFor(() => expect(onValidated).toHaveBeenCalled());
         await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
     it('shows a read-only view with no inputs once the inventory is validated', async () => {
         renderWithQueryClient(
-            <InventoryCountModal isOpen onClose={() => {}} inventory={{ id: 'inv1', status: 'validated' }} actorLabel="gerant@test.com" />
+            <InventoryCountModal isOpen onClose={() => {}} inventory={{ id: 'inv1', status: 'validated' }} />
         );
 
         await screen.findByText('Coca-Cola 33cl');
@@ -106,7 +106,7 @@ describe('InventoryCountModal', () => {
     it('does not wipe an in-progress count when the background refetch fires (15s auto-refresh)', async () => {
         const user = userEvent.setup();
         const { queryClient } = renderWithQueryClient(
-            <InventoryCountModal isOpen onClose={() => {}} inventory={DRAFT_INVENTORY} actorLabel="gerant@test.com" />
+            <InventoryCountModal isOpen onClose={() => {}} inventory={DRAFT_INVENTORY} />
         );
         await screen.findByText('Coca-Cola 33cl');
 

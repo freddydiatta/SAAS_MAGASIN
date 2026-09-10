@@ -29,7 +29,6 @@ vi.mock('react-hot-toast', () => ({
 }));
 
 const BUSINESS = { id: 'biz-1' };
-const ACTOR = 'owner@test.com';
 
 describe('useDebts', () => {
     beforeEach(() => {
@@ -47,7 +46,7 @@ describe('useDebts', () => {
     });
 
     it('computes the total owed from unpaid debts only', async () => {
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
 
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
         expect(result.current.unpaidDebts).toHaveLength(1);
@@ -55,7 +54,7 @@ describe('useDebts', () => {
     });
 
     it('rejects submitting a debt with no customer name', async () => {
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.setFormData({ customerName: '', customerPhone: '', amount: '1000', note: '' }));
@@ -67,7 +66,7 @@ describe('useDebts', () => {
 
     it('submits a valid debt', async () => {
         addDebtMock.mockResolvedValueOnce();
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.setFormData({ customerName: 'Fatou', customerPhone: '', amount: '3000', note: '' }));
@@ -80,7 +79,7 @@ describe('useDebts', () => {
     });
 
     it('queues a mark-paid action for confirmation without mutating immediately', async () => {
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
@@ -91,7 +90,7 @@ describe('useDebts', () => {
 
     it('marks a debt paid once the pending confirmation is confirmed', async () => {
         markDebtPaidMock.mockResolvedValueOnce('d1');
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
@@ -102,7 +101,7 @@ describe('useDebts', () => {
     });
 
     it('does not mark paid when the confirmation is cancelled', async () => {
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
@@ -114,7 +113,7 @@ describe('useDebts', () => {
 
     it('deletes a debt once the pending confirmation is confirmed', async () => {
         deleteDebtMock.mockResolvedValueOnce('d1');
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleDelete({ id: 'd1' }));
@@ -125,7 +124,7 @@ describe('useDebts', () => {
     });
 
     it('pre-fills the form from the debt being edited', async () => {
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         const debt = await waitFor(() => {
             expect(result.current.debts).toHaveLength(2);
             return result.current.debts.find((d) => d.id === 'd1');
@@ -141,7 +140,7 @@ describe('useDebts', () => {
 
     it('submits an edit through update_debt (with the actor for the audit log), not addDebt', async () => {
         updateDebtMock.mockResolvedValueOnce({ id: 'd1' });
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         const debt = await waitFor(() => {
             expect(result.current.debts).toHaveLength(2);
             return result.current.debts.find((d) => d.id === 'd1');
@@ -152,14 +151,14 @@ describe('useDebts', () => {
         await act(async () => result.current.handleSubmit({ preventDefault: () => {} }));
 
         expect(updateDebtMock).toHaveBeenCalledWith({
-            debtId: 'd1', userEmail: ACTOR, customerName: 'Moussa Diop', customerPhone: '77000', amount: 6000, note: 'Pièces moto',
+            debtId: 'd1', customerName: 'Moussa Diop', customerPhone: '77000', amount: 6000, note: 'Pièces moto',
         });
         expect(addDebtMock).not.toHaveBeenCalled();
         await waitFor(() => expect(result.current.isAddOpen).toBe(false));
     });
 
     it('resets edit mode when the form is closed', async () => {
-        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS, ACTOR));
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         const debt = await waitFor(() => {
             expect(result.current.debts).toHaveLength(2);
             return result.current.debts.find((d) => d.id === 'd1');

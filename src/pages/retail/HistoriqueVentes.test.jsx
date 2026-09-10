@@ -27,10 +27,6 @@ vi.mock('../../contexts/BusinessContext', () => ({
     useBusiness: () => ({ selectedBusiness: { id: 'biz-1' } }),
 }));
 
-vi.mock('../../contexts/AuthContext', () => ({
-    useAuth: () => ({ user: { email: 'caissier@test.com' } }),
-}));
-
 const RECEIPT = {
     id: 'r1',
     business_id: 'biz-1',
@@ -83,7 +79,6 @@ describe('HistoriqueVentes cancel/modify', () => {
         await waitFor(() => {
             expect(rpcMock).toHaveBeenCalledWith('cancel_sale', {
                 p_receipt_id: 'r1',
-                p_user_email: 'caissier@test.com',
             });
         });
         expect(await screen.findByText(/Vente annulée avec succès/)).toBeInTheDocument();
@@ -122,7 +117,6 @@ describe('HistoriqueVentes cancel/modify', () => {
         await waitFor(() => {
             expect(rpcMock).toHaveBeenCalledWith('modify_sale', {
                 p_receipt_id: 'r1',
-                p_user_email: 'caissier@test.com',
                 p_items: [
                     {
                         sale_id: 's1',

@@ -71,14 +71,12 @@ describe('purchaseOrdersService', () => {
 
         await updatePurchaseOrder({
             orderId: 'po1',
-            userEmail: 'gerant@test.com',
             supplierId: 's1',
             items: [{ productId: 'p1', quantity: 5, unitCost: 300 }],
         });
 
         expect(rpcMock).toHaveBeenCalledWith('update_purchase_order', {
             p_order_id: 'po1',
-            p_user_email: 'gerant@test.com',
             p_supplier_id: 's1',
             p_items: [{ product_id: 'p1', quantity: 5, unit_cost: 300 }],
         });
@@ -87,7 +85,7 @@ describe('purchaseOrdersService', () => {
     it('updatePurchaseOrder passes a null supplier when none was selected', async () => {
         rpcMock.mockResolvedValue({ data: { id: 'po1' }, error: null });
 
-        await updatePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com', supplierId: '', items: [{ productId: 'p1', quantity: 1, unitCost: 100 }] });
+        await updatePurchaseOrder({ orderId: 'po1', supplierId: '', items: [{ productId: 'p1', quantity: 1, unitCost: 100 }] });
 
         expect(rpcMock).toHaveBeenCalledWith('update_purchase_order', expect.objectContaining({ p_supplier_id: null }));
     });
@@ -95,7 +93,7 @@ describe('purchaseOrdersService', () => {
     it('propagates a database error from updatePurchaseOrder (e.g. order already received)', async () => {
         rpcMock.mockResolvedValue({ data: null, error: new Error('Seul un bon de commande en attente peut être modifié.') });
 
-        await expect(updatePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com', supplierId: '', items: [] }))
+        await expect(updatePurchaseOrder({ orderId: 'po1', supplierId: '', items: [] }))
             .rejects.toThrow('Seul un bon de commande en attente peut être modifié.');
     });
 
@@ -119,35 +117,35 @@ describe('purchaseOrdersService', () => {
         expect(builder.eq).toHaveBeenCalledWith('status', 'pending');
     });
 
-    it('unreceivePurchaseOrder calls the RPC with the order id and the author email', async () => {
+    it('unreceivePurchaseOrder calls the RPC with the order id', async () => {
         rpcMock.mockResolvedValue({ data: { id: 'po1', status: 'pending' }, error: null });
 
-        const result = await unreceivePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com' });
+        const result = await unreceivePurchaseOrder({ orderId: 'po1' });
 
-        expect(rpcMock).toHaveBeenCalledWith('unreceive_purchase_order', { p_purchase_order_id: 'po1', p_user_email: 'gerant@test.com' });
+        expect(rpcMock).toHaveBeenCalledWith('unreceive_purchase_order', { p_purchase_order_id: 'po1' });
         expect(result).toEqual({ id: 'po1', status: 'pending' });
     });
 
     it('propagates a database error from unreceivePurchaseOrder (e.g. stock already resold)', async () => {
         rpcMock.mockResolvedValue({ data: null, error: new Error('Impossible d\'annuler la réception : stock actuel de "Casque Moto" insuffisant (disponible 1, à retirer 3)') });
 
-        await expect(unreceivePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com' }))
+        await expect(unreceivePurchaseOrder({ orderId: 'po1' }))
             .rejects.toThrow('stock actuel de "Casque Moto" insuffisant');
     });
 
-    it('deletePurchaseOrder calls the RPC with the order id and the author email', async () => {
+    it('deletePurchaseOrder calls the RPC with the order id', async () => {
         rpcMock.mockResolvedValue({ data: null, error: null });
 
-        const result = await deletePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com' });
+        const result = await deletePurchaseOrder({ orderId: 'po1' });
 
-        expect(rpcMock).toHaveBeenCalledWith('delete_purchase_order', { p_purchase_order_id: 'po1', p_user_email: 'gerant@test.com' });
+        expect(rpcMock).toHaveBeenCalledWith('delete_purchase_order', { p_purchase_order_id: 'po1' });
         expect(result).toBe('po1');
     });
 
     it('propagates a database error from deletePurchaseOrder (e.g. order already received)', async () => {
         rpcMock.mockResolvedValue({ data: null, error: new Error('Un bon de commande reçu ne peut pas être supprimé') });
 
-        await expect(deletePurchaseOrder({ orderId: 'po1', userEmail: 'gerant@test.com' }))
+        await expect(deletePurchaseOrder({ orderId: 'po1' }))
             .rejects.toThrow('Un bon de commande reçu ne peut pas être supprimé');
     });
 });

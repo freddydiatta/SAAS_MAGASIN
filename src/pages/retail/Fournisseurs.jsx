@@ -1,5 +1,4 @@
 import { useBusiness } from '../../contexts/BusinessContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useFournisseurs } from '../../hooks/useFournisseurs';
 import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -50,11 +49,7 @@ const CONFIRM_CONFIG = {
 };
 
 export const Fournisseurs = () => {
-    const { selectedBusiness, currentMember } = useBusiness();
-    const { user } = useAuth();
-    // Un caissier a un compte auto-généré (email interne illisible) : on
-    // journalise son nom d'affichage plutôt que cet email quand disponible.
-    const actorLabel = currentMember?.name || user?.email || 'unknown';
+    const { selectedBusiness } = useBusiness();
     const {
         suppliers, isLoadingSuppliers,
         isAddSupplierOpen, openAddSupplierForm, closeSupplierForm,
@@ -64,7 +59,7 @@ export const Fournisseurs = () => {
         handleSubmitOrder, handleReceiveOrder, handleCancelOrder, handleUnreceiveOrder, handleDeleteOrder, isSavingOrder,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
         orderToPrint, setOrderToPrint, handlePrintOrder,
-    } = useFournisseurs(selectedBusiness, actorLabel);
+    } = useFournisseurs(selectedBusiness);
 
     const supplierColumns = [
         {

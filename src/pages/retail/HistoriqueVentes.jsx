@@ -1,5 +1,4 @@
 import { useBusiness } from '../../contexts/BusinessContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useSalesHistory } from '../../hooks/useSalesHistory';
 import { InvoicePrint } from '../../components/InvoicePrint';
 import { FileText, Edit2, Ban, AlertTriangle, Plus, Minus } from 'lucide-react';
@@ -9,11 +8,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { DateRangeFilter } from '../../components/DateRangeFilter';
 
 export const HistoriqueVentes = () => {
-    const { selectedBusiness, currentMember } = useBusiness();
-    const { user } = useAuth();
-    // Un caissier a un compte auto-généré (email interne illisible) : on
-    // journalise son nom d'affichage plutôt que cet email quand disponible.
-    const actorLabel = currentMember?.name || user?.email || 'unknown';
+    const { selectedBusiness } = useBusiness();
 
     const {
         receipts, totalReceiptsCount, isLoading,
@@ -22,7 +17,7 @@ export const HistoriqueVentes = () => {
         receiptToCancel, setReceiptToCancel, confirmCancel, isCancelling,
         receiptToPrint, setReceiptToPrint, handlePrint,
         receiptToModify, setReceiptToModify, modifiedItems, handleModify, updateModifiedQty, confirmModify, isModifying,
-    } = useSalesHistory(selectedBusiness, actorLabel);
+    } = useSalesHistory(selectedBusiness);
 
     if (isLoading) {
         return <div className="p-8 text-center text-secondary">Chargement de l'historique...</div>;

@@ -296,7 +296,7 @@ describe('useFournisseurs', () => {
 
     it('updates a purchase order through updatePurchaseOrder, journalisée avec l\'email de l\'auteur', async () => {
         updatePurchaseOrderMock.mockResolvedValueOnce({ id: 'po1' });
-        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.openEditOrderForm({ id: 'po1', status: 'pending' }));
@@ -307,7 +307,7 @@ describe('useFournisseurs', () => {
         }));
 
         expect(updatePurchaseOrderMock).toHaveBeenCalledWith({
-            orderId: 'po1', userEmail: 'gerant@test.com', supplierId: 's1', items: [{ productId: 'p1', quantity: 3, unitCost: 400 }],
+            orderId: 'po1', supplierId: 's1', items: [{ productId: 'p1', quantity: 3, unitCost: 400 }],
         });
         expect(createPurchaseOrderMock).not.toHaveBeenCalled();
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
@@ -316,7 +316,7 @@ describe('useFournisseurs', () => {
 
     it('unreceives a purchase order once the pending confirmation is confirmed', async () => {
         unreceivePurchaseOrderMock.mockResolvedValueOnce({ id: 'po1', status: 'pending' });
-        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleUnreceiveOrder({ id: 'po1' }));
@@ -324,14 +324,14 @@ describe('useFournisseurs', () => {
 
         await act(async () => result.current.confirmPendingAction());
 
-        expect(unreceivePurchaseOrderMock).toHaveBeenCalledWith({ orderId: 'po1', userEmail: 'gerant@test.com' });
+        expect(unreceivePurchaseOrderMock).toHaveBeenCalledWith({ orderId: 'po1' });
         await waitFor(() => expect(result.current.confirmAction).toBeNull());
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });
 
     it('surfaces the explicit stock error when unreceiving fails because stock was already resold', async () => {
         unreceivePurchaseOrderMock.mockRejectedValueOnce(new Error('Impossible d\'annuler la réception : stock actuel de "Casque Moto" insuffisant (disponible 1, à retirer 3)'));
-        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleUnreceiveOrder({ id: 'po1' }));
@@ -342,7 +342,7 @@ describe('useFournisseurs', () => {
 
     it('deletes a purchase order once the pending confirmation is confirmed', async () => {
         deletePurchaseOrderMock.mockResolvedValueOnce('po1');
-        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleDeleteOrder({ id: 'po1' }));
@@ -350,7 +350,7 @@ describe('useFournisseurs', () => {
 
         await act(async () => result.current.confirmPendingAction());
 
-        expect(deletePurchaseOrderMock).toHaveBeenCalledWith({ orderId: 'po1', userEmail: 'gerant@test.com' });
+        expect(deletePurchaseOrderMock).toHaveBeenCalledWith({ orderId: 'po1' });
         await waitFor(() => expect(result.current.confirmAction).toBeNull());
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });

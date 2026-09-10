@@ -44,7 +44,7 @@ describe('useSalesHistory', () => {
     });
 
     it('fetches receipts for the selected business', async () => {
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
 
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
         expect(result.current.isLoading).toBe(false);
@@ -52,14 +52,14 @@ describe('useSalesHistory', () => {
 
     it('confirmCancel calls cancel_sale and clears receiptToCancel on success', async () => {
         rpcMock.mockResolvedValueOnce({ data: { ...RECEIPT, status: 'cancelled' }, error: null });
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
 
         act(() => result.current.setReceiptToCancel(RECEIPT));
         await act(async () => result.current.confirmCancel());
 
         await waitFor(() => {
-            expect(rpcMock).toHaveBeenCalledWith('cancel_sale', { p_receipt_id: 'r1', p_user_email: 'caissier@test.com' });
+            expect(rpcMock).toHaveBeenCalledWith('cancel_sale', { p_receipt_id: 'r1' });
         });
         await waitFor(() => expect(result.current.receiptToCancel).toBeNull());
         expect(result.current.toastMessage).toMatch(/annulée avec succès/);
@@ -67,7 +67,7 @@ describe('useSalesHistory', () => {
 
     it('shows an error toast when cancel_sale rejects', async () => {
         rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Déjà annulée') });
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
 
         act(() => result.current.setReceiptToCancel(RECEIPT));
@@ -77,7 +77,7 @@ describe('useSalesHistory', () => {
     });
 
     it('handleModify seeds modifiedItems from the receipt lines, and updateModifiedQty ignores negatives', async () => {
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
 
         act(() => result.current.handleModify(RECEIPT));
@@ -94,7 +94,7 @@ describe('useSalesHistory', () => {
 
     it('confirmModify sends the updated items through modify_sale', async () => {
         rpcMock.mockResolvedValueOnce({ data: { ...RECEIPT, total_amount: 3000 }, error: null });
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
 
         act(() => result.current.handleModify(RECEIPT));
@@ -104,7 +104,6 @@ describe('useSalesHistory', () => {
         await waitFor(() => {
             expect(rpcMock).toHaveBeenCalledWith('modify_sale', {
                 p_receipt_id: 'r1',
-                p_user_email: 'caissier@test.com',
                 p_items: [{ sale_id: 's1', product_id: 'p1', name: 'Casque Moto', original_qty: 1, new_qty: 3, price: 1000 }],
             });
         });
@@ -118,7 +117,7 @@ describe('useSalesHistory', () => {
         const recentReceipt = { ...RECEIPT, id: 'r-recent', created_at: today.toISOString() };
         fromMock.mockImplementation(() => createQueryBuilder({ data: [recentReceipt, oldReceipt], error: null }));
 
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toHaveLength(2));
         expect(result.current.totalReceiptsCount).toBe(2);
 
@@ -130,7 +129,7 @@ describe('useSalesHistory', () => {
     });
 
     it('handlePrint maps a receipt into per-unit-price print details', async () => {
-        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS, 'caissier@test.com'));
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
 
         act(() => result.current.handlePrint(RECEIPT));

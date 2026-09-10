@@ -12,7 +12,7 @@ const EMPTY_SUPPLIER_FORM = { name: '', contactName: '', phone: '', email: '' };
 // Fournisseurs + bons de commande partagent la même page (Fournisseurs.jsx) :
 // deuxième étape du suivi fournisseurs, après le prix d'achat par produit
 // (voir useProducts / AddProductModal).
-export function useFournisseurs(selectedBusiness, actorLabel) {
+export function useFournisseurs(selectedBusiness) {
     const queryClient = useQueryClient();
     const businessId = selectedBusiness?.id;
 
@@ -100,7 +100,7 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
     // Journalisée côté base (voir update_purchase_order) : jamais une
     // correction silencieuse, toujours une trace consultable dans Sécurité.
     const updateOrderMutation = useMutation({
-        mutationFn: (payload) => updatePurchaseOrder({ orderId: editingOrder.id, userEmail: actorLabel, ...payload }),
+        mutationFn: (payload) => updatePurchaseOrder({ orderId: editingOrder.id, ...payload }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: poQueryKey });
             queryClient.invalidateQueries({ queryKey: ['audit_logs', businessId] });
@@ -139,7 +139,7 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
     // ajouté (voir unreceive_purchase_order) — invalide products en plus des
     // bons, comme la réception. Journalisée.
     const unreceiveOrderMutation = useMutation({
-        mutationFn: (id) => unreceivePurchaseOrder({ orderId: id, userEmail: actorLabel }),
+        mutationFn: (id) => unreceivePurchaseOrder({ orderId: id }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: poQueryKey });
             queryClient.invalidateQueries({ queryKey: productKeys.all(businessId) });
@@ -153,7 +153,7 @@ export function useFournisseurs(selectedBusiness, actorLabel) {
     // Suppression définitive (voir delete_purchase_order) — un bon reçu doit
     // d'abord passer par handleUnreceiveOrder. Journalisée.
     const deleteOrderMutation = useMutation({
-        mutationFn: (id) => deletePurchaseOrder({ orderId: id, userEmail: actorLabel }),
+        mutationFn: (id) => deletePurchaseOrder({ orderId: id }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: poQueryKey });
             queryClient.invalidateQueries({ queryKey: ['audit_logs', businessId] });

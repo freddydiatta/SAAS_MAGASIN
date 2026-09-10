@@ -44,28 +44,28 @@ describe('useInventories', () => {
     });
 
     it('loads the inventories of the current business', async () => {
-        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS));
 
         await waitFor(() => expect(result.current.inventories).toHaveLength(1));
     });
 
     it('starts a new inventory and opens it directly for counting', async () => {
         startInventoryMock.mockResolvedValueOnce({ id: 'inv2', status: 'draft' });
-        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS));
         await waitFor(() => expect(result.current.inventories).toHaveLength(1));
 
         act(() => result.current.openStartForm());
         act(() => result.current.setNote('Septembre'));
         await act(async () => result.current.handleStartInventory({ preventDefault: () => {} }));
 
-        expect(startInventoryMock).toHaveBeenCalledWith({ businessId: 'biz-1', userEmail: 'gerant@test.com', note: 'Septembre' });
+        expect(startInventoryMock).toHaveBeenCalledWith({ businessId: 'biz-1', note: 'Septembre' });
         expect(result.current.isStartFormOpen).toBe(false);
         expect(result.current.activeInventory).toEqual({ id: 'inv2', status: 'draft' });
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });
 
     it('opens and closes an inventory for counting', async () => {
-        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS));
         await waitFor(() => expect(result.current.inventories).toHaveLength(1));
 
         act(() => result.current.openInventory({ id: 'inv1', status: 'draft' }));
@@ -77,7 +77,7 @@ describe('useInventories', () => {
 
     it('deletes a draft inventory once the pending confirmation is confirmed', async () => {
         deleteInventoryMock.mockResolvedValueOnce('inv1');
-        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS));
         await waitFor(() => expect(result.current.inventories).toHaveLength(1));
 
         act(() => result.current.handleDeleteInventory({ id: 'inv1' }));
@@ -93,7 +93,7 @@ describe('useInventories', () => {
     });
 
     it('does not delete when the confirmation is cancelled', async () => {
-        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS, 'gerant@test.com'));
+        const { result } = renderHookWithQueryClient(() => useInventories(BUSINESS));
         await waitFor(() => expect(result.current.inventories).toHaveLength(1));
 
         act(() => result.current.handleDeleteInventory({ id: 'inv1' }));

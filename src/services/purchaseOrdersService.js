@@ -30,11 +30,12 @@ export const createPurchaseOrder = async ({ businessId, supplierId, items }) => 
 
 // Modification d'un bon en attente : journalisée côté base (voir
 // update_purchase_order) — jamais une correction silencieuse, toujours une
-// trace consultable dans Sécurité. Refuse un bon déjà reçu/annulé.
-export const updatePurchaseOrder = async ({ orderId, userEmail, supplierId, items }) => {
+// trace consultable dans Sécurité. Refuse un bon déjà reçu/annulé. L'auteur
+// est dérivé côté serveur depuis auth.uid() (current_actor_label), jamais
+// envoyé par le client (audit de sécurité du 2026-09-10).
+export const updatePurchaseOrder = async ({ orderId, supplierId, items }) => {
     const { data, error } = await supabase.rpc('update_purchase_order', {
         p_order_id: orderId,
-        p_user_email: userEmail,
         p_supplier_id: supplierId || null,
         p_items: items.map((item) => ({
             product_id: item.productId,
@@ -67,10 +68,9 @@ export const cancelPurchaseOrder = async (id) => {
 // Corrige un bon marqué reçu par erreur : retire le stock ajouté et repasse
 // le bon en attente (voir unreceive_purchase_order) — refuse explicitement
 // si une partie de ce stock a déjà été revendue. Journalisée.
-export const unreceivePurchaseOrder = async ({ orderId, userEmail }) => {
+export const unreceivePurchaseOrder = async ({ orderId }) => {
     const { data, error } = await supabase.rpc('unreceive_purchase_order', {
         p_purchase_order_id: orderId,
-        p_user_email: userEmail,
     });
     if (error) throw error;
     return data;
@@ -79,10 +79,9 @@ export const unreceivePurchaseOrder = async ({ orderId, userEmail }) => {
 // Suppression définitive d'un bon jamais reçu (voir delete_purchase_order) —
 // un bon reçu doit d'abord passer par unreceivePurchaseOrder. Journalisée
 // avant suppression (les lignes disparaissent avec le bon).
-export const deletePurchaseOrder = async ({ orderId, userEmail }) => {
+export const deletePurchaseOrder = async ({ orderId }) => {
     const { error } = await supabase.rpc('delete_purchase_order', {
         p_purchase_order_id: orderId,
-        p_user_email: userEmail,
     });
     if (error) throw error;
     return orderId;

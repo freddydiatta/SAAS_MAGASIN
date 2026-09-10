@@ -1,5 +1,4 @@
 import { useBusiness } from '../../contexts/BusinessContext';
-import { useAuth } from '../../contexts/AuthContext';
 import { useInventories } from '../../hooks/useInventories';
 import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
@@ -14,17 +13,13 @@ const INVENTORY_STATUS = {
 };
 
 export const Inventaires = () => {
-    const { selectedBusiness, currentMember } = useBusiness();
-    const { user } = useAuth();
-    // Un caissier a un compte auto-généré (email interne illisible) : on
-    // journalise son nom d'affichage plutôt que cet email quand disponible.
-    const actorLabel = currentMember?.name || user?.email || 'unknown';
+    const { selectedBusiness } = useBusiness();
     const {
         inventories, isLoading,
         isStartFormOpen, openStartForm, closeStartForm, note, setNote, handleStartInventory, isStartingInventory,
         activeInventory, openInventory, closeInventory, onInventoryValidated,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction, handleDeleteInventory,
-    } = useInventories(selectedBusiness, actorLabel);
+    } = useInventories(selectedBusiness);
 
     const columns = [
         {
@@ -146,7 +141,6 @@ export const Inventaires = () => {
                 isOpen={!!activeInventory}
                 onClose={closeInventory}
                 inventory={activeInventory}
-                actorLabel={actorLabel}
                 onValidated={onInventoryValidated}
             />
 

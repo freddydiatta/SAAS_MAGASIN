@@ -1,5 +1,4 @@
 import { useBusiness } from '../contexts/BusinessContext';
-import { useAuth } from '../contexts/AuthContext';
 import { useDebts } from '../hooks/useDebts';
 import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -26,18 +25,14 @@ const CONFIRM_CONFIG = {
 };
 
 export const Dettes = () => {
-    const { selectedBusiness, currentMember } = useBusiness();
-    const { user } = useAuth();
-    // Un caissier a un compte auto-généré (email interne illisible) : on
-    // journalise son nom d'affichage plutôt que cet email quand disponible.
-    const actorLabel = currentMember?.name || user?.email || 'unknown';
+    const { selectedBusiness } = useBusiness();
     const {
         debts, unpaidDebts, totalOwed, isLoading,
         isAddOpen, editingDebt, openAddForm, openEditForm, closeForm,
         formData, setFormData,
         handleSubmit, handleMarkPaid, handleDelete, isSaving,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
-    } = useDebts(selectedBusiness, actorLabel);
+    } = useDebts(selectedBusiness);
 
     const columns = [
         {
