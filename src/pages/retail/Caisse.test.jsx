@@ -58,6 +58,9 @@ vi.mock('../../components/BarcodeScannerModal', () => ({
     },
 }));
 
+const { playBeepMock } = vi.hoisted(() => ({ playBeepMock: vi.fn() }));
+vi.mock('../../lib/beep', () => ({ playBeep: playBeepMock }));
+
 const PRODUCT = { id: 'p1', name: 'Casque Moto', type: 'moto', price: 1000, stock_quantity: 5 };
 const SCANNABLE_PRODUCT = { id: 'p2', name: 'Coca-Cola 33cl', type: 'standard', price: 500, stock_quantity: 10, barcode: '3017620422003' };
 
@@ -159,11 +162,12 @@ describe('Caisse barcode scanning', () => {
         fromMock.mockReset();
         toastSuccessMock.mockReset();
         toastErrorMock.mockReset();
+        playBeepMock.mockReset();
         scannerSpy.onScan = null;
         fromMock.mockImplementation(() => createQueryBuilder({ data: [PRODUCT, SCANNABLE_PRODUCT], error: null }));
     });
 
-    it('adds the matching product to the cart when its barcode is scanned', async () => {
+    it('adds the matching product to the cart when its barcode is scanned, and beeps instead of a toast', async () => {
         const user = userEvent.setup();
         renderWithQueryClient(<Caisse />);
         await screen.findByText('Casque Moto');
@@ -172,7 +176,8 @@ describe('Caisse barcode scanning', () => {
         scannerSpy.onScan('3017620422003');
 
         await waitFor(() => expect(screen.getByText('1 article')).toBeInTheDocument());
-        expect(toastSuccessMock).toHaveBeenCalledWith('Coca-Cola 33cl ajouté au panier.');
+        expect(playBeepMock).toHaveBeenCalled();
+        expect(toastSuccessMock).not.toHaveBeenCalled();
     });
 
     it('shows an error toast without touching the cart when no product matches the scanned code', async () => {
@@ -199,5 +204,6 @@ describe('Caisse barcode scanning', () => {
 
         expect(toastErrorMock).toHaveBeenCalledWith('"Coca-Cola 33cl" est en rupture de stock.');
         expect(screen.getByText('Le panier est vide')).toBeInTheDocument();
+        expect(playBeepMock).not.toHaveBeenCalled();
     });
 });

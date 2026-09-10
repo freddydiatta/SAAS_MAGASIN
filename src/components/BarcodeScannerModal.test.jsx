@@ -37,11 +37,27 @@ describe('BarcodeScannerModal', () => {
         render(<BarcodeScannerModal isOpen onClose={() => {}} onScan={() => {}} />);
 
         await waitFor(() => expect(decodeFromConstraintsMock).toHaveBeenCalledWith(
-            { video: { facingMode: 'environment' } },
+            { video: expect.objectContaining({ facingMode: 'environment' }) },
             expect.anything(),
             expect.any(Function)
         ));
         expect(screen.getByText('Visez le code-barres')).toBeInTheDocument();
+    });
+
+    it('restricts decoding to retail 1D formats and shortens the delay between scan attempts (perf)', async () => {
+        render(<BarcodeScannerModal isOpen onClose={() => {}} onScan={() => {}} />);
+
+        await waitFor(() => expect(readerCtorMock).toHaveBeenCalled());
+        const [hints, options] = readerCtorMock.mock.calls[0];
+
+        const { DecodeHintType, BarcodeFormat } = await import('@zxing/library');
+        expect(hints.get(DecodeHintType.POSSIBLE_FORMATS)).toEqual([
+            BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A,
+            BarcodeFormat.UPC_E, BarcodeFormat.CODE_128, BarcodeFormat.CODE_39,
+        ]);
+        // Le défaut ZXing (500ms) rendait le scan visiblement lent — voir
+        // BarcodeScannerModal.jsx pour le détail.
+        expect(options).toEqual(expect.objectContaining({ delayBetweenScanAttempts: 50 }));
     });
 
     it('calls onScan once a barcode is decoded, then stops the camera (single-shot mode)', async () => {

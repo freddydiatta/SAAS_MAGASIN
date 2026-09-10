@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Search, CheckCircle2, ScanLine } from 'lucide-react';
 import { Modal } from './Modal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { playBeep } from '../lib/beep';
 import { useProducts } from '../hooks/useProducts';
 import { fetchInventoryItems, saveInventoryCounts, validateInventory } from '../services/inventoriesService';
 
@@ -73,6 +74,7 @@ export const InventoryCountModal = ({ isOpen, onClose, inventory, onValidated })
             toast.error(`"${product.name}" ne fait pas partie de cet inventaire.`);
             return;
         }
+        playBeep();
         setIsScanning(false);
         setScannedItem(item);
         setScanQty(counts[item.id] !== undefined ? String(counts[item.id]) : '');

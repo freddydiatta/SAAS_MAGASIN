@@ -33,10 +33,41 @@ export const BarcodeScannerModal = ({ isOpen, onClose, onScan, continuous = fals
 
         (async () => {
             try {
-                const { BrowserMultiFormatReader } = await import('@zxing/browser');
-                const reader = new BrowserMultiFormatReader();
+                const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([
+                    import('@zxing/browser'),
+                    import('@zxing/library'),
+                ]);
+                // Deux réglages par défaut de ZXing rendaient le scan très
+                // lent : (1) il n'essaie de décoder une frame que toutes les
+                // 500ms, (2) il teste tous les formats connus (QR, Data
+                // Matrix, Aztec, PDF417...) à chaque tentative alors qu'on ne
+                // scanne que des codes-barres produits (1D). Restreindre les
+                // formats + réduire le délai accélère nettement la détection.
+                const hints = new Map();
+                hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+                    BarcodeFormat.EAN_13,
+                    BarcodeFormat.EAN_8,
+                    BarcodeFormat.UPC_A,
+                    BarcodeFormat.UPC_E,
+                    BarcodeFormat.CODE_128,
+                    BarcodeFormat.CODE_39,
+                ]);
+                const reader = new BrowserMultiFormatReader(hints, {
+                    delayBetweenScanAttempts: 50,
+                    delayBetweenScanSuccess: 250,
+                });
                 const controls = await reader.decodeFromConstraints(
-                    { video: { facingMode: 'environment' } },
+                    {
+                        video: {
+                            facingMode: 'environment',
+                            // Une résolution plus élevée n'aide pas à lire un
+                            // code-barres 1D et ralentit chaque tentative de
+                            // décodage pour rien — on plafonne, sans imposer
+                            // une valeur que la caméra ne supporterait pas.
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 },
+                        },
+                    },
                     videoRef.current,
                     (result) => {
                         if (cancelled || !result) return;

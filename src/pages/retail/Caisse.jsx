@@ -8,6 +8,7 @@ import { Plus, Minus, Search, X, Package, ShoppingBag, FileText, ScanLine } from
 import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from '../../components/Modal';
 import { BarcodeScannerModal } from '../../components/BarcodeScannerModal';
+import { playBeep } from '../../lib/beep';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
@@ -44,9 +45,11 @@ export const Caisse = () => {
         || (paymentMethod === 'credit' && !customerName.trim());
 
     // Reste ouverte après un scan (continuous) pour enchaîner plusieurs
-    // articles d'affilée sans rouvrir la caméra à chaque fois — le retour
-    // visuel se fait par toast puisque le panier (à droite) est masqué par
-    // la modale de scan pendant qu'elle est ouverte.
+    // articles d'affilée sans rouvrir la caméra à chaque fois. Un ajout
+    // réussi se signale par un bip (pas de toast) : à ce rythme de scan, un
+    // message à lire ralentit plus qu'il n'aide — comme un scanner de
+    // caisse physique. Les erreurs restent en toast, elles ont besoin d'être
+    // lues pour être comprises.
     const handleScan = (code) => {
         const match = products.find((p) => p.barcode === code);
         if (!match) {
@@ -58,7 +61,7 @@ export const Caisse = () => {
             return;
         }
         addToCart(match);
-        toast.success(`${match.name} ajouté au panier.`);
+        playBeep();
     };
 
     if (showInvoice && lastSaleDetails) {

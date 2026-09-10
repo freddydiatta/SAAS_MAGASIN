@@ -40,6 +40,9 @@ vi.mock('./BarcodeScannerModal', () => ({
     },
 }));
 
+const { playBeepMock } = vi.hoisted(() => ({ playBeepMock: vi.fn() }));
+vi.mock('../lib/beep', () => ({ playBeep: playBeepMock }));
+
 const DRAFT_INVENTORY = { id: 'inv1', status: 'draft', business_id: 'biz-1' };
 const ITEMS = [
     { id: 'item1', product_id: 'p1', product_name: 'Coca-Cola 33cl', expected_quantity: 20, counted_quantity: null },
@@ -58,6 +61,7 @@ describe('InventoryCountModal', () => {
         toastSuccessMock.mockReset();
         toastErrorMock.mockReset();
         useProductsMock.mockReset();
+        playBeepMock.mockReset();
         scannerSpy.onScan = null;
         fetchInventoryItemsMock.mockResolvedValue(ITEMS);
         useProductsMock.mockReturnValue({ data: PRODUCTS });
@@ -154,6 +158,7 @@ describe('InventoryCountModal barcode scanning', () => {
         toastSuccessMock.mockReset();
         toastErrorMock.mockReset();
         useProductsMock.mockReset();
+        playBeepMock.mockReset();
         scannerSpy.onScan = null;
         fetchInventoryItemsMock.mockResolvedValue(ITEMS);
         useProductsMock.mockReturnValue({ data: PRODUCTS });
@@ -171,6 +176,7 @@ describe('InventoryCountModal barcode scanning', () => {
 
         expect(await screen.findByText('Théorique : 10')).toBeInTheDocument();
         expect(screen.getByPlaceholderText('Qté')).toHaveValue(8);
+        expect(playBeepMock).toHaveBeenCalled();
     });
 
     it('saves just the scanned item on confirm and re-opens the scanner for the next one', async () => {
