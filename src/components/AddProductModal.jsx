@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { ScanLine } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { addProduct, productKeys } from '../services/productsService';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { Modal } from './Modal';
 import { ImageUploadField } from './ImageUploadField';
+import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { productSchema, firstZodError } from '../lib/validation';
 
 export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) => {
@@ -18,6 +20,8 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
     const [supplierId, setSupplierId] = useState('');
     const [quantity, setQuantity] = useState('');
     const [imageUrl, setImageUrl] = useState('');
+    const [barcode, setBarcode] = useState('');
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
 
     const [type, setType] = useState(defaultType);
 
@@ -28,7 +32,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
         e.preventDefault();
         setError('');
 
-        const result = productSchema.safeParse({ name, price, quantity, costPrice });
+        const result = productSchema.safeParse({ name, price, quantity, costPrice, barcode });
         if (!result.success) {
             setError(firstZodError(result));
             return;
@@ -45,6 +49,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                 supplierId,
                 stockQuantity: result.data.quantity,
                 imageUrl,
+                barcode: result.data.barcode,
             });
 
             // Rafraîchir les produits
@@ -57,6 +62,7 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
             setSupplierId('');
             setQuantity('');
             setImageUrl('');
+            setBarcode('');
             onClose();
 
         } catch (err) {
@@ -157,6 +163,26 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                             placeholder="10"
                         />
                     </div>
+                    <div className="col-span-2">
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Code-barres (optionnel)</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={barcode}
+                                onChange={(e) => setBarcode(e.target.value)}
+                                className="flex-1 min-w-0 bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                placeholder="Scanner ou saisir"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsScannerOpen(true)}
+                                title="Scanner le code-barres"
+                                className="shrink-0 px-4 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center gap-1.5 text-sm font-medium"
+                            >
+                                <ScanLine className="w-4 h-4" /> Scanner
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="pt-4 flex gap-3">
@@ -176,6 +202,12 @@ export const AddProductModal = ({ isOpen, onClose, defaultType = 'standard' }) =
                     </button>
                 </div>
             </form>
+
+            <BarcodeScannerModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                onScan={(code) => { setBarcode(code); setIsScannerOpen(false); }}
+            />
         </Modal>
     );
 };

@@ -37,7 +37,29 @@ vi.mock('../../services/syncService', () => ({
     saveOfflineSale: saveOfflineSaleMock,
 }));
 
+const { toastSuccessMock, toastErrorMock } = vi.hoisted(() => ({
+    toastSuccessMock: vi.fn(),
+    toastErrorMock: vi.fn(),
+}));
+
+vi.mock('react-hot-toast', () => ({
+    toast: { success: toastSuccessMock, error: toastErrorMock },
+}));
+
+// Fausse implémentation minimale : la caméra/ZXing sont déjà couverts par
+// BarcodeScannerModal.test.jsx — ici on ne teste que ce que Caisse.jsx fait
+// d'un code scanné (chercher le produit, l'ajouter ou signaler l'échec).
+const { scannerSpy } = vi.hoisted(() => ({ scannerSpy: { onScan: null } }));
+
+vi.mock('../../components/BarcodeScannerModal', () => ({
+    BarcodeScannerModal: (props) => {
+        scannerSpy.onScan = props.onScan;
+        return props.isOpen ? <div data-testid="barcode-scanner-mock" /> : null;
+    },
+}));
+
 const PRODUCT = { id: 'p1', name: 'Casque Moto', type: 'moto', price: 1000, stock_quantity: 5 };
+const SCANNABLE_PRODUCT = { id: 'p2', name: 'Coca-Cola 33cl', type: 'standard', price: 500, stock_quantity: 10, barcode: '3017620422003' };
 
 async function addProductAndPay(user, { amount = '1000' } = {}) {
     await screen.findByText('Casque Moto');
@@ -52,6 +74,9 @@ describe('Caisse checkout', () => {
         rpcMock.mockReset();
         fromMock.mockReset();
         saveOfflineSaleMock.mockReset();
+        toastSuccessMock.mockReset();
+        toastErrorMock.mockReset();
+        scannerSpy.onScan = null;
         onlineSpy.mockReturnValue(true);
         fromMock.mockImplementation(() => createQueryBuilder({ data: [PRODUCT], error: null }));
     });
@@ -125,5 +150,54 @@ describe('Caisse checkout', () => {
         });
         expect(rpcMock).not.toHaveBeenCalled();
         expect(await screen.findByText(/enregistrée hors-ligne/)).toBeInTheDocument();
+    });
+});
+
+describe('Caisse barcode scanning', () => {
+    beforeEach(() => {
+        rpcMock.mockReset();
+        fromMock.mockReset();
+        toastSuccessMock.mockReset();
+        toastErrorMock.mockReset();
+        scannerSpy.onScan = null;
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [PRODUCT, SCANNABLE_PRODUCT], error: null }));
+    });
+
+    it('adds the matching product to the cart when its barcode is scanned', async () => {
+        const user = userEvent.setup();
+        renderWithQueryClient(<Caisse />);
+        await screen.findByText('Casque Moto');
+
+        await user.click(screen.getByRole('button', { name: 'Scanner un code-barres' }));
+        scannerSpy.onScan('3017620422003');
+
+        await waitFor(() => expect(screen.getByText('1 article')).toBeInTheDocument());
+        expect(toastSuccessMock).toHaveBeenCalledWith('Coca-Cola 33cl ajouté au panier.');
+    });
+
+    it('shows an error toast without touching the cart when no product matches the scanned code', async () => {
+        const user = userEvent.setup();
+        renderWithQueryClient(<Caisse />);
+        await screen.findByText('Casque Moto');
+
+        await user.click(screen.getByRole('button', { name: 'Scanner un code-barres' }));
+        scannerSpy.onScan('0000000000000');
+
+        expect(toastErrorMock).toHaveBeenCalledWith('Aucun produit ne correspond à ce code-barres.');
+        expect(screen.getByText('Le panier est vide')).toBeInTheDocument();
+    });
+
+    it('refuses to add an out-of-stock product found by barcode', async () => {
+        const outOfStock = { ...SCANNABLE_PRODUCT, stock_quantity: 0 };
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [PRODUCT, outOfStock], error: null }));
+        const user = userEvent.setup();
+        renderWithQueryClient(<Caisse />);
+        await screen.findByText('Casque Moto');
+
+        await user.click(screen.getByRole('button', { name: 'Scanner un code-barres' }));
+        scannerSpy.onScan('3017620422003');
+
+        expect(toastErrorMock).toHaveBeenCalledWith('"Coca-Cola 33cl" est en rupture de stock.');
+        expect(screen.getByText('Le panier est vide')).toBeInTheDocument();
     });
 });

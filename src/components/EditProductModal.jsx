@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { ScanLine } from 'lucide-react';
 import { useBusiness } from '../contexts/BusinessContext';
 import { useQueryClient } from '@tanstack/react-query';
 import { updateProduct, productKeys } from '../services/productsService';
 import { useSuppliers } from '../hooks/useSuppliers';
 import { Modal } from './Modal';
 import { ImageUploadField } from './ImageUploadField';
+import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { productSchema, firstZodError } from '../lib/validation';
 
 export const EditProductModal = ({ isOpen, onClose, product }) => {
@@ -17,6 +19,8 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
     const [costPrice, setCostPrice] = useState('');
     const [supplierId, setSupplierId] = useState('');
     const [imageUrl, setImageUrl] = useState('');
+    const [barcode, setBarcode] = useState('');
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
 
     const [type, setType] = useState('standard');
 
@@ -31,6 +35,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
             setSupplierId(product.supplier_id || '');
             setType(product.type || 'standard');
             setImageUrl(product.image_url || '');
+            setBarcode(product.barcode || '');
         }
     }, [product, isOpen]);
 
@@ -42,7 +47,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
         // seule une vente ou la réception d'un bon de commande le fait
         // bouger, pour qu'il y ait toujours une trace de pourquoi. On
         // renvoie donc la quantité déjà connue du produit, inchangée.
-        const result = productSchema.safeParse({ name, price, costPrice, quantity: product.stock_quantity });
+        const result = productSchema.safeParse({ name, price, costPrice, quantity: product.stock_quantity, barcode });
         if (!result.success) {
             setError(firstZodError(result));
             return;
@@ -60,6 +65,7 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                 stockQuantity: product.stock_quantity,
                 imageUrl,
                 previousImageUrl: product.image_url,
+                barcode: result.data.barcode,
             });
 
             // Rafraîchir les produits
@@ -152,6 +158,26 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                         </select>
                     </div>
                     <div className="col-span-2">
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Code-barres (optionnel)</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={barcode}
+                                onChange={(e) => setBarcode(e.target.value)}
+                                className="flex-1 min-w-0 bg-surface border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50"
+                                placeholder="Scanner ou saisir"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setIsScannerOpen(true)}
+                                title="Scanner le code-barres"
+                                className="shrink-0 px-4 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors flex items-center gap-1.5 text-sm font-medium"
+                            >
+                                <ScanLine className="w-4 h-4" /> Scanner
+                            </button>
+                        </div>
+                    </div>
+                    <div className="col-span-2">
                         <div className="flex justify-between items-center bg-surface border border-slate-200 rounded-lg px-4 py-3">
                             <span className="text-sm font-semibold text-primary">Stock actuel</span>
                             <span className="text-lg font-bold text-primary">{product?.stock_quantity ?? 0}</span>
@@ -179,6 +205,12 @@ export const EditProductModal = ({ isOpen, onClose, product }) => {
                     </button>
                 </div>
             </form>
+
+            <BarcodeScannerModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                onScan={(code) => { setBarcode(code); setIsScannerOpen(false); }}
+            />
         </Modal>
     );
 };

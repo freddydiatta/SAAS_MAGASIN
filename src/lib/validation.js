@@ -41,6 +41,10 @@ export const productSchema = z.object({
             .nonnegative("Le prix d'achat ne peut pas être négatif.")
             .optional()
     ),
+    // Pas de contrainte de format (EAN-13, UPC-A...) : on stocke tel quel ce
+    // que le scan ou la saisie manuelle donne, plutôt que de rejeter un
+    // code-barres légitime dans un format qu'on n'aurait pas anticipé.
+    barcode: z.string().trim().max(64, 'Le code-barres est trop long.').optional().or(z.literal('')),
 });
 
 export const villaSchema = z.object({

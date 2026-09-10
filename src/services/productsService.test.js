@@ -79,6 +79,24 @@ describe('productsService', () => {
             expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ image_url: 'https://x/casque.jpg' })]);
         });
 
+        it('stores barcode as null when none was scanned/entered', async () => {
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await addProduct({ businessId: 'biz-1', name: 'Casque', type: 'moto', price: 1000, stockQuantity: 5, imageUrl: '' });
+
+            expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ barcode: null })]);
+        });
+
+        it('stores the provided barcode', async () => {
+            const builder = createQueryBuilder({ data: { id: 'p1' }, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await addProduct({ businessId: 'biz-1', name: 'Coca-Cola 33cl', type: 'standard', price: 500, stockQuantity: 20, imageUrl: '', barcode: '3017620422003' });
+
+            expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({ barcode: '3017620422003' })]);
+        });
+
         it('returns the created row (needed to attach it to a purchase order line)', async () => {
             const builder = createQueryBuilder({ data: { id: 'p1', name: 'Casque' }, error: null });
             fromMock.mockImplementation(() => builder);
@@ -100,6 +118,18 @@ describe('productsService', () => {
             });
 
             expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ cost_price: 600 }));
+        });
+
+        it('stores the provided barcode', async () => {
+            const builder = createQueryBuilder({ data: null, error: null });
+            fromMock.mockImplementation(() => builder);
+
+            await updateProduct({
+                id: 'p1', name: 'Coca-Cola 33cl', type: 'standard', price: 500, stockQuantity: 20,
+                imageUrl: '', previousImageUrl: '', barcode: '3017620422003',
+            });
+
+            expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ barcode: '3017620422003' }));
         });
 
         it('cleans up the previous photo (best-effort) when it is replaced by a new one', async () => {

@@ -1,16 +1,19 @@
 import { useState, useMemo, memo } from 'react';
+import { toast } from 'react-hot-toast';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useProducts } from '../../hooks/useProducts';
 import { useCaisseCart } from '../../hooks/useCaisseCart';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { Plus, Minus, Search, X, Package, ShoppingBag, FileText } from 'lucide-react';
+import { Plus, Minus, Search, X, Package, ShoppingBag, FileText, ScanLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from '../../components/Modal';
+import { BarcodeScannerModal } from '../../components/BarcodeScannerModal';
 
 export const Caisse = () => {
     const { selectedBusiness } = useBusiness();
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
 
     const {
         cart, addToCart, removeFromCart, updateQuantity, cartTotal,
@@ -39,6 +42,24 @@ export const Caisse = () => {
     const isCheckoutDisabled = cart.length === 0
         || (paymentMethod === 'cash' && (!amountReceived || Number(amountReceived) < cartTotal))
         || (paymentMethod === 'credit' && !customerName.trim());
+
+    // Reste ouverte après un scan (continuous) pour enchaîner plusieurs
+    // articles d'affilée sans rouvrir la caméra à chaque fois — le retour
+    // visuel se fait par toast puisque le panier (à droite) est masqué par
+    // la modale de scan pendant qu'elle est ouverte.
+    const handleScan = (code) => {
+        const match = products.find((p) => p.barcode === code);
+        if (!match) {
+            toast.error('Aucun produit ne correspond à ce code-barres.');
+            return;
+        }
+        if (match.stock_quantity <= 0) {
+            toast.error(`"${match.name}" est en rupture de stock.`);
+            return;
+        }
+        addToCart(match);
+        toast.success(`${match.name} ajouté au panier.`);
+    };
 
     if (showInvoice && lastSaleDetails) {
         return (
@@ -91,17 +112,34 @@ export const Caisse = () => {
                 </div>
             </Modal>
 
+            <BarcodeScannerModal
+                isOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                onScan={handleScan}
+                continuous
+            />
+
             {/* Left side: Products Grid */}
             <div className="flex-1 flex flex-col bg-transparent lg:min-h-0">
-                <div className="mb-6 relative">
-                    <input
-                        type="text"
-                        placeholder="Scanner ou rechercher un article..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-panel shadow-premium-lg rounded-full py-4 px-6 pl-14 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border border-slate-100/50 dark:border-border-theme text-primary placeholder:text-slate-400"
-                    />
-                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <div className="mb-6 flex items-center gap-3">
+                    <div className="flex-1 relative">
+                        <input
+                            type="text"
+                            placeholder="Rechercher un article..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-panel shadow-premium-lg rounded-full py-4 px-6 pl-14 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border border-slate-100/50 dark:border-border-theme text-primary placeholder:text-slate-400"
+                        />
+                        <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                    </div>
+                    <button
+                        onClick={() => setIsScannerOpen(true)}
+                        title="Scanner un code-barres"
+                        aria-label="Scanner un code-barres"
+                        className="shrink-0 w-14 h-14 rounded-full bg-panel shadow-premium-lg border border-slate-100/50 dark:border-border-theme text-accent flex items-center justify-center hover:bg-accent hover:text-white transition-all"
+                    >
+                        <ScanLine className="w-6 h-6" />
+                    </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto pb-6">

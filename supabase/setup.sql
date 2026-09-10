@@ -183,6 +183,12 @@ CREATE TABLE public.products (
     cost_price DECIMAL(10, 2) CHECK (cost_price >= 0),
     stock_quantity INTEGER DEFAULT 0 CHECK (stock_quantity >= 0),
     image_url TEXT,
+    -- Code-barres fabricant (scan caméra) : voir Caisse (ajout rapide au
+    -- panier) et Inventaires (comptage scan -> quantité -> suivant).
+    -- Optionnel, unique par commerce seulement (voir l'index plus bas) :
+    -- deux commerces différents peuvent vendre le même article de marque
+    -- et donc légitimement partager le même code-barres.
+    barcode TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -193,6 +199,12 @@ DROP POLICY IF EXISTS "Members can manage products of their businesses" ON publi
 CREATE POLICY "Members can manage products of their businesses"
 ON public.products
 FOR ALL USING (public.is_business_member(business_id));
+
+-- NULL autorisé en plusieurs exemplaires (produits sans code-barres) — un
+-- index unique partiel l'exclut du contrôle d'unicité.
+CREATE UNIQUE INDEX idx_products_business_barcode
+    ON public.products (business_id, barcode)
+    WHERE barcode IS NOT NULL;
 
 -- 3. Mise à jour des Ventes (Receipts & Sales)
 CREATE TABLE public.receipts (
