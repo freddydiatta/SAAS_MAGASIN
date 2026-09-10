@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { getPlanPrice } from '../config/pricing';
 import { extractPaydunyaErrorMessage } from '../lib/paydunyaError';
+import { safeRedirect } from '../lib/safeRedirect';
 import { Modal } from './Modal';
 
 export const BillingModal = ({ isExpired }) => {
@@ -30,7 +31,7 @@ export const BillingModal = ({ isExpired }) => {
             if (error) throw error;
             if (data?.invoice_url) {
                 // Rediriger vers la page de paiement PayDunya
-                window.location.href = data.invoice_url;
+                safeRedirect(data.invoice_url);
             } else {
                 throw new Error("Lien de paiement non reçu");
             }

@@ -11,6 +11,7 @@ import { cashierSchema, firstZodError } from '../../lib/validation';
 import { DEFAULT_PLAN, SUBSCRIPTION_PLANS } from '../../config/pricing';
 import { supabase } from '../../lib/supabase';
 import { extractPaydunyaErrorMessage } from '../../lib/paydunyaError';
+import { safeRedirect } from '../../lib/safeRedirect';
 import { isPushSupported, urlBase64ToUint8Array } from '../../lib/webPush';
 
 export const Parametres = () => {
@@ -114,7 +115,7 @@ export const Parametres = () => {
             });
             if (error) throw error;
             if (data?.invoice_url) {
-                window.location.href = data.invoice_url;
+                safeRedirect(data.invoice_url);
             } else {
                 throw new Error('Lien de paiement non reçu');
             }
