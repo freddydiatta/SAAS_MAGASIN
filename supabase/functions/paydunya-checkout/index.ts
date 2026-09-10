@@ -122,8 +122,12 @@ serve(async (req) => {
     const paydunyaData = await paydunyaRes.json();
 
     if (paydunyaData.response_code !== "00") {
+      // Le code/texte d'erreur PayDunya (souvent un souci de configuration
+      // marchand — clé, KYC...) n'est pas actionnable par le commerçant et
+      // ne doit pas lui être montré tel quel : journalisé en entier ici
+      // pour le support/débogage, message générique renvoyé côté client.
       console.error("PayDunya Error:", paydunyaData);
-      throw new Error("Erreur PayDunya (" + paydunyaData.response_code + "): " + (paydunyaData.response_text || JSON.stringify(paydunyaData)));
+      throw new Error("Le paiement n'a pas pu être initié pour le moment. Réessayez dans quelques instants ou contactez le support.");
     }
 
     // 4. Save Payment Intent to Supabase

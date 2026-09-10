@@ -131,7 +131,12 @@ serve(async (req) => {
       user_metadata: { role: 'cashier', business_id, name: name.trim() },
     })
     if (createUserError || !created?.user) {
-      throw new Error(createUserError?.message || "Erreur lors de la création du compte caissier.")
+      // Le message brut de Supabase Auth Admin (createUserError.message) ne
+      // doit jamais atteindre le client tel quel — journalisé ici, message
+      // générique renvoyé (erreurs génériques en réponse, détails
+      // techniques dans les logs serveur uniquement).
+      console.error('Erreur création du compte caissier:', createUserError)
+      throw new Error("Erreur lors de la création du compte caissier.")
     }
 
     const pinHash = await hashPin(pin)

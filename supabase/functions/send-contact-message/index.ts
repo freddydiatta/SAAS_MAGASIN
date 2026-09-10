@@ -31,7 +31,13 @@ serve(async (req) => {
     const { error: insertError } = await supabaseAdmin
       .from('contact_messages')
       .insert({ name: name.trim(), contact_info: contact_info.trim(), message: message.trim() })
-    if (insertError) throw insertError
+    if (insertError) {
+      // Endpoint public non authentifié : ne jamais relayer le message brut
+      // d'une erreur base de données (insertError.message) à un visiteur
+      // anonyme du site — journalisé ici, message générique renvoyé.
+      console.error('Erreur enregistrement message de contact:', insertError)
+      throw new Error("Impossible d'envoyer votre message pour le moment. Réessayez plus tard.")
+    }
 
     // Notification par email best-effort : le message est déjà enregistré
     // en base (source de vérité, consultable depuis le tableau de bord
