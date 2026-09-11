@@ -119,6 +119,30 @@ export function useFinances(selectedBusiness) {
     const expensesThisMonth = expensesByMonth[currentMonthKey] || 0;
     const profitThisMonth = revenueThisMonth - expensesThisMonth;
 
+    // --- Répartition des encaissements par moyen de paiement ---
+    // De quoi recouper la caisse physique (espèces) avec ce qui est arrivé
+    // par Mobile Money. Un remboursement de dette est de l'argent qui rentre
+    // lui aussi, mais la table debts n'enregistre pas par quel moyen il a été
+    // remboursé : il a donc sa propre ligne plutôt que d'être supposé en
+    // espèces. Les trois lignes additionnées redonnent exactement le chiffre
+    // d'affaires de la même période (une vente à crédit n'est jamais comptée
+    // tant qu'elle n'est pas remboursée, cf. collectedSales).
+    const sumByMethod = (list, method) => list
+        .filter(s => s.receipts?.payment_method === method)
+        .reduce((sum, s) => sum + Number(s.total_price), 0);
+    const sumDebts = (list) => list.reduce((sum, d) => sum + Number(d.amount), 0);
+
+    const salesThisMonth = sales.filter(s => monthKey(s.created_at) === currentMonthKey);
+    const paidDebtsThisMonth = paidDebts.filter(d => monthKey(d.paid_at || d.created_at) === currentMonthKey);
+
+    const cashTotal = sumByMethod(sales, 'cash');
+    const mobileMoneyTotal = sumByMethod(sales, 'mobile_money');
+    const repaidDebtsTotal = sumDebts(paidDebts);
+
+    const cashThisMonth = sumByMethod(salesThisMonth, 'cash');
+    const mobileMoneyThisMonth = sumByMethod(salesThisMonth, 'mobile_money');
+    const repaidDebtsThisMonth = sumDebts(paidDebtsThisMonth);
+
     const percentChangeMonth = revenueLastMonth > 0
         ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
         : (revenueThisMonth > 0 ? 100 : 0);
@@ -174,6 +198,12 @@ export function useFinances(selectedBusiness) {
         percentChangeMonth,
         salesMargin,
         salesWithoutCostCount,
+        cashTotal,
+        mobileMoneyTotal,
+        repaidDebtsTotal,
+        cashThisMonth,
+        mobileMoneyThisMonth,
+        repaidDebtsThisMonth,
         pendingDebtsTotal,
         monthlyTrend,
         stockSaleValue,

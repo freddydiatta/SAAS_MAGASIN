@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent } from 'lucide-react';
+import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent, Banknote } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Finances = () => {
@@ -25,6 +25,12 @@ export const Finances = () => {
         projectedTotalProfit,
         salesMargin,
         salesWithoutCostCount,
+        cashTotal,
+        mobileMoneyTotal,
+        repaidDebtsTotal,
+        cashThisMonth,
+        mobileMoneyThisMonth,
+        repaidDebtsThisMonth,
         formatFCFA,
     } = useFinances(selectedBusiness);
 
@@ -109,6 +115,40 @@ export const Finances = () => {
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(pendingDebtsTotal)} <span className="text-sm font-medium">F</span></h3>
                     <p className="text-xs text-slate-400 mt-1">Pas encore compté dans le chiffre d'affaires</p>
                 </motion.div>
+            </div>
+
+            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-blue-500">
+                        <Banknote className="w-5 h-5" />
+                    </div>
+                    <div>
+                        <h2 className="text-lg font-bold text-primary">Comment vous avez été payé</h2>
+                        <p className="text-xs text-secondary">Ce mois-ci, avec le cumul depuis le début en dessous. Les trois lignes additionnées redonnent le chiffre d'affaires de la période.</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                        <p className="text-secondary text-sm font-medium mb-1">Espèces</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(cashThisMonth)} F</p>
+                        <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(cashTotal)} F</p>
+                    </div>
+                    <div>
+                        <p className="text-secondary text-sm font-medium mb-1">Mobile Money</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(mobileMoneyThisMonth)} F</p>
+                        <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(mobileMoneyTotal)} F</p>
+                    </div>
+                    <div>
+                        <p className="text-secondary text-sm font-medium mb-1">Dettes remboursées</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(repaidDebtsThisMonth)} F</p>
+                        <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(repaidDebtsTotal)} F</p>
+                    </div>
+                </div>
+
+                <p className="text-xs text-slate-400 mt-4">
+                    Le moyen de paiement d'un remboursement de dette n'est pas enregistré : il a sa propre colonne plutôt que d'être compté en espèces.
+                </p>
             </div>
 
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">

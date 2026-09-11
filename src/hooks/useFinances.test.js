@@ -150,6 +150,26 @@ describe('useFinances', () => {
         expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
     });
 
+    it('splits collected money into cash, mobile money and repaid debts, for the month and overall', async () => {
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // fixtures : 3000 cash + 1000 cash (mois dernier), 2000 mobile, 5000 à crédit, 1500 dette remboursée
+        expect(result.current.cashThisMonth).toBe(3000);
+        expect(result.current.mobileMoneyThisMonth).toBe(2000);
+        expect(result.current.repaidDebtsThisMonth).toBe(1500);
+        expect(result.current.cashTotal).toBe(4000);
+        expect(result.current.mobileMoneyTotal).toBe(2000);
+        expect(result.current.repaidDebtsTotal).toBe(1500);
+
+        // la répartition doit toujours retomber sur le chiffre d'affaires de la
+        // même période : c'est ce qui rend le recoupement de caisse fiable
+        expect(result.current.cashThisMonth + result.current.mobileMoneyThisMonth + result.current.repaidDebtsThisMonth)
+            .toBe(result.current.revenueThisMonth);
+        expect(result.current.cashTotal + result.current.mobileMoneyTotal + result.current.repaidDebtsTotal)
+            .toBe(result.current.totalRevenue);
+    });
+
     it('computes sales margin from total_cost frozen at sale time, excluding sales with an unknown cost', async () => {
         fetchAllSalesMock.mockResolvedValue([
             { id: 's1', total_price: 3000, total_cost: 2000, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
