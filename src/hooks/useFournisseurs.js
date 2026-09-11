@@ -33,8 +33,10 @@ export function useFournisseurs(selectedBusiness) {
     // annuler, corriger la réception ou supprimer un bon de commande —
     // remplace window.confirm (popup navigateur générique) par ConfirmModal,
     // cohérent avec le reste de l'app.
-    // { type: 'deleteSupplier' | 'receiveOrder' | 'cancelOrder' | 'unreceiveOrder' | 'deleteOrder', item }
+    // { type: 'deleteSupplier' | 'cancelOrder' | 'unreceiveOrder' | 'deleteOrder', item }
     const [confirmAction, setConfirmAction] = useState(null);
+    // null = fermé ; un bon = on demande par quel moyen il a été payé.
+    const [orderToReceive, setOrderToReceive] = useState(null);
 
     const addSupplierMutation = useMutation({
         mutationFn: (supplier) => addSupplier({ businessId, ...supplier }),
@@ -149,10 +151,13 @@ export function useFournisseurs(selectedBusiness) {
     // Stock.jsx reflète tout de suite les nouvelles quantités.
     const receiveOrderMutation = useMutation({
         mutationFn: receivePurchaseOrder,
+        // Le moyen de paiement est demandé au moment de valider la réception
+        // (voir orderToReceive) : c'est là que l'argent sort réellement, donc
+        // là qu'on sait quel solde faire baisser.
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: poQueryKey });
             queryClient.invalidateQueries({ queryKey: productKeys.all(businessId) });
-            setConfirmAction(null);
+            setOrderToReceive(null);
             toast.success('Stock mis à jour, commande marquée reçue.');
         },
         onError: (error) => toast.error(error.message || 'Erreur lors de la réception.'),
@@ -261,7 +266,15 @@ export function useFournisseurs(selectedBusiness) {
         }
     };
 
-    const handleReceiveOrder = (order) => setConfirmAction({ type: 'receiveOrder', item: order });
+    // Recevoir un bon n'est pas un simple oui/non : il faut savoir par quel
+    // moyen le fournisseur a été payé, sinon le solde espèces baisserait même
+    // pour un virement Wave.
+    const handleReceiveOrder = (order) => setOrderToReceive(order);
+    const closeReceiveForm = () => setOrderToReceive(null);
+    const confirmReceive = (paymentMethod) => {
+        if (!orderToReceive) return;
+        receiveOrderMutation.mutate({ id: orderToReceive.id, paymentMethod });
+    };
     const handleCancelOrder = (order) => setConfirmAction({ type: 'cancelOrder', item: order });
     const handleUnreceiveOrder = (order) => setConfirmAction({ type: 'unreceiveOrder', item: order });
     const handleDeleteOrder = (order) => setConfirmAction({ type: 'deleteOrder', item: order });
@@ -271,13 +284,12 @@ export function useFournisseurs(selectedBusiness) {
     const confirmPendingAction = () => {
         if (!confirmAction) return;
         if (confirmAction.type === 'deleteSupplier') deleteSupplierMutation.mutate(confirmAction.item.id);
-        else if (confirmAction.type === 'receiveOrder') receiveOrderMutation.mutate(confirmAction.item.id);
         else if (confirmAction.type === 'cancelOrder') cancelOrderMutation.mutate(confirmAction.item.id);
         else if (confirmAction.type === 'unreceiveOrder') unreceiveOrderMutation.mutate(confirmAction.item.id);
         else if (confirmAction.type === 'deleteOrder') deleteOrderMutation.mutate(confirmAction.item.id);
     };
 
-    const isConfirmingAction = deleteSupplierMutation.isPending || receiveOrderMutation.isPending || cancelOrderMutation.isPending
+    const isConfirmingAction = deleteSupplierMutation.isPending || cancelOrderMutation.isPending
         || unreceiveOrderMutation.isPending || deleteOrderMutation.isPending;
 
     // Document imprimable/partageable du bon de commande (voir
@@ -316,6 +328,10 @@ export function useFournisseurs(selectedBusiness) {
         closeCreateOrderForm,
         handleSubmitOrder,
         handleReceiveOrder,
+        orderToReceive,
+        closeReceiveForm,
+        confirmReceive,
+        isReceivingOrder: receiveOrderMutation.isPending,
         handleCancelOrder,
         handleUnreceiveOrder,
         handleDeleteOrder,

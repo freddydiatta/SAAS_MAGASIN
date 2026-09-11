@@ -17,12 +17,16 @@ export const fetchExpenses = async (businessId) => {
     return data;
 };
 
-export const addExpense = async ({ businessId, category, label, amount, createdBy }) => {
+// paymentMethod ('cash' | 'mobile_money') : d'où l'argent est sorti. Sans
+// lui, une dépense payée par Wave viderait la caisse dans le calcul des
+// soldes (voir useFinances).
+export const addExpense = async ({ businessId, category, label, amount, paymentMethod, createdBy }) => {
     const { error } = await supabase.from('expenses').insert([{
         business_id: businessId,
         category,
         label: label || null,
         amount,
+        payment_method: paymentMethod,
         created_by: createdBy || null,
     }]);
     if (error) throw error;

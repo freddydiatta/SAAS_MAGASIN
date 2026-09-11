@@ -49,8 +49,13 @@ export const updatePurchaseOrder = async ({ orderId, supplierId, items }) => {
 
 // Augmente le stock des produits de la commande et marque le bon comme reçu
 // (voir receive_purchase_order) — refuse un bon déjà traité.
-export const receivePurchaseOrder = async (id) => {
-    const { data, error } = await supabase.rpc('receive_purchase_order', { p_purchase_order_id: id });
+// L'argent sort au moment de la réception, pas de la commande : c'est donc
+// ici qu'on enregistre par quel moyen le fournisseur a été payé.
+export const receivePurchaseOrder = async ({ id, paymentMethod }) => {
+    const { data, error } = await supabase.rpc('receive_purchase_order', {
+        p_purchase_order_id: id,
+        p_payment_method: paymentMethod,
+    });
     if (error) throw error;
     return data;
 };

@@ -6,7 +6,7 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
 import { PurchaseOrderPrint } from '../../components/PurchaseOrderPrint';
-import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2, RotateCcw, Banknote, Smartphone } from 'lucide-react';
 import { formatDate } from '../../lib/dates';
 
 const ORDER_STATUS = {
@@ -15,19 +15,15 @@ const ORDER_STATUS = {
     cancelled: { label: 'Annulé', tone: 'red' },
 };
 
-// Contenu du ConfirmModal selon l'action en attente (voir useFournisseurs.confirmAction).
+// Contenu du ConfirmModal selon l'action en attente (voir
+// useFournisseurs.confirmAction). La réception n'y figure pas : ce n'est pas
+// un oui/non mais un choix du moyen de paiement, d'où sa propre modale.
 const CONFIRM_CONFIG = {
     deleteSupplier: (item) => ({
         title: 'Supprimer ce fournisseur ?',
         message: `Le fournisseur "${item.name}" sera supprimé. Les produits qui lui étaient rattachés resteront, juste sans fournisseur.`,
         confirmLabel: 'Oui, supprimer',
         tone: 'red',
-    }),
-    receiveOrder: () => ({
-        title: 'Confirmer la réception ?',
-        message: 'Le stock des produits de ce bon de commande sera mis à jour automatiquement.',
-        confirmLabel: 'Oui, marquer reçu',
-        tone: 'emerald',
     }),
     cancelOrder: () => ({
         title: 'Annuler ce bon de commande ?',
@@ -57,7 +53,7 @@ export const Fournisseurs = () => {
         supplierForm, setSupplierForm, handleSupplierSubmit, handleDeleteSupplier, isSavingSupplier,
         purchaseOrders, isLoadingOrders,
         isCreateOrderOpen, editingOrder, openCreateOrderForm, openEditOrderForm, closeCreateOrderForm,
-        handleSubmitOrder, handleReceiveOrder, handleCancelOrder, handleUnreceiveOrder, handleDeleteOrder, isSavingOrder,
+        handleSubmitOrder, handleReceiveOrder, orderToReceive, closeReceiveForm, confirmReceive, isReceivingOrder, handleCancelOrder, handleUnreceiveOrder, handleDeleteOrder, isSavingOrder,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
         orderToPrint, setOrderToPrint, handlePrintOrder,
     } = useFournisseurs(selectedBusiness);
@@ -337,6 +333,42 @@ export const Fournisseurs = () => {
                 suppliers={suppliers}
                 initialOrder={editingOrder}
             />
+
+            <Modal isOpen={!!orderToReceive} onClose={closeReceiveForm} title="Comment avez-vous payé ?" maxWidth="max-w-sm">
+                {orderToReceive && (
+                    <div className="space-y-4">
+                        <p className="text-secondary text-sm">
+                            Réception de <span className="font-bold text-primary">{Number(orderToReceive.total_amount).toLocaleString('fr-FR')} FCFA</span> chez {orderToReceive.supplier?.name || 'ce fournisseur'}.
+                            Le stock sera mis à jour, et ce montant retiré du solde correspondant.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => confirmReceive('cash')}
+                                disabled={isReceivingOrder}
+                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+                            >
+                                <Banknote className="w-6 h-6 text-blue-500" />
+                                Espèces
+                            </button>
+                            <button
+                                onClick={() => confirmReceive('mobile_money')}
+                                disabled={isReceivingOrder}
+                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+                            >
+                                <Smartphone className="w-6 h-6 text-orange-500" />
+                                Mobile Money
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={closeReceiveForm}
+                            className="w-full py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                )}
+            </Modal>
 
             {orderToPrint && (
                 <PurchaseOrderPrint

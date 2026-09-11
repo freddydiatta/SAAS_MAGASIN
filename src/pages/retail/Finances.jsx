@@ -9,31 +9,34 @@ import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { formatDate } from '../../lib/dates';
 
-// Soldes réels d'un moyen de paiement, affichés sous ce que l'app a calculé
-// pour ce même moyen : c'est la comparaison des deux qui fait le comptage.
-const AccountBalances = ({ accounts, onHand, emptyLabel, formatFCFA, onEdit, onDelete }) => (
-    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-border-theme">
-        {accounts.length === 0 ? (
-            <p className="text-xs text-slate-400">{emptyLabel}</p>
+// Ce qu'il reste sur un moyen de paiement : le point de départ déclaré, que
+// les ventes et les dépenses font ensuite monter ou descendre tout seul. Le
+// détail des entrées du mois vit dans l'aperçu, pas ici.
+const MethodBalance = ({ label, balance, accounts, emptyLabel, isLoading, formatFCFA, onEdit, onDelete }) => (
+    <div>
+        <p className="text-secondary text-sm font-medium mb-1">{label}</p>
+        {balance === null ? (
+            <p className="text-sm text-slate-400 mt-2">{emptyLabel}</p>
         ) : (
             <>
-                <div className="flex items-baseline justify-between gap-2 mb-2">
-                    <span className="text-xs font-semibold text-secondary uppercase tracking-wide">En main</span>
-                    <span className="text-lg font-bold text-accent">{formatFCFA(onHand)} F</span>
-                </div>
-                <div className="space-y-1.5">
+                <p className="text-3xl font-bold text-primary">
+                    {isLoading ? '…' : formatFCFA(balance.current)} <span className="text-base font-medium">F</span>
+                </p>
+                {/* D'où vient le chiffre : sans ça, un solde calculé qui ne
+                    correspond pas au tiroir n'est pas vérifiable. */}
+                <p className="text-xs text-slate-400 mt-1">
+                    Départ {formatFCFA(balance.opening)} F le {formatDate(balance.since, { day: 'numeric', month: 'short' })}
+                    {balance.movements !== 0 && (
+                        <> · {balance.movements > 0 ? '+' : '−'} {formatFCFA(Math.abs(balance.movements))} F depuis</>
+                    )}
+                </p>
+
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-border-theme space-y-1.5">
                     {accounts.map((account) => (
-                        <div key={account.id} className="flex items-center justify-between gap-2 group">
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium text-primary truncate">{account.name}</p>
-                                {/* Un solde d'il y a trois jours ne vaut rien ce soir : la date
-                                    évite de croire le rapprochement plus fiable qu'il n'est. */}
-                                <p className="text-[11px] text-slate-400">
-                                    {formatDate(account.updated_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                            </div>
+                        <div key={account.id} className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-primary truncate">{account.name}</p>
                             <div className="flex items-center gap-1 shrink-0">
-                                <span className="text-sm font-bold text-primary">{formatFCFA(account.balance)} F</span>
+                                <span className="text-sm text-secondary">{formatFCFA(account.opening_balance)} F</span>
                                 <button
                                     onClick={() => onEdit(account)}
                                     aria-label={`Modifier ${account.name}`}
@@ -77,17 +80,14 @@ export const Finances = () => {
         projectedTotalProfit,
         salesMargin,
         salesWithoutCostCount,
-        cashTotal,
-        mobileMoneyTotal,
-        unrecordedMethodTotal,
-        cashThisMonth,
-        mobileMoneyThisMonth,
-        unrecordedMethodThisMonth,
+        cashBalance,
+        mobileBalance,
+        totalOnHand,
         formatFCFA,
     } = useFinances(selectedBusiness);
 
     const {
-        cashAccounts, mobileAccounts, cashOnHand, mobileOnHand, totalBalance,
+        cashAccounts, mobileAccounts,
         isFormOpen, editingAccount, openAddForm, openEditForm, closeForm,
         formData, setFormData, handleSubmit, isSaving,
         accountToDelete, handleDelete, closeDeleteConfirm, confirmDelete, isDeleting,
@@ -183,8 +183,8 @@ export const Finances = () => {
                             <Banknote className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-primary">Comment vous avez été payé</h2>
-                            <p className="text-xs text-secondary">Ce que l'app a compté, et en dessous ce que vous avez réellement en main. L'écart entre les deux est ce qu'il faut expliquer.</p>
+                            <h2 className="text-lg font-bold text-primary">Ce que vous avez en main</h2>
+                            <p className="text-xs text-secondary">Ce qu'il vous reste, calculé depuis le montant de départ que vous avez déclaré. Le détail des entrées du jour est dans l'aperçu.</p>
                         </div>
                     </div>
                     <button
@@ -195,53 +195,35 @@ export const Finances = () => {
                     </button>
                 </div>
 
-                <div className={`grid grid-cols-1 gap-6 ${unrecordedMethodTotal > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
-                    <div>
-                        <p className="text-secondary text-sm font-medium mb-1">Espèces</p>
-                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(cashThisMonth)} F</p>
-                        <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(cashTotal)} F</p>
-                        <AccountBalances
-                            accounts={cashAccounts}
-                            onHand={cashOnHand}
-                            emptyLabel="Ajoutez votre caisse pour comparer"
-                            formatFCFA={formatFCFA}
-                            onEdit={openEditForm}
-                            onDelete={handleDelete}
-                        />
-                    </div>
-                    <div>
-                        <p className="text-secondary text-sm font-medium mb-1">Mobile Money</p>
-                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(mobileMoneyThisMonth)} F</p>
-                        <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(mobileMoneyTotal)} F</p>
-                        <AccountBalances
-                            accounts={mobileAccounts}
-                            onHand={mobileOnHand}
-                            emptyLabel="Ajoutez Wave, Orange Money…"
-                            formatFCFA={formatFCFA}
-                            onEdit={openEditForm}
-                            onDelete={handleDelete}
-                        />
-                    </div>
-                    {unrecordedMethodTotal > 0 && (
-                        <div>
-                            <p className="text-secondary text-sm font-medium mb-1">Moyen non enregistré</p>
-                            <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(unrecordedMethodThisMonth)} F</p>
-                            <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(unrecordedMethodTotal)} F</p>
-                        </div>
-                    )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <MethodBalance
+                        label="Espèces"
+                        balance={cashBalance}
+                        accounts={cashAccounts}
+                        emptyLabel="Ajoutez votre caisse pour suivre ce qu'il y a dans le tiroir."
+                        isLoading={isLoading}
+                        formatFCFA={formatFCFA}
+                        onEdit={openEditForm}
+                        onDelete={handleDelete}
+                    />
+                    <MethodBalance
+                        label="Mobile Money"
+                        balance={mobileBalance}
+                        accounts={mobileAccounts}
+                        emptyLabel="Ajoutez Wave, Orange Money…"
+                        isLoading={isLoading}
+                        formatFCFA={formatFCFA}
+                        onEdit={openEditForm}
+                        onDelete={handleDelete}
+                    />
                 </div>
 
-                {totalBalance > 0 && (
+                {(cashBalance || mobileBalance) && (
                     <div className="pt-6 mt-6 border-t border-slate-100 dark:border-border-theme flex items-center justify-between gap-2">
                         <span className="text-secondary font-medium">Total en main</span>
-                        <span className="text-2xl font-bold text-accent">{formatFCFA(totalBalance)} F</span>
+                        <span className="text-2xl font-bold text-accent">{isLoading ? '…' : formatFCFA(totalOnHand)} F</span>
                     </div>
                 )}
-
-                <p className="text-xs text-slate-400 mt-4">
-                    Un remboursement de dette compte dans le moyen par lequel le client a payé.
-                    {unrecordedMethodTotal > 0 && " Les dettes remboursées avant l'ajout de ce choix n'ont pas de moyen connu : elles restent à part plutôt que d'être comptées en espèces."}
-                </p>
             </div>
 
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">

@@ -183,6 +183,29 @@ export const Depenses = () => {
                             placeholder="Ex: 2000"
                         />
                     </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Payé avec</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentMethod: 'cash' })}
+                                className={`py-2.5 rounded-xl font-semibold text-sm border transition-colors ${formData.paymentMethod === 'cash'
+                                    ? 'border-accent bg-accent/10 text-accent'
+                                    : 'border-slate-300 dark:border-border-theme text-secondary hover:border-accent/50'}`}
+                            >
+                                Espèces
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, paymentMethod: 'mobile_money' })}
+                                className={`py-2.5 rounded-xl font-semibold text-sm border transition-colors ${formData.paymentMethod === 'mobile_money'
+                                    ? 'border-accent bg-accent/10 text-accent'
+                                    : 'border-slate-300 dark:border-border-theme text-secondary hover:border-accent/50'}`}
+                            >
+                                Mobile Money
+                            </button>
+                        </div>
+                    </div>
                     <div className="pt-2 flex gap-3">
                         <button type="button" onClick={closeForm} className="flex-1 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
                             Annuler

@@ -81,11 +81,14 @@ describe('useExpenses', () => {
         const { result } = renderHookWithQueryClient(() => useExpenses(BUSINESS, 'owner@test.com'));
         await waitFor(() => expect(result.current.expenses).toHaveLength(2));
 
-        act(() => result.current.setFormData({ category: 'transport', label: '', amount: '750' }));
+        act(() => result.current.setFormData({ category: 'transport', label: '', amount: '750', paymentMethod: 'mobile_money' }));
         await act(async () => result.current.handleSubmit({ preventDefault: () => {} }));
 
+        // le moyen de paiement suit la dépense : sans lui, impossible de savoir
+        // quel solde faire baisser (voir useFinances)
         expect(addExpenseMock).toHaveBeenCalledWith({
             businessId: 'biz-1', createdBy: 'owner@test.com', category: 'transport', label: '', amount: 750,
+            paymentMethod: 'mobile_money',
         });
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });

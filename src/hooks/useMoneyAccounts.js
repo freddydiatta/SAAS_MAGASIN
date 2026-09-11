@@ -9,7 +9,7 @@ import {
 } from '../services/moneyAccountsService';
 import { moneyAccountSchema, firstZodError } from '../lib/validation';
 
-const EMPTY_FORM = { name: '', kind: 'cash', balance: '' };
+const EMPTY_FORM = { name: '', kind: 'cash', openingBalance: '' };
 
 // Soldes réels des comptes du commerce (caisse, Wave, Orange Money...) : à
 // comparer avec ce que l'application a calculé de son côté.
@@ -52,7 +52,7 @@ export function useMoneyAccounts(selectedBusiness) {
             queryClient.invalidateQueries({ queryKey });
             closeForm();
             setFormData(EMPTY_FORM);
-            toast.success('Solde mis à jour.');
+            toast.success('Point de départ mis à jour.');
         },
         onError: () => toast.error('Erreur lors de la mise à jour du solde.'),
     });
@@ -75,7 +75,7 @@ export function useMoneyAccounts(selectedBusiness) {
 
     const openEditForm = (account) => {
         setEditingAccount(account);
-        setFormData({ name: account.name, kind: account.kind, balance: String(account.balance) });
+        setFormData({ name: account.name, kind: account.kind, openingBalance: String(account.opening_balance) });
         setIsFormOpen(true);
     };
 
@@ -100,25 +100,17 @@ export function useMoneyAccounts(selectedBusiness) {
         deleteMutation.mutate(accountToDelete.id);
     };
 
-    // Regroupés par moyen de paiement : chaque solde s'affiche en face du
-    // calcul de l'app pour le même moyen (voir Finances), c'est la
-    // comparaison qui compte, pas la liste.
-    const sumBalances = (list) => list.reduce((sum, account) => sum + Number(account.balance), 0);
+    // Regroupés par moyen de paiement : ce sont les points de départ de
+    // chaque solde, que useFinances fait ensuite évoluer avec les
+    // encaissements et les dépenses.
     const cashAccounts = accounts.filter((account) => account.kind === 'cash');
     const mobileAccounts = accounts.filter((account) => account.kind === 'mobile_money');
-
-    const cashOnHand = sumBalances(cashAccounts);
-    const mobileOnHand = sumBalances(mobileAccounts);
-    const totalBalance = cashOnHand + mobileOnHand;
 
     return {
         accounts,
         cashAccounts,
         mobileAccounts,
-        cashOnHand,
-        mobileOnHand,
         isLoading,
-        totalBalance,
 
         isFormOpen,
         editingAccount,

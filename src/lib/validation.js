@@ -84,16 +84,17 @@ export const supplierSchema = z.object({
     email: z.string().trim().email('Adresse email invalide.').optional().or(z.literal('')),
 });
 
-// Solde d'un compte où l'argent est réellement rangé (caisse, Wave, Orange
-// Money). Un solde négatif n'a pas de sens pour un tiroir ou un portefeuille
-// mobile : c'est une faute de frappe, pas un découvert.
+// Compte où l'argent est réellement rangé (caisse, Wave, Orange Money). On
+// n'y saisit qu'un point de départ : le solde courant est ensuite calculé
+// par l'application (voir useFinances). Un montant négatif n'a pas de sens
+// pour un tiroir ou un portefeuille mobile : c'est une faute de frappe.
 export const moneyAccountSchema = z.object({
     name: z.string().trim().min(1, 'Le nom du compte est requis.').max(100, 'Le nom est trop long.'),
-    // Détermine en face de quel moyen de paiement le solde s'affiche dans
-    // Finances — donc à quel calcul de l'app il sera comparé.
+    // Détermine de quel solde ce compte fait partie, et donc quels
+    // encaissements et quelles dépenses viennent le faire bouger.
     kind: z.enum(['cash', 'mobile_money'], { message: 'Choisissez espèces ou Mobile Money.' }),
-    balance: z.coerce.number({ invalid_type_error: 'Le solde doit être un nombre.' })
-        .nonnegative('Le solde ne peut pas être négatif.'),
+    openingBalance: z.coerce.number({ invalid_type_error: 'Le montant doit être un nombre.' })
+        .nonnegative('Le montant ne peut pas être négatif.'),
 });
 
 export const cashierSchema = z.object({
@@ -133,6 +134,8 @@ export const expenseSchema = z.object({
     label: z.string().trim().max(200, 'La description est trop longue.').optional().or(z.literal('')),
     amount: z.coerce.number({ invalid_type_error: 'Le montant doit être un nombre.' })
         .positive('Le montant doit être supérieur à 0.'),
+    // D'où sort l'argent : sans ça, impossible de baisser le bon solde.
+    paymentMethod: z.enum(['cash', 'mobile_money'], { message: 'Indiquez si vous avez payé en espèces ou par Mobile Money.' }),
 }).refine((data) => data.category !== 'divers' || data.label.trim().length > 0, {
     message: 'Précisez de quoi il s\'agit pour une dépense "Divers".',
     path: ['label'],

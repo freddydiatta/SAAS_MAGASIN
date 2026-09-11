@@ -27,6 +27,15 @@ vi.mock('../services/purchaseOrdersService', () => ({
     fetchPurchaseOrders: fetchPurchaseOrdersMock,
 }));
 
+const { fetchMoneyAccountsMock } = vi.hoisted(() => ({ fetchMoneyAccountsMock: vi.fn() }));
+
+vi.mock('../services/moneyAccountsService', () => ({
+    fetchMoneyAccounts: fetchMoneyAccountsMock,
+    addMoneyAccount: vi.fn(),
+    updateMoneyAccount: vi.fn(),
+    deleteMoneyAccount: vi.fn(),
+}));
+
 const { useProductsMock } = vi.hoisted(() => ({ useProductsMock: vi.fn() }));
 
 vi.mock('./useProducts', () => ({
@@ -71,6 +80,8 @@ describe('useFinances', () => {
         fetchExpensesMock.mockResolvedValue(EXPENSES);
         fetchDebtsMock.mockResolvedValue(DEBTS);
         fetchPurchaseOrdersMock.mockResolvedValue([]);
+        fetchMoneyAccountsMock.mockReset();
+        fetchMoneyAccountsMock.mockResolvedValue([]);
         useProductsMock.mockReturnValue({ data: [], isLoading: false });
     });
 
@@ -155,51 +166,64 @@ describe('useFinances', () => {
         expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
     });
 
-    it('keeps a repaid debt with no recorded method out of cash and mobile money', async () => {
+    it('reports no balance for a method with no account declared', async () => {
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        // fixtures : 3000 cash + 1000 cash (mois dernier), 2000 mobile, 5000 à
-        // crédit, 1500 de dette remboursée sans payment_method (donnée d'avant)
-        expect(result.current.cashThisMonth).toBe(3000);
-        expect(result.current.mobileMoneyThisMonth).toBe(2000);
-        expect(result.current.unrecordedMethodThisMonth).toBe(1500);
-        expect(result.current.cashTotal).toBe(4000);
-        expect(result.current.mobileMoneyTotal).toBe(2000);
-        expect(result.current.unrecordedMethodTotal).toBe(1500);
+        // rien n'est supposé : sans point de départ déclaré, l'app ne prétend
+        // pas savoir ce qu'il y a dans le tiroir
+        expect(result.current.cashBalance).toBeNull();
+        expect(result.current.mobileBalance).toBeNull();
+        expect(result.current.totalOnHand).toBe(0);
     });
 
-    it('counts a repaid debt in the method the customer actually paid with', async () => {
-        fetchDebtsMock.mockResolvedValue([
-            { id: 'd1', amount: 1500, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash' },
-            { id: 'd2', amount: 400, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'mobile_money' },
-            { id: 'd3', amount: 800, status: 'unpaid' },
+    it('moves the balance with what came in and what went out after the starting point', async () => {
+        const openedAt = new Date(thisMonth.getTime() - 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 10000, opening_at: openedAt },
+        ]);
+        fetchExpensesMock.mockResolvedValue([
+            { id: 'e1', category: 'transport', amount: 700, payment_method: 'cash', created_at: thisMonth.toISOString() },
         ]);
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        // 3000 de ventes en espèces + 1500 remboursés en espèces
-        expect(result.current.cashThisMonth).toBe(4500);
-        // 2000 de ventes mobile + 400 remboursés en mobile
-        expect(result.current.mobileMoneyThisMonth).toBe(2400);
-        expect(result.current.unrecordedMethodThisMonth).toBe(0);
+        // 10 000 de départ + 3 000 de vente en espèces − 700 de dépense en espèces
+        expect(result.current.cashBalance.opening).toBe(10000);
+        expect(result.current.cashBalance.current).toBe(12300);
+        expect(result.current.totalOnHand).toBe(12300);
     });
 
-    it('always reconciles the payment split with the revenue of the same period', async () => {
-        fetchDebtsMock.mockResolvedValue([
-            { id: 'd1', amount: 1500, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash' },
-            { id: 'd2', amount: 900, status: 'paid', paid_at: lastMonth.toISOString(), payment_method: 'mobile_money' },
-            { id: 'd3', amount: 700, status: 'paid', paid_at: thisMonth.toISOString() },
+    it('ignores movements made before the starting point, already included in it', async () => {
+        // point de départ déclaré après la vente : compter celle-ci en plus
+        // reviendrait à la compter deux fois
+        const openedAt = new Date(thisMonth.getTime() + 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 10000, opening_at: openedAt },
         ]);
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        // la répartition doit toujours retomber sur le chiffre d'affaires de la
-        // même période : c'est ce qui rend le recoupement de caisse fiable
-        expect(result.current.cashThisMonth + result.current.mobileMoneyThisMonth + result.current.unrecordedMethodThisMonth)
-            .toBe(result.current.revenueThisMonth);
-        expect(result.current.cashTotal + result.current.mobileMoneyTotal + result.current.unrecordedMethodTotal)
-            .toBe(result.current.totalRevenue);
+        expect(result.current.cashBalance.current).toBe(10000);
+        expect(result.current.cashBalance.movements).toBe(0);
+    });
+
+    it('does not take a Mobile Money expense out of the cash drawer', async () => {
+        const openedAt = new Date(thisMonth.getTime() - 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 10000, opening_at: openedAt },
+            { id: 'a2', name: 'Wave', kind: 'mobile_money', opening_balance: 5000, opening_at: openedAt },
+        ]);
+        fetchExpensesMock.mockResolvedValue([
+            { id: 'e1', category: 'transport', amount: 700, payment_method: 'mobile_money', created_at: thisMonth.toISOString() },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // la caisse ne bouge que de sa propre vente (3 000), la dépense Wave
+        // sort du solde Mobile Money
+        expect(result.current.cashBalance.current).toBe(13000);
+        expect(result.current.mobileBalance.current).toBe(5000 + 2000 - 700);
     });
 
     it('computes sales margin from total_cost frozen at sale time, excluding sales with an unknown cost', async () => {

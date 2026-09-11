@@ -919,6 +919,10 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     category TEXT NOT NULL DEFAULT 'divers',
     label TEXT,
     amount DECIMAL(10, 2) NOT NULL CHECK (amount >= 0),
+    -- D'où l'argent est sorti ('cash' | 'mobile_money') : sans lui, une
+    -- dépense payée par Wave viderait la caisse dans le calcul des soldes
+    -- (voir useFinances). NULL = saisie avant ce choix, moyen inconnu.
+    payment_method TEXT,
     created_by TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -938,23 +942,25 @@ CREATE INDEX IF NOT EXISTS idx_expenses_business_created_at
 -- ==========================================
 -- OÙ L'ARGENT SE TROUVE RÉELLEMENT
 -- L'application sait ce qui a été encaissé et par quel moyen, mais pas ce
--- qu'il y a vraiment dans le tiroir ou sur Wave à l'instant T. Ces soldes,
--- saisis à la main, s'affichent en face du calcul de l'app pour le même
--- moyen de paiement : l'écart entre les deux est exactement ce qu'un
--- commerçant cherche en fin de journée. Un solde, pas un grand livre de
--- mouvements — ça se vérifie en comptant le tiroir.
+-- qu'il y a dans le tiroir ou sur Wave. On déclare donc une fois un point de
+-- départ par compte, et le solde courant est ensuite calculé côté app (voir
+-- useFinances) : + les encaissements, − les dépenses et les achats de stock
+-- du même moyen de paiement. Un solde saisi à la main serait périmé dès la
+-- vente suivante.
 -- ==========================================
 
 CREATE TABLE IF NOT EXISTS public.money_accounts (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
-    -- Rattache le compte au moyen de paiement en face duquel il s'affiche.
+    -- Détermine de quel solde ce compte fait partie, et donc quels
+    -- encaissements et quelles dépenses viennent le faire bouger.
     kind TEXT NOT NULL DEFAULT 'cash' CHECK (kind IN ('cash', 'mobile_money')),
-    balance DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (balance >= 0),
-    -- Un solde saisi il y a trois jours ne veut plus rien dire : la date est
-    -- affichée à côté du montant pour qu'on sache s'il est encore d'actualité.
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    opening_balance DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (opening_balance >= 0),
+    -- Date à laquelle ce montant était vrai : seuls les mouvements postérieurs
+    -- comptent, sinon les ventes déjà incluses dedans seraient comptées deux
+    -- fois. Corriger le montant redate donc le point de départ.
+    opening_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -1334,6 +1340,9 @@ CREATE TABLE public.purchase_orders (
     supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'received', 'cancelled'
     total_amount DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
+    -- Renseigné à la réception (receive_purchase_order), pas à la commande :
+    -- l'argent ne sort que quand la marchandise arrive.
+    payment_method TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     received_at TIMESTAMP WITH TIME ZONE
 );
@@ -1437,7 +1446,10 @@ GRANT EXECUTE ON FUNCTION public.create_purchase_order(uuid, uuid, jsonb) TO aut
 -- plutôt qu'une valeur saisie à la main qui dérive de Fournisseurs. Puis
 -- marque le bon comme reçu. Refuse un bon déjà reçu/annulé (pas de
 -- double-incrément de stock en cliquant deux fois).
-CREATE OR REPLACE FUNCTION public.receive_purchase_order(p_purchase_order_id uuid)
+CREATE OR REPLACE FUNCTION public.receive_purchase_order(
+    p_purchase_order_id uuid,
+    p_payment_method text DEFAULT NULL
+)
 RETURNS public.purchase_orders
 LANGUAGE plpgsql
 SECURITY INVOKER
@@ -1465,7 +1477,11 @@ BEGIN
     END LOOP;
 
     UPDATE public.purchase_orders
-    SET status = 'received', received_at = timezone('utc'::text, now())
+    SET status = 'received',
+        received_at = timezone('utc'::text, now()),
+        -- L'argent sort à la réception : c'est ici qu'on sait de quel solde
+        -- il faut le retirer (voir useFinances).
+        payment_method = p_payment_method
     WHERE id = p_purchase_order_id;
 
     SELECT * INTO v_order FROM public.purchase_orders WHERE id = p_purchase_order_id;
@@ -1473,7 +1489,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.receive_purchase_order(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.receive_purchase_order(uuid, text) TO authenticated;
 
 -- ==========================================
 -- MODIFICATION D'UN BON DE COMMANDE, AVEC JOURNAL D'AUDIT

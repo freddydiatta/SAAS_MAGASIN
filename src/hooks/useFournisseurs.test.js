@@ -275,20 +275,26 @@ describe('useFournisseurs', () => {
         });
     });
 
-    it('receives a purchase order once the pending confirmation is confirmed', async () => {
+    it('asks how the supplier was paid before receiving the order', async () => {
+        const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
+        await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
+
+        act(() => result.current.handleReceiveOrder({ id: 'po1' }));
+
+        expect(result.current.orderToReceive).toEqual({ id: 'po1' });
+        expect(receivePurchaseOrderMock).not.toHaveBeenCalled();
+    });
+
+    it('receives a purchase order with the payment method that was chosen', async () => {
         receivePurchaseOrderMock.mockResolvedValueOnce({ id: 'po1', status: 'received' });
         const { result } = renderHookWithQueryClient(() => useFournisseurs(BUSINESS));
         await waitFor(() => expect(result.current.purchaseOrders).toHaveLength(1));
 
         act(() => result.current.handleReceiveOrder({ id: 'po1' }));
-        expect(result.current.confirmAction).toEqual({ type: 'receiveOrder', item: { id: 'po1' } });
+        await act(async () => result.current.confirmReceive('cash'));
 
-        await act(async () => result.current.confirmPendingAction());
-
-        // React Query v5 calls mutationFn with a second (context) argument;
-        // only the id we passed in actually matters here.
-        expect(receivePurchaseOrderMock.mock.calls[0]?.[0]).toBe('po1');
-        await waitFor(() => expect(result.current.confirmAction).toBeNull());
+        expect(receivePurchaseOrderMock.mock.calls[0]?.[0]).toEqual({ id: 'po1', paymentMethod: 'cash' });
+        await waitFor(() => expect(result.current.orderToReceive).toBeNull());
     });
 
     it('does not receive when the confirmation is cancelled', async () => {

@@ -97,12 +97,14 @@ describe('purchaseOrdersService', () => {
             .rejects.toThrow('Seul un bon de commande en attente peut être modifié.');
     });
 
-    it('receivePurchaseOrder calls the RPC with the order id', async () => {
+    it('receivePurchaseOrder records how the supplier was paid, not just the order id', async () => {
         rpcMock.mockResolvedValue({ data: { id: 'po1', status: 'received' }, error: null });
 
-        const result = await receivePurchaseOrder('po1');
+        const result = await receivePurchaseOrder({ id: 'po1', paymentMethod: 'mobile_money' });
 
-        expect(rpcMock).toHaveBeenCalledWith('receive_purchase_order', { p_purchase_order_id: 'po1' });
+        expect(rpcMock).toHaveBeenCalledWith('receive_purchase_order', {
+            p_purchase_order_id: 'po1', p_payment_method: 'mobile_money',
+        });
         expect(result).toEqual({ id: 'po1', status: 'received' });
     });
 

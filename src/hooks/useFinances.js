@@ -8,6 +8,7 @@ import { useProducts } from './useProducts';
 // d'août pour le commerçant, alors qu'un appareil réglé sur Paris la datait
 // du 1er septembre et la basculait dans le mois suivant.
 import { monthKey, monthKeyFromOffset } from '../lib/dates';
+import { useMoneyAccounts } from './useMoneyAccounts';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -51,6 +52,10 @@ export function useFinances(selectedBusiness) {
     // Même clé que useProducts (Stock.jsx) : sert au bénéfice potentiel du
     // stock restant, pas seulement à ce qui a déjà été vendu.
     const { data: products = [], isLoading: loadingProducts } = useProducts(businessId);
+
+    // Points de départ déclarés des comptes (caisse, Wave...) : ils servent
+    // de base aux soldes courants calculés plus bas.
+    const { accounts } = useMoneyAccounts(selectedBusiness);
 
     const isLoading = loadingSales || loadingExpenses || loadingDebts || loadingOrders || loadingProducts;
 
@@ -118,38 +123,49 @@ export function useFinances(selectedBusiness) {
     const expensesThisMonth = expensesByMonth[currentMonthKey] || 0;
     const profitThisMonth = revenueThisMonth - expensesThisMonth;
 
-    // --- Répartition des encaissements par moyen de paiement ---
-    // De quoi recouper la caisse physique (espèces) avec ce qui est arrivé
-    // par Mobile Money. Un remboursement de dette compte dans le moyen par
-    // lequel le client a réellement remboursé (debts.payment_method, demandé
-    // au moment de marquer la dette remboursée) : un remboursement en liquide
-    // met bien de l'argent dans le tiroir. Les dettes remboursées avant
-    // l'ajout de cette colonne n'ont pas de moyen connu — elles sont isolées
-    // plutôt que supposées en espèces, ce qui fausserait le comptage. Les
-    // trois lignes additionnées redonnent exactement le chiffre d'affaires de
-    // la période (une vente à crédit n'est jamais comptée tant qu'elle n'est
-    // pas remboursée, cf. collectedSales).
-    const sumByMethod = (list, method) => list
-        .filter(s => s.receipts?.payment_method === method)
-        .reduce((sum, s) => sum + Number(s.total_price), 0);
-    const sumDebtsBy = (list, predicate) => list
-        .filter(predicate)
-        .reduce((sum, d) => sum + Number(d.amount), 0);
+    // --- Ce qu'il reste réellement en caisse et sur Mobile Money ---
+    // Solde courant d'un moyen de paiement : le point de départ déclaré
+    // (money_accounts), plus ce qui est entré par ce moyen depuis cette date,
+    // moins ce qui en est sorti. Le montant saisi décrit ce qu'on avait en
+    // main à un instant précis : ne compter que les mouvements postérieurs
+    // évite de compter deux fois des ventes déjà incluses dedans.
+    //
+    // Quand plusieurs comptes partagent un moyen (Wave et Orange Money), un
+    // encaissement "mobile money" n'indique pas sur lequel il est arrivé :
+    // le solde se raisonne donc par moyen, pas par compte, et les mouvements
+    // comptent à partir du point de départ le plus récent du groupe.
+    const balanceFor = (kind, method) => {
+        const group = accounts.filter((account) => account.kind === kind);
+        if (group.length === 0) return null;
 
-    const salesThisMonth = sales.filter(s => monthKey(s.created_at) === currentMonthKey);
-    const paidDebtsThisMonth = paidDebts.filter(d => monthKey(d.paid_at || d.created_at) === currentMonthKey);
+        const opening = group.reduce((sum, account) => sum + Number(account.opening_balance), 0);
+        const since = Math.max(...group.map((account) => new Date(account.opening_at).getTime()));
+        const after = (dateStr) => dateStr && new Date(dateStr).getTime() >= since;
 
-    const cashTotal = sumByMethod(sales, 'cash')
-        + sumDebtsBy(paidDebts, d => d.payment_method === 'cash');
-    const mobileMoneyTotal = sumByMethod(sales, 'mobile_money')
-        + sumDebtsBy(paidDebts, d => d.payment_method === 'mobile_money');
-    const unrecordedMethodTotal = sumDebtsBy(paidDebts, d => !d.payment_method);
+        const salesIn = sales
+            .filter((s) => s.receipts?.payment_method === method && after(s.created_at))
+            .reduce((sum, s) => sum + Number(s.total_price), 0);
+        const debtsIn = paidDebts
+            .filter((d) => d.payment_method === method && after(d.paid_at || d.created_at))
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+        const expensesOut = expenses
+            .filter((e) => e.payment_method === method && after(e.created_at))
+            .reduce((sum, e) => sum + Number(e.amount), 0);
+        const ordersOut = receivedOrders
+            .filter((o) => o.payment_method === method && after(o.received_at || o.created_at))
+            .reduce((sum, o) => sum + Number(o.total_amount), 0);
 
-    const cashThisMonth = sumByMethod(salesThisMonth, 'cash')
-        + sumDebtsBy(paidDebtsThisMonth, d => d.payment_method === 'cash');
-    const mobileMoneyThisMonth = sumByMethod(salesThisMonth, 'mobile_money')
-        + sumDebtsBy(paidDebtsThisMonth, d => d.payment_method === 'mobile_money');
-    const unrecordedMethodThisMonth = sumDebtsBy(paidDebtsThisMonth, d => !d.payment_method);
+        return {
+            opening,
+            since,
+            current: opening + salesIn + debtsIn - expensesOut - ordersOut,
+            movements: salesIn + debtsIn - expensesOut - ordersOut,
+        };
+    };
+
+    const cashBalance = balanceFor('cash', 'cash');
+    const mobileBalance = balanceFor('mobile_money', 'mobile_money');
+    const totalOnHand = (cashBalance?.current || 0) + (mobileBalance?.current || 0);
 
     const percentChangeMonth = revenueLastMonth > 0
         ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
@@ -205,12 +221,9 @@ export function useFinances(selectedBusiness) {
         percentChangeMonth,
         salesMargin,
         salesWithoutCostCount,
-        cashTotal,
-        mobileMoneyTotal,
-        unrecordedMethodTotal,
-        cashThisMonth,
-        mobileMoneyThisMonth,
-        unrecordedMethodThisMonth,
+        cashBalance,
+        mobileBalance,
+        totalOnHand,
         pendingDebtsTotal,
         monthlyTrend,
         stockSaleValue,

@@ -1,9 +1,9 @@
 import { supabase } from '../lib/supabase';
 
 // Comptes où l'argent du commerce se trouve réellement : tiroir-caisse, Wave,
-// Orange Money... Ce sont des soldes saisis à la main, à recouper avec ce que
-// l'application a calculé (voir la répartition des encaissements dans
-// Finances) — pas un grand livre de mouvements.
+// Orange Money... On n'y saisit qu'un point de départ daté ; le solde courant
+// est ensuite calculé à partir des encaissements et des dépenses (voir
+// useFinances), pour ne pas avoir à le corriger après chaque vente.
 export const fetchMoneyAccounts = async (businessId) => {
     const { data, error } = await supabase
         .from('money_accounts')
@@ -14,22 +14,24 @@ export const fetchMoneyAccounts = async (businessId) => {
     return data || [];
 };
 
-export const addMoneyAccount = async ({ businessId, name, kind, balance }) => {
+export const addMoneyAccount = async ({ businessId, name, kind, openingBalance }) => {
     const { error } = await supabase.from('money_accounts').insert([{
         business_id: businessId,
         name,
         kind,
-        balance,
+        opening_balance: openingBalance,
     }]);
     if (error) throw error;
 };
 
-// updated_at est réécrit à chaque correction : un solde daté d'il y a trois
-// jours ne vaut rien pour compter la caisse ce soir, autant que ça se voie.
-export const updateMoneyAccount = async ({ id, name, kind, balance }) => {
+// Corriger le point de départ le redate à maintenant : le montant saisi
+// décrit ce qu'on a en main à cet instant, donc les mouvements ne comptent
+// qu'à partir de là — sinon les ventes déjà passées seraient comptées deux
+// fois, une fois dans le montant saisi et une fois dans l'historique.
+export const updateMoneyAccount = async ({ id, name, kind, openingBalance }) => {
     const { error } = await supabase
         .from('money_accounts')
-        .update({ name, kind, balance, updated_at: new Date().toISOString() })
+        .update({ name, kind, opening_balance: openingBalance, opening_at: new Date().toISOString() })
         .eq('id', id);
     if (error) throw error;
 };

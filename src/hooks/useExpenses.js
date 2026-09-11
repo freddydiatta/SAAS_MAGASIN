@@ -5,7 +5,7 @@ import { fetchExpenses, addExpense, deleteExpense, EXPENSE_CATEGORIES } from '..
 import { expenseSchema, firstZodError } from '../lib/validation';
 import { startOfToday } from '../lib/dates';
 
-const EMPTY_FORM = { category: 'divers', label: '', amount: '' };
+const EMPTY_FORM = { category: 'divers', label: '', amount: '', paymentMethod: 'cash' };
 
 // Requêtes/mutations des dépenses (transport, divers...) : partagé par tous
 // les verticaux (retail/motos, restaurant, villas), même page/logique
