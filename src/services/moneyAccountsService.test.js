@@ -46,10 +46,10 @@ describe('moneyAccountsService', () => {
         const builder = createQueryBuilder({ data: null, error: null });
         fromMock.mockImplementation(() => builder);
 
-        await addMoneyAccount({ businessId: 'biz-1', name: 'Wave', balance: 39000 });
+        await addMoneyAccount({ businessId: 'biz-1', name: 'Wave', kind: 'mobile_money', balance: 39000 });
 
         expect(builder.insert).toHaveBeenCalledWith([{
-            business_id: 'biz-1', name: 'Wave', balance: 39000,
+            business_id: 'biz-1', name: 'Wave', kind: 'mobile_money', balance: 39000,
         }]);
     });
 
@@ -57,10 +57,10 @@ describe('moneyAccountsService', () => {
         const builder = createQueryBuilder({ data: null, error: null });
         fromMock.mockImplementation(() => builder);
 
-        await updateMoneyAccount({ id: 'a1', name: 'Wave', balance: 41000 });
+        await updateMoneyAccount({ id: 'a1', name: 'Wave', kind: 'mobile_money', balance: 41000 });
 
         expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({
-            name: 'Wave', balance: 41000, updated_at: expect.any(String),
+            name: 'Wave', kind: 'mobile_money', balance: 41000, updated_at: expect.any(String),
         }));
         expect(builder.eq).toHaveBeenCalledWith('id', 'a1');
     });

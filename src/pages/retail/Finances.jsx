@@ -2,12 +2,60 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent, Banknote, Plus, Edit2, Trash2, PiggyBank } from 'lucide-react';
+import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent, Banknote, Plus, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMoneyAccounts } from '../../hooks/useMoneyAccounts';
 import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { formatDate } from '../../lib/dates';
+
+// Soldes réels d'un moyen de paiement, affichés sous ce que l'app a calculé
+// pour ce même moyen : c'est la comparaison des deux qui fait le comptage.
+const AccountBalances = ({ accounts, onHand, emptyLabel, formatFCFA, onEdit, onDelete }) => (
+    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-border-theme">
+        {accounts.length === 0 ? (
+            <p className="text-xs text-slate-400">{emptyLabel}</p>
+        ) : (
+            <>
+                <div className="flex items-baseline justify-between gap-2 mb-2">
+                    <span className="text-xs font-semibold text-secondary uppercase tracking-wide">En main</span>
+                    <span className="text-lg font-bold text-accent">{formatFCFA(onHand)} F</span>
+                </div>
+                <div className="space-y-1.5">
+                    {accounts.map((account) => (
+                        <div key={account.id} className="flex items-center justify-between gap-2 group">
+                            <div className="min-w-0">
+                                <p className="text-sm font-medium text-primary truncate">{account.name}</p>
+                                {/* Un solde d'il y a trois jours ne vaut rien ce soir : la date
+                                    évite de croire le rapprochement plus fiable qu'il n'est. */}
+                                <p className="text-[11px] text-slate-400">
+                                    {formatDate(account.updated_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <span className="text-sm font-bold text-primary">{formatFCFA(account.balance)} F</span>
+                                <button
+                                    onClick={() => onEdit(account)}
+                                    aria-label={`Modifier ${account.name}`}
+                                    className="p-1.5 text-slate-300 hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
+                                >
+                                    <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => onDelete(account)}
+                                    aria-label={`Supprimer ${account.name}`}
+                                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </>
+        )}
+    </div>
+);
 
 export const Finances = () => {
     const { selectedBusiness } = useBusiness();
@@ -39,7 +87,7 @@ export const Finances = () => {
     } = useFinances(selectedBusiness);
 
     const {
-        accounts, totalBalance,
+        cashAccounts, mobileAccounts, cashOnHand, mobileOnHand, totalBalance,
         isFormOpen, editingAccount, openAddForm, openEditForm, closeForm,
         formData, setFormData, handleSubmit, isSaving,
         accountToDelete, handleDelete, closeDeleteConfirm, confirmDelete, isDeleting,
@@ -131,75 +179,20 @@ export const Finances = () => {
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
                 <div className="flex items-start justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-accent">
-                            <PiggyBank className="w-5 h-5" />
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-blue-500">
+                            <Banknote className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold text-primary">Où est votre argent</h2>
-                            <p className="text-xs text-secondary">Les soldes réels de vos comptes, à comparer avec ce que l'app a calculé ci-dessous.</p>
+                            <h2 className="text-lg font-bold text-primary">Comment vous avez été payé</h2>
+                            <p className="text-xs text-secondary">Ce que l'app a compté, et en dessous ce que vous avez réellement en main. L'écart entre les deux est ce qu'il faut expliquer.</p>
                         </div>
                     </div>
                     <button
                         onClick={openAddForm}
                         className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm text-white bg-accent hover:bg-accent-hover shadow-md transition-all active:scale-95"
                     >
-                        <Plus className="w-4 h-4" /> Ajouter
+                        <Plus className="w-4 h-4" /> Compte
                     </button>
-                </div>
-
-                {accounts.length === 0 ? (
-                    <p className="text-sm text-secondary">
-                        Aucun compte enregistré. Ajoutez votre caisse et vos comptes Mobile Money pour suivre ce que vous avez réellement en main.
-                    </p>
-                ) : (
-                    <>
-                        <div className="space-y-3">
-                            {accounts.map((account) => (
-                                <div key={account.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                                    <div className="min-w-0">
-                                        <p className="font-bold text-primary truncate">{account.name}</p>
-                                        <p className="text-xs text-slate-400">
-                                            Mis à jour le {formatDate(account.updated_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                        </p>
-                                    </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        <span className="text-lg font-bold text-primary">{formatFCFA(account.balance)} F</span>
-                                        <button
-                                            onClick={() => openEditForm(account)}
-                                            aria-label={`Modifier ${account.name}`}
-                                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
-                                        >
-                                            <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(account)}
-                                            aria-label={`Supprimer ${account.name}`}
-                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="pt-6 mt-2 border-t border-slate-100 dark:border-border-theme flex items-center justify-between gap-2">
-                            <span className="text-secondary font-medium">Total en main</span>
-                            <span className="text-2xl font-bold text-accent">{formatFCFA(totalBalance)} F</span>
-                        </div>
-                    </>
-                )}
-            </div>
-
-            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
-                <div className="flex items-center gap-3 mb-6">
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-blue-500">
-                        <Banknote className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-primary">Comment vous avez été payé</h2>
-                        <p className="text-xs text-secondary">Ce mois-ci, avec le cumul depuis le début en dessous. Les trois lignes additionnées redonnent le chiffre d'affaires de la période.</p>
-                    </div>
                 </div>
 
                 <div className={`grid grid-cols-1 gap-6 ${unrecordedMethodTotal > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
@@ -207,11 +200,27 @@ export const Finances = () => {
                         <p className="text-secondary text-sm font-medium mb-1">Espèces</p>
                         <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(cashThisMonth)} F</p>
                         <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(cashTotal)} F</p>
+                        <AccountBalances
+                            accounts={cashAccounts}
+                            onHand={cashOnHand}
+                            emptyLabel="Ajoutez votre caisse pour comparer"
+                            formatFCFA={formatFCFA}
+                            onEdit={openEditForm}
+                            onDelete={handleDelete}
+                        />
                     </div>
                     <div>
                         <p className="text-secondary text-sm font-medium mb-1">Mobile Money</p>
                         <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(mobileMoneyThisMonth)} F</p>
                         <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(mobileMoneyTotal)} F</p>
+                        <AccountBalances
+                            accounts={mobileAccounts}
+                            onHand={mobileOnHand}
+                            emptyLabel="Ajoutez Wave, Orange Money…"
+                            formatFCFA={formatFCFA}
+                            onEdit={openEditForm}
+                            onDelete={handleDelete}
+                        />
                     </div>
                     {unrecordedMethodTotal > 0 && (
                         <div>
@@ -221,6 +230,13 @@ export const Finances = () => {
                         </div>
                     )}
                 </div>
+
+                {totalBalance > 0 && (
+                    <div className="pt-6 mt-6 border-t border-slate-100 dark:border-border-theme flex items-center justify-between gap-2">
+                        <span className="text-secondary font-medium">Total en main</span>
+                        <span className="text-2xl font-bold text-accent">{formatFCFA(totalBalance)} F</span>
+                    </div>
+                )}
 
                 <p className="text-xs text-slate-400 mt-4">
                     Un remboursement de dette compte dans le moyen par lequel le client a payé.
@@ -341,6 +357,29 @@ export const Finances = () => {
                             className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 text-primary"
                             placeholder="Ex: Caisse, Wave, Orange Money"
                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Type</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, kind: 'cash' })}
+                                className={`py-2.5 rounded-xl font-semibold text-sm border transition-colors ${formData.kind === 'cash'
+                                    ? 'border-accent bg-accent/10 text-accent'
+                                    : 'border-slate-300 dark:border-border-theme text-secondary hover:border-accent/50'}`}
+                            >
+                                Espèces
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, kind: 'mobile_money' })}
+                                className={`py-2.5 rounded-xl font-semibold text-sm border transition-colors ${formData.kind === 'mobile_money'
+                                    ? 'border-accent bg-accent/10 text-accent'
+                                    : 'border-slate-300 dark:border-border-theme text-secondary hover:border-accent/50'}`}
+                            >
+                                Mobile Money
+                            </button>
+                        </div>
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-primary mb-1.5">Solde actuel (FCFA)</label>

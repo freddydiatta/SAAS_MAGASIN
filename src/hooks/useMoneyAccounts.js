@@ -9,7 +9,7 @@ import {
 } from '../services/moneyAccountsService';
 import { moneyAccountSchema, firstZodError } from '../lib/validation';
 
-const EMPTY_FORM = { name: '', balance: '' };
+const EMPTY_FORM = { name: '', kind: 'cash', balance: '' };
 
 // Soldes réels des comptes du commerce (caisse, Wave, Orange Money...) : à
 // comparer avec ce que l'application a calculé de son côté.
@@ -75,7 +75,7 @@ export function useMoneyAccounts(selectedBusiness) {
 
     const openEditForm = (account) => {
         setEditingAccount(account);
-        setFormData({ name: account.name, balance: String(account.balance) });
+        setFormData({ name: account.name, kind: account.kind, balance: String(account.balance) });
         setIsFormOpen(true);
     };
 
@@ -100,10 +100,23 @@ export function useMoneyAccounts(selectedBusiness) {
         deleteMutation.mutate(accountToDelete.id);
     };
 
-    const totalBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
+    // Regroupés par moyen de paiement : chaque solde s'affiche en face du
+    // calcul de l'app pour le même moyen (voir Finances), c'est la
+    // comparaison qui compte, pas la liste.
+    const sumBalances = (list) => list.reduce((sum, account) => sum + Number(account.balance), 0);
+    const cashAccounts = accounts.filter((account) => account.kind === 'cash');
+    const mobileAccounts = accounts.filter((account) => account.kind === 'mobile_money');
+
+    const cashOnHand = sumBalances(cashAccounts);
+    const mobileOnHand = sumBalances(mobileAccounts);
+    const totalBalance = cashOnHand + mobileOnHand;
 
     return {
         accounts,
+        cashAccounts,
+        mobileAccounts,
+        cashOnHand,
+        mobileOnHand,
         isLoading,
         totalBalance,
 

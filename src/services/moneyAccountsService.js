@@ -14,10 +14,11 @@ export const fetchMoneyAccounts = async (businessId) => {
     return data || [];
 };
 
-export const addMoneyAccount = async ({ businessId, name, balance }) => {
+export const addMoneyAccount = async ({ businessId, name, kind, balance }) => {
     const { error } = await supabase.from('money_accounts').insert([{
         business_id: businessId,
         name,
+        kind,
         balance,
     }]);
     if (error) throw error;
@@ -25,10 +26,10 @@ export const addMoneyAccount = async ({ businessId, name, balance }) => {
 
 // updated_at est réécrit à chaque correction : un solde daté d'il y a trois
 // jours ne vaut rien pour compter la caisse ce soir, autant que ça se voie.
-export const updateMoneyAccount = async ({ id, name, balance }) => {
+export const updateMoneyAccount = async ({ id, name, kind, balance }) => {
     const { error } = await supabase
         .from('money_accounts')
-        .update({ name, balance, updated_at: new Date().toISOString() })
+        .update({ name, kind, balance, updated_at: new Date().toISOString() })
         .eq('id', id);
     if (error) throw error;
 };

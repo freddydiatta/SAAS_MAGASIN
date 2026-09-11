@@ -935,6 +935,43 @@ CREATE INDEX IF NOT EXISTS idx_expenses_business_created_at
     ON public.expenses (business_id, created_at DESC);
 
 -- ==========================================
+-- ==========================================
+-- OÙ L'ARGENT SE TROUVE RÉELLEMENT
+-- L'application sait ce qui a été encaissé et par quel moyen, mais pas ce
+-- qu'il y a vraiment dans le tiroir ou sur Wave à l'instant T. Ces soldes,
+-- saisis à la main, s'affichent en face du calcul de l'app pour le même
+-- moyen de paiement : l'écart entre les deux est exactement ce qu'un
+-- commerçant cherche en fin de journée. Un solde, pas un grand livre de
+-- mouvements — ça se vérifie en comptant le tiroir.
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.money_accounts (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    business_id UUID REFERENCES public.businesses(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    -- Rattache le compte au moyen de paiement en face duquel il s'affiche.
+    kind TEXT NOT NULL DEFAULT 'cash' CHECK (kind IN ('cash', 'mobile_money')),
+    balance DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (balance >= 0),
+    -- Un solde saisi il y a trois jours ne veut plus rien dire : la date est
+    -- affichée à côté du montant pour qu'on sache s'il est encore d'actualité.
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_money_accounts_business_id
+    ON public.money_accounts (business_id, created_at);
+
+ALTER TABLE public.money_accounts ENABLE ROW LEVEL SECURITY;
+
+-- Réservé au propriétaire, comme les paiements et l'abonnement : un caissier
+-- n'a pas à connaître le solde Wave du commerce.
+DROP POLICY IF EXISTS "Owners can manage their money accounts" ON public.money_accounts;
+CREATE POLICY "Owners can manage their money accounts"
+ON public.money_accounts
+FOR ALL USING (public.is_business_owner(business_id))
+WITH CHECK (public.is_business_owner(business_id));
+
+-- ==========================================
 -- DETTES CLIENTS (CRÉDIT)
 -- Première étape : qui doit de l'argent, combien, depuis quand, et un
 -- statut remboursé/non remboursé qu'on bascule en un clic. Partagé par

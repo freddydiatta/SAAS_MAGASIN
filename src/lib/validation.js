@@ -89,6 +89,9 @@ export const supplierSchema = z.object({
 // mobile : c'est une faute de frappe, pas un découvert.
 export const moneyAccountSchema = z.object({
     name: z.string().trim().min(1, 'Le nom du compte est requis.').max(100, 'Le nom est trop long.'),
+    // Détermine en face de quel moyen de paiement le solde s'affiche dans
+    // Finances — donc à quel calcul de l'app il sera comparé.
+    kind: z.enum(['cash', 'mobile_money'], { message: 'Choisissez espèces ou Mobile Money.' }),
     balance: z.coerce.number({ invalid_type_error: 'Le solde doit être un nombre.' })
         .nonnegative('Le solde ne peut pas être négatif.'),
 });
