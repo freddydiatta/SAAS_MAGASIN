@@ -2,8 +2,12 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent, Banknote } from 'lucide-react';
+import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent, Banknote, Plus, Edit2, Trash2, PiggyBank } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useMoneyAccounts } from '../../hooks/useMoneyAccounts';
+import { Modal } from '../../components/Modal';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import { formatDate } from '../../lib/dates';
 
 export const Finances = () => {
     const { selectedBusiness } = useBusiness();
@@ -33,6 +37,13 @@ export const Finances = () => {
         unrecordedMethodThisMonth,
         formatFCFA,
     } = useFinances(selectedBusiness);
+
+    const {
+        accounts, totalBalance,
+        isFormOpen, editingAccount, openAddForm, openEditForm, closeForm,
+        formData, setFormData, handleSubmit, isSaving,
+        accountToDelete, handleDelete, closeDeleteConfirm, confirmDelete, isDeleting,
+    } = useMoneyAccounts(selectedBusiness);
 
     return (
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up pb-10">
@@ -115,6 +126,69 @@ export const Finances = () => {
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(pendingDebtsTotal)} <span className="text-sm font-medium">F</span></h3>
                     <p className="text-xs text-slate-400 mt-1">Pas encore compté dans le chiffre d'affaires</p>
                 </motion.div>
+            </div>
+
+            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
+                <div className="flex items-start justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-accent">
+                            <PiggyBank className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-primary">Où est votre argent</h2>
+                            <p className="text-xs text-secondary">Les soldes réels de vos comptes, à comparer avec ce que l'app a calculé ci-dessous.</p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={openAddForm}
+                        className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm text-white bg-accent hover:bg-accent-hover shadow-md transition-all active:scale-95"
+                    >
+                        <Plus className="w-4 h-4" /> Ajouter
+                    </button>
+                </div>
+
+                {accounts.length === 0 ? (
+                    <p className="text-sm text-secondary">
+                        Aucun compte enregistré. Ajoutez votre caisse et vos comptes Mobile Money pour suivre ce que vous avez réellement en main.
+                    </p>
+                ) : (
+                    <>
+                        <div className="space-y-3">
+                            {accounts.map((account) => (
+                                <div key={account.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-primary truncate">{account.name}</p>
+                                        <p className="text-xs text-slate-400">
+                                            Mis à jour le {formatDate(account.updated_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-lg font-bold text-primary">{formatFCFA(account.balance)} F</span>
+                                        <button
+                                            onClick={() => openEditForm(account)}
+                                            aria-label={`Modifier ${account.name}`}
+                                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-500/10 rounded-lg transition-colors"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(account)}
+                                            aria-label={`Supprimer ${account.name}`}
+                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="pt-6 mt-2 border-t border-slate-100 dark:border-border-theme flex items-center justify-between gap-2">
+                            <span className="text-secondary font-medium">Total en main</span>
+                            <span className="text-2xl font-bold text-accent">{formatFCFA(totalBalance)} F</span>
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
@@ -250,6 +324,57 @@ export const Finances = () => {
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            <Modal
+                isOpen={isFormOpen}
+                onClose={closeForm}
+                title={editingAccount ? 'Mettre à jour le solde' : 'Nouveau compte'}
+                maxWidth="max-w-sm"
+            >
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Nom du compte</label>
+                        <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 text-primary"
+                            placeholder="Ex: Caisse, Wave, Orange Money"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-primary mb-1.5">Solde actuel (FCFA)</label>
+                        <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={formData.balance}
+                            onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
+                            className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 text-primary"
+                            placeholder="Ex: 16500"
+                        />
+                    </div>
+                    <div className="pt-2 flex gap-3">
+                        <button type="button" onClick={closeForm} className="flex-1 py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors">
+                            Annuler
+                        </button>
+                        <button type="submit" disabled={isSaving} className="flex-1 py-2.5 rounded-xl font-semibold text-white bg-accent hover:bg-accent-hover shadow-md transition-all disabled:opacity-50">
+                            {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <ConfirmModal
+                isOpen={!!accountToDelete}
+                title={`Supprimer ${accountToDelete?.name || ''} ?`}
+                message="Ce compte et son solde ne seront plus suivis. Vos ventes et encaissements ne sont pas touchés."
+                confirmLabel="Oui, supprimer"
+                tone="red"
+                isConfirming={isDeleting}
+                onConfirm={confirmDelete}
+                onCancel={closeDeleteConfirm}
+            />
         </div>
     );
 };

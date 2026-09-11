@@ -84,6 +84,15 @@ export const supplierSchema = z.object({
     email: z.string().trim().email('Adresse email invalide.').optional().or(z.literal('')),
 });
 
+// Solde d'un compte où l'argent est réellement rangé (caisse, Wave, Orange
+// Money). Un solde négatif n'a pas de sens pour un tiroir ou un portefeuille
+// mobile : c'est une faute de frappe, pas un découvert.
+export const moneyAccountSchema = z.object({
+    name: z.string().trim().min(1, 'Le nom du compte est requis.').max(100, 'Le nom est trop long.'),
+    balance: z.coerce.number({ invalid_type_error: 'Le solde doit être un nombre.' })
+        .nonnegative('Le solde ne peut pas être négatif.'),
+});
+
 export const cashierSchema = z.object({
     name: z.string().trim().min(1, 'Le nom est requis.').max(100, 'Le nom est trop long.'),
     pin: z.string().regex(/^\d{4}$/, 'Le code PIN doit contenir exactement 4 chiffres.'),
