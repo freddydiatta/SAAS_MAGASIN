@@ -5,8 +5,10 @@ import { useProducts } from './useProducts';
 import { fetchExpenses } from '../services/expensesService';
 import { fetchDebts } from '../services/debtsService';
 import { fetchPurchaseOrders } from '../services/purchaseOrdersService';
+import { startOfDay, startOfToday, formatDate } from '../lib/dates';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Tous les calculs de KPI du tableau de bord commerce (caisse du jour,
 // variation vs hier, panier moyen, alertes stock, graphique 7 jours, top
@@ -63,9 +65,13 @@ export function useRetailDashboardStats(selectedBusiness) {
         enabled: !!user && !!selectedBusiness
     });
 
-    const today = new Date().setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Bornes calculées en heure de Dakar (voir lib/dates) : avec le minuit de
+    // l'appareil, une vente de 23h passait dans la caisse du lendemain quand
+    // le téléphone était réglé sur Paris.
+    const today = startOfToday();
+    // Minuit de la veille : reculer d'une milliseconde retombe forcément dans
+    // la journée précédente, sans arithmétique de calendrier local.
+    const yesterday = startOfDay(today - 1);
 
     // Une vente à crédit (voir Caisse.jsx) n'a pas encore été payée — la
     // compter dans "Caisse du jour" ferait apparaître comme encaissé de
@@ -76,7 +82,7 @@ export function useRetailDashboardStats(selectedBusiness) {
     const salesToday = sales.filter(s => new Date(s.created_at).getTime() >= today);
     const salesYesterday = sales.filter(s => {
         const time = new Date(s.created_at).getTime();
-        return time >= yesterday.getTime() && time < today;
+        return time >= yesterday && time < today;
     });
     const collectedSalesToday = salesToday.filter(isCashCollected);
     const collectedSalesYesterday = salesYesterday.filter(isCashCollected);
@@ -85,7 +91,7 @@ export function useRetailDashboardStats(selectedBusiness) {
     const debtsRepaidYesterday = debts.filter(d => {
         if (d.status !== 'paid' || !d.paid_at) return false;
         const time = new Date(d.paid_at).getTime();
-        return time >= yesterday.getTime() && time < today;
+        return time >= yesterday && time < today;
     });
     const caisseDuJourRembourse = debtsRepaidToday.reduce((sum, d) => sum + Number(d.amount), 0);
     const caisseHierRembourse = debtsRepaidYesterday.reduce((sum, d) => sum + Number(d.amount), 0);
@@ -158,24 +164,23 @@ export function useRetailDashboardStats(selectedBusiness) {
     const chartData = [];
     let total7Days = 0;
     for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        d.setHours(0, 0, 0, 0);
-        const nextD = new Date(d);
-        nextD.setDate(d.getDate() + 1);
+        // Chaque jour est délimité par ses propres minuits en heure de Dakar,
+        // reconstruits en remontant depuis aujourd'hui.
+        const dayStart = startOfDay(today - i * DAY_MS);
+        const dayEnd = startOfDay(dayStart + DAY_MS);
 
         // Même logique que caisseDuJour : une vente à crédit ce jour-là
         // n'était pas de l'argent encaissé, donc pas de revenu réel.
         const daySales = sales.filter(s => {
             const time = new Date(s.created_at).getTime();
-            return time >= d.getTime() && time < nextD.getTime();
+            return time >= dayStart && time < dayEnd;
         }).filter(isCashCollected);
 
         const dayTotal = daySales.reduce((sum, s) => sum + Number(s.total_price), 0);
         total7Days += dayTotal;
 
         chartData.push({
-            name: d.toLocaleDateString('fr-FR', { weekday: 'short' }),
+            name: formatDate(dayStart, { weekday: 'short' }),
             total: dayTotal
         });
     }

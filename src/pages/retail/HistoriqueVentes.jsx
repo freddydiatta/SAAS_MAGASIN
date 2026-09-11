@@ -6,6 +6,7 @@ import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { DateRangeFilter } from '../../components/DateRangeFilter';
+import { formatDate, formatTime } from '../../lib/dates';
 
 export const HistoriqueVentes = () => {
     const { selectedBusiness } = useBusiness();
@@ -32,10 +33,10 @@ export const HistoriqueVentes = () => {
             render: (receipt) => (
                 <>
                     <div className="font-bold text-primary">
-                        {new Date(receipt.created_at).toLocaleDateString('fr-FR')}
+                        {formatDate(receipt.created_at)}
                     </div>
                     <div className="text-sm text-secondary">
-                        {new Date(receipt.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(receipt.created_at)}
                     </div>
                 </>
             ),

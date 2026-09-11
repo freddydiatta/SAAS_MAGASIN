@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { useFinances } from './useFinances';
 import { renderHookWithQueryClient } from '../test/testUtils';
+import { zonedYearMonth } from '../lib/dates';
 
 const { fetchAllSalesMock, fetchExpensesMock, fetchDebtsMock, fetchPurchaseOrdersMock } = vi.hoisted(() => ({
     fetchAllSalesMock: vi.fn(),
@@ -34,9 +35,13 @@ vi.mock('./useProducts', () => ({
 
 const BUSINESS = { id: 'biz-1' };
 
-const now = new Date();
-const thisMonth = new Date(now.getFullYear(), now.getMonth(), 10, 9, 0, 0);
-const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 10, 9, 0, 0);
+// Mois lus dans le fuseau du commerce (heure de Dakar, voir lib/dates) : le
+// 1er du mois à 00h30 heure de Paris, on est encore le mois précédent à
+// Dakar, et des fixtures construites en heure locale tomberaient alors dans
+// le mauvais mois.
+const { year: currentYear, month: currentMonth } = zonedYearMonth();
+const thisMonth = new Date(Date.UTC(currentYear, currentMonth - 1, 10, 9, 0, 0));
+const lastMonth = new Date(Date.UTC(currentYear, currentMonth - 2, 10, 9, 0, 0));
 
 const SALES = [
     { id: 's1', total_price: 3000, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },

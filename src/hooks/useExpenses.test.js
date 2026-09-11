@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, waitFor } from '@testing-library/react';
 import { useExpenses } from './useExpenses';
 import { renderHookWithQueryClient } from '../test/testUtils';
+import { startOfToday } from '../lib/dates';
 
 const { fetchExpensesMock, addExpenseMock, deleteExpenseMock } = vi.hoisted(() => ({
     fetchExpensesMock: vi.fn(),
@@ -28,7 +29,9 @@ vi.mock('react-hot-toast', () => ({
 const BUSINESS = { id: 'biz-1' };
 
 const now = new Date();
-const today9am = new Date(now); today9am.setHours(9, 0, 0, 0);
+// Ancré sur la journée du commerce (heure de Dakar), pas sur le fuseau de
+// la machine de test — voir lib/dates.
+const today9am = new Date(startOfToday() + 9 * 60 * 60 * 1000);
 const yesterday9am = new Date(today9am); yesterday9am.setDate(yesterday9am.getDate() - 1);
 
 describe('useExpenses', () => {

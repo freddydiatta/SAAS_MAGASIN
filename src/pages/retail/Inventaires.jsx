@@ -6,6 +6,7 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { InventoryCountModal } from '../../components/InventoryCountModal';
 import { Plus, ClipboardList, Trash2, PlayCircle, Eye } from 'lucide-react';
+import { formatDate } from '../../lib/dates';
 
 const INVENTORY_STATUS = {
     draft: { label: 'Brouillon', tone: 'amber' },
@@ -27,7 +28,7 @@ export const Inventaires = () => {
             header: 'Date',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'px-6 py-4 text-secondary text-sm',
-            render: (inv) => new Date(inv.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }),
+            render: (inv) => formatDate(inv.created_at, { day: 'numeric', month: 'long', year: 'numeric' }),
         },
         {
             key: 'author',

@@ -5,6 +5,7 @@ import { Utensils, DollarSign, Clock, Users, ArrowRight, Wallet } from 'lucide-r
 import { motion } from 'framer-motion';
 import { StatusBadge } from '../StatusBadge';
 import { ORDER_STATUS } from '../../lib/orderStatus';
+import { formatDate, formatTime } from '../../lib/dates';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -19,7 +20,7 @@ export const RestaurantDashboard = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-primary mb-1 tracking-tight">Aperçu Service (Restaurant)</h1>
                     <p className="text-secondary text-sm">
-                        {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        {formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -149,7 +150,7 @@ export const RestaurantDashboard = () => {
                                     <div>
                                         <p className="font-semibold text-primary">{order.table_number || 'À emporter'}</p>
                                         <p className="text-xs text-secondary">
-                                            {new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                            {formatTime(order.created_at)}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4">

@@ -10,6 +10,7 @@ import { DataTable } from '../../components/DataTable';
 import { restaurantOrderSchema, firstZodError } from '../../lib/validation';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ORDER_STATUS } from '../../lib/orderStatus';
+import { formatTime } from '../../lib/dates';
 
 export const Commandes = () => {
     const { selectedBusiness } = useBusiness();
@@ -136,7 +137,7 @@ export const Commandes = () => {
             header: 'Heure',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
-            render: (order) => new Date(order.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            render: (order) => formatTime(order.created_at),
         },
         {
             key: 'status',

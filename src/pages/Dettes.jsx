@@ -5,6 +5,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
 import { Plus, Trash2, Edit2, CheckCircle2, HandCoins, Banknote, Smartphone } from 'lucide-react';
+import { formatDate } from '../lib/dates';
 
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
 
@@ -37,7 +38,7 @@ export const Dettes = () => {
             header: 'Date de la dette',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
-            render: (debt) => new Date(debt.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            render: (debt) => formatDate(debt.created_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
         },
         {
             key: 'customer',
@@ -93,7 +94,7 @@ export const Dettes = () => {
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
             render: (debt) => debt.paid_at
-                ? new Date(debt.paid_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                ? formatDate(debt.paid_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
                 : '—',
         },
         {

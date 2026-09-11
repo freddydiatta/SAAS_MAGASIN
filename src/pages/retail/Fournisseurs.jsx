@@ -7,6 +7,7 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
 import { PurchaseOrderPrint } from '../../components/PurchaseOrderPrint';
 import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2, RotateCcw } from 'lucide-react';
+import { formatDate } from '../../lib/dates';
 
 const ORDER_STATUS = {
     pending: { label: 'En attente', tone: 'amber' },
@@ -122,7 +123,7 @@ export const Fournisseurs = () => {
             header: 'Date',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
-            render: (order) => new Date(order.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            render: (order) => formatDate(order.created_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
         },
         {
             key: 'supplier',

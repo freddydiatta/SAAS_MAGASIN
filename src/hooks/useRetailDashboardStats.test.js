@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { useRetailDashboardStats } from './useRetailDashboardStats';
 import { renderHookWithQueryClient } from '../test/testUtils';
+import { startOfToday } from '../lib/dates';
 
 function createQueryBuilder(result) {
     const builder = {
@@ -30,9 +31,13 @@ const PRODUCTS = [
     { id: 'p2', name: 'Pneu', stock_quantity: 10 },
 ];
 
-const now = new Date();
-const today9am = new Date(now); today9am.setHours(9, 0, 0, 0);
-const yesterday9am = new Date(today9am); yesterday9am.setDate(yesterday9am.getDate() - 1);
+// Fixtures ancrées sur les journées du commerce (heure de Dakar, voir
+// lib/dates) et non sur le fuseau de la machine de test : en milieu de
+// journée à Dakar, on est déjà au lendemain à Paris, et un "aujourd'hui 9h"
+// local tomberait alors dans la mauvaise journée.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const today9am = new Date(startOfToday() + 9 * 60 * 60 * 1000);
+const yesterday9am = new Date(today9am.getTime() - DAY_MS);
 
 const SALES = [
     { id: 's1', quantity: 2, total_price: 2000, created_at: today9am.toISOString(), products: { name: 'Casque Moto', type: 'moto' }, receipts: { status: 'completed', payment_method: 'cash' } },

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
+import { startOfToday, zonedYearMonth } from '../lib/dates';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
@@ -37,14 +38,17 @@ export function useVillaDashboardStats(selectedBusiness) {
     // les valeurs réellement utilisées par l'app sont en français.
     const nonCancelled = bookings.filter((b) => b.status !== 'annulé');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Minuit en heure de Dakar, pas celui de l'appareil (voir lib/dates).
+    const today = new Date(startOfToday());
 
     const activeBookings = nonCancelled.filter((b) => new Date(b.end_date) >= today);
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    // Bornes du mois lues elles aussi dans le fuseau du commerce : le 1er du
+    // mois à 00h00 heure de Paris, c'est encore le dernier jour du mois
+    // précédent à Dakar.
+    const { year, month } = zonedYearMonth();
+    const monthStart = new Date(Date.UTC(year, month - 1, 1));
+    const monthEnd = new Date(Date.UTC(year, month, 1));
     const monthlyRevenue = nonCancelled
         .filter((b) => {
             const start = new Date(b.start_date);

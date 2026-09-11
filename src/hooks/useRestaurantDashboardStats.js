@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { fetchExpenses } from '../services/expensesService';
+import { startOfToday } from '../lib/dates';
 
 // Tous les calculs de KPI du tableau de bord restaurant (commandes en
 // cours, caisse du jour, plats servis, tables ouvertes) : avant,
@@ -31,7 +32,8 @@ export function useRestaurantDashboardStats(selectedBusiness) {
         enabled: !!selectedBusiness
     });
 
-    const today = new Date().setHours(0, 0, 0, 0);
+    // Minuit en heure de Dakar, pas celui de l'appareil (voir lib/dates).
+    const today = startOfToday();
     const todaysOrders = orders.filter(o => new Date(o.created_at).getTime() >= today);
 
     const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'served');

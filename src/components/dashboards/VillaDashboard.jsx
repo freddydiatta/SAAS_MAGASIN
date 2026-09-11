@@ -4,6 +4,7 @@ import { useVillaDashboardStats } from '../../hooks/useVillaDashboardStats';
 import { Home, Calendar, DollarSign, Users, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { StatusBadge } from '../StatusBadge';
+import { formatDate } from '../../lib/dates';
 
 export const VillaDashboard = () => {
     const { selectedBusiness } = useBusiness();
@@ -24,7 +25,7 @@ export const VillaDashboard = () => {
                 <div>
                     <h1 className="text-3xl font-bold text-primary mb-1 tracking-tight">Aperçu Réservations (Villas)</h1>
                     <p className="text-secondary text-sm">
-                        {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        {formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                     </p>
                 </div>
                 <div className="flex gap-3">
@@ -136,7 +137,7 @@ export const VillaDashboard = () => {
                                     <div className="flex items-center gap-6">
                                         <div className="text-right">
                                             <p className="text-sm font-medium text-primary">
-                                                {new Date(booking.start_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                                                {formatDate(booking.start_date, { day: 'numeric', month: 'short' })}
                                             </p>
                                             <StatusBadge
                                                 label={booking.status}

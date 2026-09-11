@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
+import { formatDate } from '../../lib/dates';
 
 export const Reservations = () => {
     const { selectedBusiness } = useBusiness();
@@ -59,8 +60,8 @@ export const Reservations = () => {
             cellClassName: 'px-6 py-4 text-secondary text-sm',
             render: (booking) => (
                 <>
-                    Du <span className="font-medium text-primary">{new Date(booking.start_date).toLocaleDateString('fr-FR')}</span> <br/>
-                    Au <span className="font-medium text-primary">{new Date(booking.end_date).toLocaleDateString('fr-FR')}</span>
+                    Du <span className="font-medium text-primary">{formatDate(booking.start_date)}</span> <br/>
+                    Au <span className="font-medium text-primary">{formatDate(booking.end_date)}</span>
                 </>
             ),
         },

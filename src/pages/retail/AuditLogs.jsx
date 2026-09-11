@@ -4,6 +4,7 @@ import { ShieldAlert, ArrowRight, LogIn, XCircle, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
 import { DateRangeFilter } from '../../components/DateRangeFilter';
+import { formatDate, formatTime } from '../../lib/dates';
 
 export const AuditLogs = () => {
     const { selectedBusiness } = useBusiness();
@@ -193,10 +194,10 @@ export const AuditLogs = () => {
             render: (log) => (
                 <>
                     <div className="font-bold text-primary">
-                        {new Date(log.created_at).toLocaleDateString('fr-FR')}
+                        {formatDate(log.created_at)}
                     </div>
                     <div className="text-sm text-secondary">
-                        {new Date(log.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                        {formatTime(log.created_at)}
                     </div>
                 </>
             ),

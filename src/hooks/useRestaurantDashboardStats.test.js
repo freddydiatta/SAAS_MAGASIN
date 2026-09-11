@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { waitFor } from '@testing-library/react';
 import { useRestaurantDashboardStats } from './useRestaurantDashboardStats';
 import { renderHookWithQueryClient } from '../test/testUtils';
+import { startOfToday } from '../lib/dates';
 
 function createQueryBuilder(result) {
     const builder = {
@@ -22,7 +23,9 @@ vi.mock('../lib/supabase', () => ({
 const BUSINESS = { id: 'biz-1' };
 
 const now = new Date();
-const today = new Date(now); today.setHours(9, 0, 0, 0);
+// Ancré sur la journée du commerce (heure de Dakar), pas sur le fuseau de
+// la machine de test — voir lib/dates.
+const today = new Date(startOfToday() + 9 * 60 * 60 * 1000);
 const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
 const ORDERS = [

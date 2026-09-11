@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { fetchExpenses, addExpense, deleteExpense, EXPENSE_CATEGORIES } from '../services/expensesService';
 import { expenseSchema, firstZodError } from '../lib/validation';
+import { startOfToday } from '../lib/dates';
 
 const EMPTY_FORM = { category: 'divers', label: '', amount: '' };
 
@@ -24,7 +25,8 @@ export function useExpenses(selectedBusiness, actorLabel) {
 
     const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
-    const today = new Date().setHours(0, 0, 0, 0);
+    // Minuit en heure de Dakar, pas celui de l'appareil (voir lib/dates).
+    const today = startOfToday();
     const totalExpensesToday = expenses
         .filter((e) => new Date(e.created_at).getTime() >= today)
         .reduce((sum, e) => sum + Number(e.amount), 0);

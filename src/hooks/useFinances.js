@@ -4,14 +4,14 @@ import { fetchExpenses } from '../services/expensesService';
 import { fetchDebts } from '../services/debtsService';
 import { fetchPurchaseOrders } from '../services/purchaseOrdersService';
 import { useProducts } from './useProducts';
+// Regroupement mensuel en heure de Dakar : une vente du 31 août à 23h30 est
+// d'août pour le commerçant, alors qu'un appareil réglé sur Paris la datait
+// du 1er septembre et la basculait dans le mois suivant.
+import { monthKey, monthKeyFromOffset } from '../lib/dates';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
 const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-const monthKey = (dateStr) => {
-    const d = new Date(dateStr);
-    return `${d.getFullYear()}-${d.getMonth()}`;
-};
 
 // Vue d'ensemble des gains réels du commerce (chiffre d'affaires total,
 // bénéfice, tendance mensuelle) — contrairement à "Caisse du jour"
@@ -110,9 +110,8 @@ export function useFinances(selectedBusiness) {
     });
 
     const now = new Date();
-    const currentMonthKey = monthKey(now);
-    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthKey = monthKey(lastMonthDate);
+    const currentMonthKey = monthKeyFromOffset(0, now).key;
+    const lastMonthKey = monthKeyFromOffset(1, now).key;
 
     const revenueThisMonth = revenueByMonth[currentMonthKey] || 0;
     const revenueLastMonth = revenueByMonth[lastMonthKey] || 0;
@@ -159,12 +158,11 @@ export function useFinances(selectedBusiness) {
     // --- Tendance sur les 6 derniers mois ---
     const monthlyTrend = [];
     for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = monthKey(d);
+        const { key, monthIndex, year } = monthKeyFromOffset(i, now);
         const revenue = revenueByMonth[key] || 0;
         const monthExpenses = expensesByMonth[key] || 0;
         monthlyTrend.push({
-            name: `${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`,
+            name: `${MONTH_LABELS[monthIndex]} ${year}`,
             revenue,
             expenses: monthExpenses,
             profit: revenue - monthExpenses,

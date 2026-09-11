@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { extractPaydunyaErrorMessage } from '../../lib/paydunyaError';
 import { safeRedirect } from '../../lib/safeRedirect';
 import { isPushSupported, urlBase64ToUint8Array } from '../../lib/webPush';
+import { formatDate } from '../../lib/dates';
 
 export const Parametres = () => {
     const { selectedBusiness } = useBusiness();
@@ -307,7 +308,7 @@ export const Parametres = () => {
                                 <div>
                                     <p className="font-semibold text-primary">{cashier.name}</p>
                                     <p className="text-xs text-secondary">
-                                        {cashier.is_active ? 'Actif' : 'Désactivé'} · ajouté le {new Date(cashier.created_at).toLocaleDateString('fr-FR')}
+                                        {cashier.is_active ? 'Actif' : 'Désactivé'} · ajouté le {formatDate(cashier.created_at)}
                                     </p>
                                 </div>
                                 <button

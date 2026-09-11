@@ -6,6 +6,7 @@ import { Copy, Users, DollarSign, TrendingUp, Link as LinkIcon, CheckCircle2 } f
 import { motion } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
+import { formatDate } from '../../lib/dates';
 
 export const AffiliateDashboard = () => {
     const { user } = useAuth();
@@ -89,9 +90,7 @@ export const AffiliateDashboard = () => {
             header: "Date d'inscription",
             headerClassName: 'pb-4 font-semibold',
             cellClassName: 'py-4 text-primary font-medium',
-            render: (ref) => new Date(ref.created_at).toLocaleDateString('fr-FR', {
-                day: 'numeric', month: 'long', year: 'numeric'
-            }),
+            render: (ref) => formatDate(ref.created_at, { day: 'numeric', month: 'long', year: 'numeric' }),
         },
         {
             key: 'status',

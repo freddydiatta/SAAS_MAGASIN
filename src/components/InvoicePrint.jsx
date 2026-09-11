@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { formatDateTime } from '../lib/dates';
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
@@ -47,7 +48,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             
             doc.setFontSize(10);
             doc.setTextColor(100, 116, 139);
-            const dateStr = `${new Date(invoiceDetails.date).toLocaleDateString('fr-FR')} ${new Date(invoiceDetails.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}`;
+            const dateStr = formatDateTime(invoiceDetails.date);
             doc.text(dateStr, 196, 34, { align: 'right' });
 
             // Customer Info
@@ -222,7 +223,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                             <div className="text-right">
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Facture</h2>
                                 <p className="text-primary font-medium">#{receiptIdStr}</p>
-                                <p className="text-secondary text-sm md:text-base">{new Date(invoiceDetails.date).toLocaleDateString('fr-FR')} {new Date(invoiceDetails.date).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</p>
+                                <p className="text-secondary text-sm md:text-base">{formatDateTime(invoiceDetails.date)}</p>
                             </div>
                         </div>
 

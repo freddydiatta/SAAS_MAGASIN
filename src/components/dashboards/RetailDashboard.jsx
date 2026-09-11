@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard, Wallet } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatDate } from '../../lib/dates';
 
 export const RetailDashboard = () => {
     const { selectedBusiness } = useBusiness();
@@ -41,7 +42,7 @@ export const RetailDashboard = () => {
                 <div>
                     <h1 className="text-[28px] font-bold text-primary mb-1 tracking-tight">Bonjour, voici l'aperçu du jour</h1>
                     <p className="text-secondary text-sm font-medium">
-                        {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {selectedBusiness?.name}
+                        {formatDate(new Date(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {selectedBusiness?.name}
                     </p>
                 </div>
                 <div className="flex gap-3">

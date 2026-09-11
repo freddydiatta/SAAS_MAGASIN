@@ -6,6 +6,7 @@ import { Modal } from '../components/Modal';
 import { DataTable } from '../components/DataTable';
 import { Plus, Trash2, Wallet } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { formatDate } from '../lib/dates';
 
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
 
@@ -33,7 +34,7 @@ export const Depenses = () => {
             header: 'Date',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'py-4 px-6 text-secondary text-sm',
-            render: (expense) => new Date(expense.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            render: (expense) => formatDate(expense.created_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
         },
         {
             key: 'category',
