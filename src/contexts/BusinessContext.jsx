@@ -43,9 +43,13 @@ export const BusinessProvider = ({ children }) => {
             // Pas de filtre .eq('user_id', ...) ici : la RLS (is_business_member)
             // scope déjà le résultat aux commerces possédés OU dont l'utilisateur
             // connecté (propriétaire ou caissier) est membre.
+            // Un magasin supprimé (deleted_at) est exclu partout dans l'app : il
+            // n'apparaît plus que dans la corbeille de BusinessList, le temps
+            // qu'il reste restaurable.
             const { data, error } = await supabase
                 .from('businesses')
                 .select('*')
+                .is('deleted_at', null)
                 .order('created_at', { ascending: true });
 
             if (error) throw error;

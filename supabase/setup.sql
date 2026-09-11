@@ -12,7 +12,53 @@ CREATE TABLE IF NOT EXISTS public.businesses (
     subscription_plan TEXT DEFAULT 'essentiel', -- 'essentiel', 'business'
     phone TEXT,
     address TEXT,
+    -- Suppression en deux temps : un magasin supprimé disparaît tout de suite
+    -- de l'application mais reste restaurable 7 jours, avant que
+    -- purge_deleted_businesses() (plus bas) ne l'efface pour de bon — avec,
+    -- en cascade, tout ce qu'il contient. NULL = magasin actif.
+    deleted_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Index partiel : la purge ne s'intéresse qu'aux quelques magasins supprimés,
+-- jamais aux actifs (l'immense majorité de la table).
+CREATE INDEX IF NOT EXISTS idx_businesses_deleted_at
+    ON public.businesses (deleted_at) WHERE deleted_at IS NOT NULL;
+
+-- Purge définitive des magasins supprimés il y a plus de 7 jours. Le CASCADE
+-- des tables liées emporte alors toutes leurs données. SECURITY DEFINER :
+-- tourne de nuit via pg_cron, hors session utilisateur, donc sans contexte
+-- RLS. Le délai de rétention vit ici, en un seul endroit.
+CREATE OR REPLACE FUNCTION public.purge_deleted_businesses()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_purged integer;
+BEGIN
+    DELETE FROM public.businesses
+    WHERE deleted_at IS NOT NULL
+      AND deleted_at < timezone('utc'::text, now()) - interval '7 days';
+    GET DIAGNOSTICS v_purged = ROW_COUNT;
+    RETURN v_purged;
+END;
+$$;
+
+-- Postgres accorde EXECUTE à PUBLIC par défaut : sans ce REVOKE, n'importe
+-- quel utilisateur connecté pourrait déclencher la purge (d'un compte qui
+-- n'est pas le sien, la fonction étant SECURITY DEFINER).
+REVOKE EXECUTE ON FUNCTION public.purge_deleted_businesses() FROM PUBLIC;
+
+CREATE EXTENSION IF NOT EXISTS pg_cron;
+
+-- Chaque nuit à 3h UTC. Re-planifier sous le même nom remplace le job
+-- existant, donc ce script reste rejouable.
+SELECT cron.schedule(
+    'purge-deleted-businesses',
+    '0 3 * * *',
+    $cron$SELECT public.purge_deleted_businesses()$cron$
 );
 
 -- Active RLS sur businesses

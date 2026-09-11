@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { supabase } from '../../lib/supabase';
-import { Plus, ArrowRight, Store, Settings, Phone, MapPin, Wrench, Home, ShoppingCart, Coffee } from 'lucide-react';
+import { Plus, ArrowRight, Store, Settings, Phone, MapPin, Wrench, Home, ShoppingCart, Coffee, Trash2, RotateCcw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DEFAULT_PLAN } from '../../config/pricing';
 import { businessSchema, firstZodError } from '../../lib/validation';
+import { ConfirmModal } from '../../components/ConfirmModal';
+import {
+    softDeleteBusiness,
+    restoreBusiness,
+    fetchDeletedBusinesses,
+    daysBeforePurge,
+    BUSINESS_RETENTION_DAYS,
+} from '../../services/businessesService';
 
 
 const BUSINESS_TYPES = [
@@ -29,6 +37,57 @@ export const BusinessList = () => {
     const [newBusinessAddress, setNewBusinessAddress] = useState('');
     const [createError, setCreateError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Corbeille : magasins supprimés, encore restaurables. Chargés une fois,
+    // puis tenus à jour localement par les deux actions ci-dessous — inutile
+    // de refaire la requête pour un changement qu'on connaît déjà.
+    const [deletedBusinesses, setDeletedBusinesses] = useState([]);
+    const [businessToDelete, setBusinessToDelete] = useState(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [trashError, setTrashError] = useState('');
+
+    useEffect(() => {
+        let cancelled = false;
+        fetchDeletedBusinesses()
+            .then((data) => { if (!cancelled) setDeletedBusinesses(data); })
+            .catch((error) => {
+                console.error('Error fetching deleted businesses:', error.message);
+                if (!cancelled) setTrashError('Impossible de charger les magasins supprimés.');
+            });
+        return () => { cancelled = true; };
+    }, []);
+
+    const confirmDeleteBusiness = async () => {
+        if (!businessToDelete) return;
+        setIsDeleting(true);
+        setTrashError('');
+        try {
+            await softDeleteBusiness(businessToDelete.id);
+            setDeletedBusinesses((prev) => [
+                { ...businessToDelete, deleted_at: new Date().toISOString() },
+                ...prev,
+            ]);
+            setBusinessToDelete(null);
+            await refreshBusinesses();
+        } catch (error) {
+            console.error('Error deleting business:', error.message);
+            setTrashError('Impossible de supprimer ce magasin pour le moment.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleRestoreBusiness = async (business) => {
+        setTrashError('');
+        try {
+            await restoreBusiness(business.id);
+            setDeletedBusinesses((prev) => prev.filter((b) => b.id !== business.id));
+            await refreshBusinesses();
+        } catch (error) {
+            console.error('Error restoring business:', error.message);
+            setTrashError('Impossible de restaurer ce magasin pour le moment.');
+        }
+    };
 
     // Si on a l'abonnement essentiel, on a le droit qu'à 1 magasin.
     // user_metadata est accessible via user.user_metadata
@@ -153,10 +212,19 @@ export const BusinessList = () => {
                             <motion.div 
                                 whileHover={{ y: -4, scale: 1.02 }}
                                 whileTap={{ scale: 0.98 }}
-                                key={business.id} 
+                                key={business.id}
                                 onClick={() => handleSelectBusiness(business)}
-                                className="bg-panel rounded-3xl p-6 shadow-premium hover:shadow-premium-lg border border-slate-100 dark:border-border-theme cursor-pointer transition-all flex flex-col items-center text-center group"
+                                className="relative bg-panel rounded-3xl p-6 shadow-premium hover:shadow-premium-lg border border-slate-100 dark:border-border-theme cursor-pointer transition-all flex flex-col items-center text-center group"
                             >
+                                {business.user_id === user.id && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); setBusinessToDelete(business); }}
+                                        aria-label={`Supprimer ${business.name}`}
+                                        className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
                                 <div className="text-4xl mb-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-accent group-hover:bg-accent/10 transition-colors">
                                     {BUSINESS_TYPES.find(t => t.id === business.type)?.icon || <Store className="w-8 h-8" />}
                                 </div>
@@ -170,6 +238,45 @@ export const BusinessList = () => {
                                 </div>
                             </motion.div>
                         ))}
+                    </div>
+                )}
+
+                {trashError && (
+                    <div className="mb-8 p-4 rounded-xl bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-bold max-w-2xl mx-auto">
+                        ⚠️ {trashError}
+                    </div>
+                )}
+
+                {/* Corbeille : encore récupérable, mais plus pour longtemps */}
+                {deletedBusinesses.length > 0 && !isCreating && (
+                    <div className="mb-12 bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme max-w-2xl mx-auto">
+                        <h2 className="text-lg font-bold text-primary mb-1">Magasins supprimés</h2>
+                        <p className="text-xs text-secondary mb-5">
+                            Restaurables pendant {BUSINESS_RETENTION_DAYS} jours. Passé ce délai, le magasin et toutes ses données sont définitivement effacés.
+                        </p>
+                        <div className="space-y-3">
+                            {deletedBusinesses.map((business) => {
+                                const daysLeft = daysBeforePurge(business.deleted_at);
+                                return (
+                                    <div key={business.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-primary truncate">{business.name}</p>
+                                            <p className={`text-xs font-medium ${daysLeft <= 1 ? 'text-red-500' : 'text-slate-400'}`}>
+                                                {daysLeft === 0
+                                                    ? 'Effacement définitif imminent'
+                                                    : `Encore ${daysLeft} jour${daysLeft > 1 ? 's' : ''} pour le récupérer`}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRestoreBusiness(business)}
+                                            className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-colors"
+                                        >
+                                            <RotateCcw className="w-4 h-4" /> Réactiver
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 
@@ -314,6 +421,17 @@ export const BusinessList = () => {
                      </div>
                 )}
             </div>
+
+            <ConfirmModal
+                isOpen={!!businessToDelete}
+                title={`Supprimer ${businessToDelete?.name || ''} ?`}
+                message={`Le magasin disparaît tout de suite, mais vous avez ${BUSINESS_RETENTION_DAYS} jours pour le réactiver. Passé ce délai, il sera définitivement effacé avec tout ce qu'il contient : produits, ventes, dettes, inventaires et historique.`}
+                confirmLabel="Oui, supprimer"
+                tone="red"
+                isConfirming={isDeleting}
+                onConfirm={confirmDeleteBusiness}
+                onCancel={() => setBusinessToDelete(null)}
+            />
         </div>
     );
 };

@@ -45,6 +45,7 @@ function createQueryBuilder(result) {
     const builder = {
         select: vi.fn(() => builder),
         eq: vi.fn(() => builder),
+        is: vi.fn(() => builder),
         order: vi.fn(() => builder),
         maybeSingle: vi.fn(() => Promise.resolve(result)),
         then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
@@ -71,6 +72,19 @@ describe('BusinessContext', () => {
         useAuthMock.mockReturnValue({ user: { id: 'owner-1' }, refreshSession: refreshSessionMock });
         getSessionMock.mockResolvedValue({ data: { session: null } });
         fromMock.mockImplementation(() => createQueryBuilder({ data: [], error: null }));
+    });
+
+    it('leaves deleted stores out of the list the whole app works from', async () => {
+        const builder = createQueryBuilder({ data: [], error: null });
+        fromMock.mockImplementation(() => builder);
+
+        const { result } = renderHook(() => useBusiness(), { wrapper });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        // un magasin supprimé n'est plus sélectionnable nulle part : il
+        // n'existe que dans la corbeille de BusinessList, le temps qu'il
+        // reste restaurable
+        expect(builder.is).toHaveBeenCalledWith('deleted_at', null);
     });
 
     describe('switchToCashierOffline', () => {
