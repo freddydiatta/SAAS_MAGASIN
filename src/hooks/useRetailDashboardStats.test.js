@@ -151,9 +151,37 @@ describe('useRetailDashboardStats', () => {
         // 3000 in sales + the 4000 debt repaid today
         expect(result.current.caisseDuJour).toBe(7000);
         expect(result.current.caisseDuJourRembourse).toBe(4000);
+        // no payment method recorded on that repayment -> shown on its own line
+        // rather than assumed to be cash sitting in the drawer
+        expect(result.current.caisseDuJourMoyenInconnu).toBe(4000);
+        expect(result.current.caisseDuJourCash).toBe(2000);
         // still only 2 actual sales today -> unaffected average basket
         expect(result.current.panierMoyen).toBe(1500);
         expect(result.current.beneficeDuJour).toBe(7000 - 500);
+    });
+
+    it('adds a repayment to the method it was actually paid with, without double counting', async () => {
+        const DEBTS = [
+            { id: 'd1', customer_name: 'Moussa', amount: 4000, status: 'paid', paid_at: today9am.toISOString(), payment_method: 'cash' },
+            { id: 'd2', customer_name: 'Awa', amount: 1500, status: 'paid', paid_at: today9am.toISOString(), payment_method: 'mobile_money' },
+        ];
+        fromMock.mockImplementation((table) => {
+            if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
+            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
+            if (table === 'debts') return createQueryBuilder({ data: DEBTS, error: null });
+            if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
+            return createQueryBuilder({ data: SALES, error: null });
+        });
+        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
+        await waitFor(() => expect(result.current.loadingSales).toBe(false));
+
+        // 2000 de ventes en espèces + 4000 remboursés en espèces
+        expect(result.current.caisseDuJourCash).toBe(6000);
+        // 1000 de ventes mobile + 1500 remboursés en mobile
+        expect(result.current.caisseDuJourMobile).toBe(2500);
+        // rien d'inconnu : la ligne séparée disparaît, donc pas de double compte
+        expect(result.current.caisseDuJourMoyenInconnu).toBe(0);
+        expect(result.current.caisseDuJourCash + result.current.caisseDuJourMobile).toBe(result.current.caisseDuJour);
     });
 
     it('counts a purchase order received today as an expense, but not a pending one', async () => {

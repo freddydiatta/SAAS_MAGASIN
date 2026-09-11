@@ -98,13 +98,32 @@ export function useRetailDashboardStats(selectedBusiness) {
     const caisseDuJour = ventesCollecteesDuJour + caisseDuJourRembourse;
     const caisseHier = ventesCollecteesHier + caisseHierRembourse;
 
+    // Un remboursement de dette compte dans le moyen par lequel le client a
+    // réellement remboursé (debts.payment_method, demandé dans Dettes.jsx) :
+    // remboursé en liquide, l'argent est bien dans le tiroir ce soir. Ceux
+    // enregistrés avant l'ajout de ce choix n'ont pas de moyen connu et
+    // restent dans caisseDuJourRembourse, jamais supposés être des espèces.
+    const sumRepaidBy = (method) => debtsRepaidToday
+        .filter(d => d.payment_method === method)
+        .reduce((sum, d) => sum + Number(d.amount), 0);
+
     const caisseDuJourCash = salesToday
         .filter(sale => sale.receipts?.payment_method === 'cash')
-        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0)
+        + sumRepaidBy('cash');
 
     const caisseDuJourMobile = salesToday
         .filter(sale => sale.receipts?.payment_method === 'mobile_money')
-        .reduce((sum, sale) => sum + Number(sale.total_price), 0);
+        .reduce((sum, sale) => sum + Number(sale.total_price), 0)
+        + sumRepaidBy('mobile_money');
+
+    // Reste des remboursements du jour dont on ne connaît pas le moyen : la
+    // seule part qui ne peut pas être rattachée aux espèces ou au Mobile
+    // Money, et donc la seule à afficher séparément (sinon les remboursements
+    // déjà comptés dans caisseDuJourCash/Mobile seraient comptés deux fois).
+    const caisseDuJourMoyenInconnu = debtsRepaidToday
+        .filter(d => !d.payment_method)
+        .reduce((sum, d) => sum + Number(d.amount), 0);
 
     const caisseDuJourCredit = salesToday
         .filter(sale => sale.receipts?.payment_method === 'credit')
@@ -187,6 +206,7 @@ export function useRetailDashboardStats(selectedBusiness) {
         caisseDuJourMobile,
         caisseDuJourCredit,
         caisseDuJourRembourse,
+        caisseDuJourMoyenInconnu,
         depensesDuJour,
         beneficeDuJour,
         percentChange,

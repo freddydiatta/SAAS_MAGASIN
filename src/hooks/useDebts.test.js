@@ -78,37 +78,37 @@ describe('useDebts', () => {
         await waitFor(() => expect(toastSuccessMock).toHaveBeenCalled());
     });
 
-    it('queues a mark-paid action for confirmation without mutating immediately', async () => {
+    it('opens the repayment method prompt without mutating immediately', async () => {
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
 
-        expect(result.current.confirmAction).toEqual({ type: 'markPaid', item: { id: 'd1', customer_name: 'Moussa', amount: 5000 } });
+        expect(result.current.debtToSettle).toEqual({ id: 'd1', customer_name: 'Moussa', amount: 5000 });
         expect(markDebtPaidMock).not.toHaveBeenCalled();
     });
 
-    it('marks a debt paid once the pending confirmation is confirmed', async () => {
+    it('marks a debt paid with the chosen payment method', async () => {
         markDebtPaidMock.mockResolvedValueOnce('d1');
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
-        await act(async () => result.current.confirmPendingAction());
+        await act(async () => result.current.confirmRepayment('mobile_money'));
 
-        expect(markDebtPaidMock.mock.calls[0]?.[0]).toBe('d1');
-        await waitFor(() => expect(result.current.confirmAction).toBeNull());
+        expect(markDebtPaidMock.mock.calls[0]?.[0]).toEqual({ id: 'd1', paymentMethod: 'mobile_money' });
+        await waitFor(() => expect(result.current.debtToSettle).toBeNull());
     });
 
-    it('does not mark paid when the confirmation is cancelled', async () => {
+    it('does not mark paid when the repayment prompt is dismissed', async () => {
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
         act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
-        act(() => result.current.closeConfirmAction());
+        act(() => result.current.closeSettleForm());
 
         expect(markDebtPaidMock).not.toHaveBeenCalled();
-        expect(result.current.confirmAction).toBeNull();
+        expect(result.current.debtToSettle).toBeNull();
     });
 
     it('deletes a debt once the pending confirmation is confirmed', async () => {

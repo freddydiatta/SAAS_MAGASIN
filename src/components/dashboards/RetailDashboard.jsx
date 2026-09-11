@@ -18,7 +18,7 @@ export const RetailDashboard = () => {
         caisseDuJourCash,
         caisseDuJourMobile,
         caisseDuJourCredit,
-        caisseDuJourRembourse,
+        caisseDuJourMoyenInconnu,
         depensesDuJour,
         beneficeDuJour,
         percentChange,
@@ -89,10 +89,10 @@ export const RetailDashboard = () => {
                             <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Mobile</span>
                             <span className="font-bold text-primary">{formatFCFA(caisseDuJourMobile)} F</span>
                         </div>
-                        {caisseDuJourRembourse > 0 && (
-                            <div className="flex flex-col gap-0.5" title="Dettes remboursées aujourd'hui — comptées comme encaissées">
-                                <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Remboursements</span>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatFCFA(caisseDuJourRembourse)} F</span>
+                        {caisseDuJourMoyenInconnu > 0 && (
+                            <div className="flex flex-col gap-0.5" title="Dettes remboursées aujourd'hui sans moyen de paiement enregistré — comptées comme encaissées, mais impossible de dire si c'est en espèces ou par Mobile Money">
+                                <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Moyen inconnu</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatFCFA(caisseDuJourMoyenInconnu)} F</span>
                             </div>
                         )}
                         {caisseDuJourCredit > 0 && (

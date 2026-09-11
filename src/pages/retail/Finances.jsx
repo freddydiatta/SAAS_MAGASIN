@@ -27,10 +27,10 @@ export const Finances = () => {
         salesWithoutCostCount,
         cashTotal,
         mobileMoneyTotal,
-        repaidDebtsTotal,
+        unrecordedMethodTotal,
         cashThisMonth,
         mobileMoneyThisMonth,
-        repaidDebtsThisMonth,
+        unrecordedMethodThisMonth,
         formatFCFA,
     } = useFinances(selectedBusiness);
 
@@ -128,7 +128,7 @@ export const Finances = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className={`grid grid-cols-1 gap-6 ${unrecordedMethodTotal > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                     <div>
                         <p className="text-secondary text-sm font-medium mb-1">Espèces</p>
                         <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(cashThisMonth)} F</p>
@@ -139,15 +139,18 @@ export const Finances = () => {
                         <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(mobileMoneyThisMonth)} F</p>
                         <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(mobileMoneyTotal)} F</p>
                     </div>
-                    <div>
-                        <p className="text-secondary text-sm font-medium mb-1">Dettes remboursées</p>
-                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(repaidDebtsThisMonth)} F</p>
-                        <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(repaidDebtsTotal)} F</p>
-                    </div>
+                    {unrecordedMethodTotal > 0 && (
+                        <div>
+                            <p className="text-secondary text-sm font-medium mb-1">Moyen non enregistré</p>
+                            <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(unrecordedMethodThisMonth)} F</p>
+                            <p className="text-xs text-slate-400 mt-1">Depuis le début : {isLoading ? '…' : formatFCFA(unrecordedMethodTotal)} F</p>
+                        </div>
+                    )}
                 </div>
 
                 <p className="text-xs text-slate-400 mt-4">
-                    Le moyen de paiement d'un remboursement de dette n'est pas enregistré : il a sa propre colonne plutôt que d'être compté en espèces.
+                    Un remboursement de dette compte dans le moyen par lequel le client a payé.
+                    {unrecordedMethodTotal > 0 && " Les dettes remboursées avant l'ajout de ce choix n'ont pas de moyen connu : elles restent à part plutôt que d'être comptées en espèces."}
                 </p>
             </div>
 

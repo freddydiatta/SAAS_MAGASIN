@@ -4,18 +4,14 @@ import { Modal } from '../components/Modal';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { DataTable } from '../components/DataTable';
 import { StatusBadge } from '../components/StatusBadge';
-import { Plus, Trash2, Edit2, CheckCircle2, HandCoins } from 'lucide-react';
+import { Plus, Trash2, Edit2, CheckCircle2, HandCoins, Banknote, Smartphone } from 'lucide-react';
 
 const formatFCFA = (amount) => Number(amount).toLocaleString('fr-FR');
 
 // Contenu du ConfirmModal selon l'action en attente (voir useDebts.confirmAction).
+// Le remboursement n'y figure pas : ce n'est pas un oui/non mais un choix du
+// moyen de paiement, d'où sa propre modale plus bas.
 const CONFIRM_CONFIG = {
-    markPaid: (debt) => ({
-        title: 'Marquer comme remboursé ?',
-        message: `Confirmer que ${debt.customer_name} a remboursé ${formatFCFA(debt.amount)} FCFA. Ce montant sera compté comme encaissé.`,
-        confirmLabel: 'Oui, remboursé',
-        tone: 'emerald',
-    }),
     delete: () => ({
         title: 'Supprimer cette dette ?',
         message: 'Cette dette sera définitivement supprimée.',
@@ -32,6 +28,7 @@ export const Dettes = () => {
         formData, setFormData,
         handleSubmit, handleMarkPaid, handleDelete, isSaving,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
+        debtToSettle, closeSettleForm, confirmRepayment, isSettlingDebt,
     } = useDebts(selectedBusiness);
 
     const columns = [
@@ -238,6 +235,42 @@ export const Dettes = () => {
                 isConfirming={isConfirmingAction}
                 {...(confirmAction ? CONFIRM_CONFIG[confirmAction.type](confirmAction.item) : {})}
             />
+
+            <Modal isOpen={!!debtToSettle} onClose={closeSettleForm} title="Comment a-t-il remboursé ?" maxWidth="max-w-sm">
+                {debtToSettle && (
+                    <div className="space-y-4">
+                        <p className="text-secondary text-sm">
+                            {debtToSettle.customer_name} rembourse <span className="font-bold text-primary">{formatFCFA(debtToSettle.amount)} FCFA</span>.
+                            Le moyen choisi permet de retrouver cet argent dans la bonne colonne au moment de compter la caisse.
+                        </p>
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                onClick={() => confirmRepayment('cash')}
+                                disabled={isSettlingDebt}
+                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+                            >
+                                <Banknote className="w-6 h-6 text-blue-500" />
+                                Espèces
+                            </button>
+                            <button
+                                onClick={() => confirmRepayment('mobile_money')}
+                                disabled={isSettlingDebt}
+                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+                            >
+                                <Smartphone className="w-6 h-6 text-orange-500" />
+                                Mobile Money
+                            </button>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={closeSettleForm}
+                            className="w-full py-2.5 rounded-xl font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                        >
+                            Annuler
+                        </button>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };

@@ -150,23 +150,50 @@ describe('useFinances', () => {
         expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
     });
 
-    it('splits collected money into cash, mobile money and repaid debts, for the month and overall', async () => {
+    it('keeps a repaid debt with no recorded method out of cash and mobile money', async () => {
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        // fixtures : 3000 cash + 1000 cash (mois dernier), 2000 mobile, 5000 à crédit, 1500 dette remboursée
+        // fixtures : 3000 cash + 1000 cash (mois dernier), 2000 mobile, 5000 à
+        // crédit, 1500 de dette remboursée sans payment_method (donnée d'avant)
         expect(result.current.cashThisMonth).toBe(3000);
         expect(result.current.mobileMoneyThisMonth).toBe(2000);
-        expect(result.current.repaidDebtsThisMonth).toBe(1500);
+        expect(result.current.unrecordedMethodThisMonth).toBe(1500);
         expect(result.current.cashTotal).toBe(4000);
         expect(result.current.mobileMoneyTotal).toBe(2000);
-        expect(result.current.repaidDebtsTotal).toBe(1500);
+        expect(result.current.unrecordedMethodTotal).toBe(1500);
+    });
+
+    it('counts a repaid debt in the method the customer actually paid with', async () => {
+        fetchDebtsMock.mockResolvedValue([
+            { id: 'd1', amount: 1500, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash' },
+            { id: 'd2', amount: 400, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'mobile_money' },
+            { id: 'd3', amount: 800, status: 'unpaid' },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // 3000 de ventes en espèces + 1500 remboursés en espèces
+        expect(result.current.cashThisMonth).toBe(4500);
+        // 2000 de ventes mobile + 400 remboursés en mobile
+        expect(result.current.mobileMoneyThisMonth).toBe(2400);
+        expect(result.current.unrecordedMethodThisMonth).toBe(0);
+    });
+
+    it('always reconciles the payment split with the revenue of the same period', async () => {
+        fetchDebtsMock.mockResolvedValue([
+            { id: 'd1', amount: 1500, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash' },
+            { id: 'd2', amount: 900, status: 'paid', paid_at: lastMonth.toISOString(), payment_method: 'mobile_money' },
+            { id: 'd3', amount: 700, status: 'paid', paid_at: thisMonth.toISOString() },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         // la répartition doit toujours retomber sur le chiffre d'affaires de la
         // même période : c'est ce qui rend le recoupement de caisse fiable
-        expect(result.current.cashThisMonth + result.current.mobileMoneyThisMonth + result.current.repaidDebtsThisMonth)
+        expect(result.current.cashThisMonth + result.current.mobileMoneyThisMonth + result.current.unrecordedMethodThisMonth)
             .toBe(result.current.revenueThisMonth);
-        expect(result.current.cashTotal + result.current.mobileMoneyTotal + result.current.repaidDebtsTotal)
+        expect(result.current.cashTotal + result.current.mobileMoneyTotal + result.current.unrecordedMethodTotal)
             .toBe(result.current.totalRevenue);
     });
 

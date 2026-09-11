@@ -912,6 +912,12 @@ CREATE TABLE public.debts (
     -- plutôt que juste le montant total. NULL pour une dette saisie
     -- manuellement (prêt sans vente associée).
     receipt_id UUID REFERENCES public.receipts(id) ON DELETE SET NULL,
+    -- Moyen par lequel le client a remboursé ('cash', 'mobile_money'),
+    -- renseigné au moment de marquer la dette remboursée (voir Dettes.jsx) :
+    -- sans lui, l'argent rentré ne peut pas être rattaché aux espèces ou au
+    -- Mobile Money pour recouper la caisse. NULL = remboursement enregistré
+    -- avant l'ajout de cette colonne, moyen inconnu (jamais supposé).
+    payment_method TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     paid_at TIMESTAMP WITH TIME ZONE
 );

@@ -42,10 +42,13 @@ export const updateDebt = async ({ debtId, customerName, customerPhone, amount, 
     return data;
 };
 
-export const markDebtPaid = async (id) => {
+// paymentMethod ('cash' | 'mobile_money') : par quel moyen le client a
+// remboursé. Sans lui, l'argent rentré ne peut pas être rattaché aux espèces
+// ou au Mobile Money pour recouper la caisse (voir useFinances).
+export const markDebtPaid = async ({ id, paymentMethod }) => {
     const { error } = await supabase
         .from('debts')
-        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .update({ status: 'paid', paid_at: new Date().toISOString(), payment_method: paymentMethod })
         .eq('id', id);
     if (error) throw error;
     return id;

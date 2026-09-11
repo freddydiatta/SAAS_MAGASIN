@@ -15,9 +15,14 @@ export function useDebts(selectedBusiness) {
     // null = mode ajout ; une dette = mode modification (même formulaire,
     // voir openEditForm).
     const [editingDebt, setEditingDebt] = useState(null);
-    // { type: 'markPaid' | 'delete', item: debt } — remplace window.confirm
-    // par ConfirmModal, cohérent avec le reste de l'app.
+    // { type: 'delete', item: debt } — remplace window.confirm par
+    // ConfirmModal, cohérent avec le reste de l'app.
     const [confirmAction, setConfirmAction] = useState(null);
+    // null = fermé ; une dette = on demande par quel moyen elle a été
+    // remboursée. Ce n'est pas un simple oui/non (donc pas un ConfirmModal) :
+    // le choix espèces/Mobile Money est ce qui permet ensuite de recouper la
+    // caisse dans Finances et dans la caisse du jour.
+    const [debtToSettle, setDebtToSettle] = useState(null);
 
     const queryKey = ['debts', selectedBusiness?.id];
 
@@ -60,7 +65,7 @@ export function useDebts(selectedBusiness) {
         mutationFn: markDebtPaid,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey });
-            setConfirmAction(null);
+            setDebtToSettle(null);
             toast.success('Dette marquée comme remboursée.');
         },
         onError: () => toast.error('Erreur lors de la mise à jour de la dette.'),
@@ -112,18 +117,23 @@ export function useDebts(selectedBusiness) {
         }
     };
 
-    const handleMarkPaid = (debt) => setConfirmAction({ type: 'markPaid', item: debt });
+    const handleMarkPaid = (debt) => setDebtToSettle(debt);
+    const closeSettleForm = () => setDebtToSettle(null);
+    const confirmRepayment = (paymentMethod) => {
+        if (!debtToSettle) return;
+        markPaidMutation.mutate({ id: debtToSettle.id, paymentMethod });
+    };
+
     const handleDelete = (debt) => setConfirmAction({ type: 'delete', item: debt });
 
     const closeConfirmAction = () => setConfirmAction(null);
 
     const confirmPendingAction = () => {
         if (!confirmAction) return;
-        if (confirmAction.type === 'markPaid') markPaidMutation.mutate(confirmAction.item.id);
-        else if (confirmAction.type === 'delete') deleteDebtMutation.mutate(confirmAction.item.id);
+        if (confirmAction.type === 'delete') deleteDebtMutation.mutate(confirmAction.item.id);
     };
 
-    const isConfirmingAction = markPaidMutation.isPending || deleteDebtMutation.isPending;
+    const isConfirmingAction = deleteDebtMutation.isPending;
 
     return {
         debts,
@@ -141,6 +151,11 @@ export function useDebts(selectedBusiness) {
         handleMarkPaid,
         handleDelete,
         isSaving: addDebtMutation.isPending || updateDebtMutation.isPending,
+
+        debtToSettle,
+        closeSettleForm,
+        confirmRepayment,
+        isSettlingDebt: markPaidMutation.isPending,
 
         confirmAction,
         closeConfirmAction,

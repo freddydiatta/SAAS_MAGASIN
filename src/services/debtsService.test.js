@@ -81,13 +81,13 @@ describe('debtsService', () => {
             .rejects.toThrow('Dette introuvable');
     });
 
-    it('markDebtPaid sets the status and a paid timestamp', async () => {
+    it('markDebtPaid sets the status, a paid timestamp and the payment method', async () => {
         const builder = createQueryBuilder({ data: null, error: null });
         fromMock.mockImplementation(() => builder);
 
-        const id = await markDebtPaid('d1');
+        const id = await markDebtPaid({ id: 'd1', paymentMethod: 'cash' });
 
-        expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'paid' }));
+        expect(builder.update).toHaveBeenCalledWith(expect.objectContaining({ status: 'paid', payment_method: 'cash' }));
         expect(builder.eq).toHaveBeenCalledWith('id', 'd1');
         expect(id).toBe('d1');
     });
