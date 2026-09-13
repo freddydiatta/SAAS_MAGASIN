@@ -92,8 +92,10 @@ describe('useFinances', () => {
         // (3000 cash + 2000 mobile + 1000 last month) + 1500 repaid debt = 7500
         // the 5000 credit sale and the 800 unpaid debt are excluded
         expect(result.current.totalRevenue).toBe(7500);
-        expect(result.current.totalExpenses).toBe(1100);
-        expect(result.current.netProfit).toBe(6400);
+        expect(result.current.totalCashOut).toBe(1100);
+        // aucune vente de ces fixtures ne porte son coût : la marge connue est
+        // donc nulle, et le bénéfice se réduit aux frais de fonctionnement
+        expect(result.current.netProfit).toBe(-1100);
         expect(result.current.pendingDebtsTotal).toBe(800);
     });
 
@@ -104,7 +106,8 @@ describe('useFinances', () => {
         // this month: 3000 + 2000 (sales) + 1500 (repaid debt) = 6500
         expect(result.current.revenueThisMonth).toBe(6500);
         expect(result.current.expensesThisMonth).toBe(700);
-        expect(result.current.profitThisMonth).toBe(5800);
+        // marge inconnue sur ces ventes -> le mois ne porte que ses dépenses
+        expect(result.current.profitThisMonth).toBe(-700);
         // last month revenue was 1000 -> (6500-1000)/1000 * 100 = 550%
         expect(result.current.percentChangeMonth).toBe(550);
     });
@@ -115,7 +118,8 @@ describe('useFinances', () => {
 
         expect(result.current.monthlyTrend).toHaveLength(6);
         const currentMonthEntry = result.current.monthlyTrend[5];
-        expect(currentMonthEntry).toMatchObject({ revenue: 6500, expenses: 700, profit: 5800 });
+        // le graphique montre la trésorerie : entrées et sorties, sans bénéfice
+        expect(currentMonthEntry).toMatchObject({ revenue: 6500, expenses: 700 });
     });
 
     it('returns 0% change (not a divide-by-zero) with no revenue at all', async () => {
@@ -129,7 +133,7 @@ describe('useFinances', () => {
         expect(result.current.totalRevenue).toBe(0);
     });
 
-    it('counts a received purchase order as an expense, but not a pending or cancelled one', async () => {
+    it('counts a received purchase order as money out, but never against the profit', async () => {
         fetchPurchaseOrdersMock.mockResolvedValue([
             { id: 'po1', status: 'received', total_amount: 2000, received_at: thisMonth.toISOString(), created_at: thisMonth.toISOString() },
             { id: 'po2', status: 'pending', total_amount: 9000, created_at: thisMonth.toISOString() },
@@ -138,10 +142,55 @@ describe('useFinances', () => {
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        // 1100 (expenses) + 2000 (the received order only)
-        expect(result.current.totalExpenses).toBe(3100);
-        expect(result.current.expensesThisMonth).toBe(700 + 2000);
-        expect(result.current.netProfit).toBe(7500 - 3100);
+        // trésorerie : 1100 de dépenses + les 2000 du bon réellement reçu
+        expect(result.current.totalCashOut).toBe(3100);
+
+        // mais le stock acheté n'est pas une perte : son coût ne compte qu'une
+        // fois vendu (costOfGoodsSold). Le déduire ici aussi le compterait
+        // deux fois, et ferait plonger le bénéfice à chaque réappro.
+        expect(result.current.operatingExpenses).toBe(1100);
+        expect(result.current.netProfit).toBe(-1100);
+        expect(result.current.expensesThisMonth).toBe(700);
+    });
+
+    it('builds the profit from the margin actually made, not from the money collected', async () => {
+        fetchAllSalesMock.mockResolvedValue([
+            // vendu 3000, marchandise achetée 1800 -> 1200 de marge
+            { id: 's1', total_price: 3000, total_cost: 1800, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
+            // vendu 2000, achetée 1500 -> 500 de marge
+            { id: 's2', total_price: 2000, total_cost: 1500, created_at: thisMonth.toISOString(), products: { name: 'Pneu' }, receipts: { status: 'completed', payment_method: 'mobile_money' } },
+        ]);
+        fetchDebtsMock.mockResolvedValue([]);
+        fetchExpensesMock.mockResolvedValue([
+            { id: 'e1', category: 'transport', amount: 700, created_at: thisMonth.toISOString() },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // 5000 encaissés, mais la marchandise en a coûté 3300
+        expect(result.current.totalRevenue).toBe(5000);
+        expect(result.current.costOfGoodsSold).toBe(3300);
+        expect(result.current.salesMargin).toBe(1700);
+        // bénéfice = marge − frais de fonctionnement, pas chiffre d'affaires −
+        // dépenses : vendre 5000 de marchandise achetée 3300 ne rapporte
+        // pas 5000
+        expect(result.current.netProfit).toBe(1000);
+        expect(result.current.profitThisMonth).toBe(1000);
+    });
+
+    it('leaves a repaid debt out of the profit, since it carries no margin', async () => {
+        fetchAllSalesMock.mockResolvedValue([]);
+        fetchExpensesMock.mockResolvedValue([]);
+        fetchDebtsMock.mockResolvedValue([
+            { id: 'd1', amount: 5000, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash' },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // l'argent rentre bien...
+        expect(result.current.totalRevenue).toBe(5000);
+        // ...mais récupérer une créance ne crée aucune marge
+        expect(result.current.netProfit).toBe(0);
     });
 
     it('computes the potential profit of the current stock, excluding products with no cost price', async () => {
@@ -162,8 +211,9 @@ describe('useFinances', () => {
         expect(result.current.stockPotentialProfit).toBe(20000);
         expect(result.current.productsWithoutCostPriceCount).toBe(1);
         expect(result.current.productsWithoutCostPrice).toEqual([{ id: 'p2', name: 'Pneu' }]);
-        // already-realized net profit (6400, from the default fixtures) + stock potential
-        expect(result.current.projectedTotalProfit).toBe(6400 + 20000);
+        // bénéfice déjà réalisé (−1100 : que des dépenses, aucune marge
+        // connue sur les fixtures) + la marge que le stock restant rapporterait
+        expect(result.current.projectedTotalProfit).toBe(-1100 + 20000);
     });
 
     it('reports no balance for a method with no account declared', async () => {

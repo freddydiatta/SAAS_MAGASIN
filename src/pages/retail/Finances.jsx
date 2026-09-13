@@ -80,6 +80,8 @@ export const Finances = () => {
         projectedTotalProfit,
         salesMargin,
         salesWithoutCostCount,
+        costOfGoodsSold,
+        operatingExpenses,
         cashBalance,
         mobileBalance,
         totalOnHand,
@@ -114,7 +116,7 @@ export const Finances = () => {
                         <p className="text-secondary text-sm font-medium">Chiffre d'affaires total</p>
                     </div>
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(totalRevenue)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
-                    <p className="text-xs text-slate-400 mt-1">Argent réellement encaissé, depuis le début</p>
+                    <p className="text-xs text-slate-400 mt-1">Ce que les ventes ont rapporté, hors solde de départ</p>
                 </motion.div>
 
                 <motion.div
@@ -132,7 +134,7 @@ export const Finances = () => {
                     <h3 className={`text-2xl font-bold ${netProfit >= 0 ? 'text-primary' : 'text-red-500'}`}>
                         {isLoading ? '…' : formatFCFA(netProfit)}&nbsp;<span className="text-sm font-medium">FCFA</span>
                     </h3>
-                    <p className="text-xs text-slate-400 mt-1">Chiffre d'affaires moins les dépenses</p>
+                    <p className="text-xs text-slate-400 mt-1">Marge sur les ventes, moins les dépenses</p>
                 </motion.div>
 
                 <motion.div
@@ -232,13 +234,43 @@ export const Finances = () => {
                         <Percent className="w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-primary">Marge réelle sur vos ventes</h2>
-                        <p className="text-xs text-secondary">Prix de vente moins le prix d'achat réellement payé au moment de chaque vente — ne bouge pas si votre prix d'achat change ensuite.</p>
+                        <h2 className="text-lg font-bold text-primary">D'où vient votre bénéfice</h2>
+                        <p className="text-xs text-secondary">Le prix d'achat retenu est celui payé au moment de chaque vente — il ne bouge pas si vous réapprovisionnez plus cher ensuite.</p>
                     </div>
                 </div>
 
-                <p className={`text-2xl font-bold ${salesMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                    {isLoading ? '…' : formatFCFA(salesMargin)}&nbsp;<span className="text-sm font-medium">FCFA</span>
+                {/* Le detail du calcul, ligne a ligne : un chiffre d'affaires
+                    eleve ne veut pas dire un benefice eleve, et c'est la
+                    marchandise vendue qui fait la difference. */}
+                <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                        <span className="text-secondary">Chiffre d'affaires</span>
+                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(totalRevenue)}&nbsp;FCFA</span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-secondary">− Coût des marchandises vendues</span>
+                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(costOfGoodsSold)}&nbsp;FCFA</span>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-slate-100 dark:border-border-theme">
+                        <span className="text-secondary">= Marge sur les ventes</span>
+                        <span className={`font-bold ${salesMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                            {isLoading ? '…' : formatFCFA(salesMargin)}&nbsp;FCFA
+                        </span>
+                    </div>
+                    <div className="flex justify-between">
+                        <span className="text-secondary">− Dépenses (transport, loyer…)</span>
+                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(operatingExpenses)}&nbsp;FCFA</span>
+                    </div>
+                    <div className="flex justify-between pt-3 mt-1 border-t border-slate-100 dark:border-border-theme">
+                        <span className="font-bold text-primary">= Bénéfice net</span>
+                        <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-accent' : 'text-red-500'}`}>
+                            {isLoading ? '…' : formatFCFA(netProfit)}&nbsp;FCFA
+                        </span>
+                    </div>
+                </div>
+
+                <p className="text-xs text-slate-400 mt-4">
+                    Vos achats de stock ne sont pas déduits ici : leur coût compte au moment où la marchandise est vendue. Le stock non vendu garde sa valeur, il n'est pas une perte.
                 </p>
 
                 {salesWithoutCostCount > 0 && (
@@ -304,7 +336,8 @@ export const Finances = () => {
             </div>
 
             <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
-                <h2 className="text-lg font-bold text-primary mb-6">Revenus et dépenses — 6 derniers mois</h2>
+                <h2 className="text-lg font-bold text-primary mb-1">Entrées et sorties d'argent — 6 derniers mois</h2>
+                <p className="text-xs text-secondary mb-6">Les sorties incluent les achats de stock : c'est votre trésorerie, pas votre bénéfice.</p>
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={monthlyTrend}>
@@ -316,8 +349,8 @@ export const Finances = () => {
                                 formatter={(value) => `${Number(value).toLocaleString('fr-FR')} FCFA`}
                             />
                             <Legend />
-                            <Bar dataKey="revenue" name="Revenus" fill="#10B981" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="expenses" name="Dépenses" fill="#D96645" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="revenue" name="Entrées" fill="#10B981" radius={[6, 6, 0, 0]} />
+                            <Bar dataKey="expenses" name="Sorties" fill="#D96645" radius={[6, 6, 0, 0]} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>

@@ -71,9 +71,9 @@ export function useFinances(selectedBusiness) {
     // remboursées ou non) : contrairement à totalRevenue, il ne s'agit pas
     // d'argent encaissé mais de la marge sur la marchandise déjà sortie.
     const salesWithKnownCost = sales.filter(s => s.total_cost != null);
-    const salesMargin = salesWithKnownCost.reduce(
-        (sum, s) => sum + (Number(s.total_price) - Number(s.total_cost)), 0
-    );
+    const costOfGoodsSold = salesWithKnownCost.reduce((sum, s) => sum + Number(s.total_cost), 0);
+    const revenueOfSoldGoods = salesWithKnownCost.reduce((sum, s) => sum + Number(s.total_price), 0);
+    const salesMargin = revenueOfSoldGoods - costOfGoodsSold;
     // Ventes faites avant l'activation de ce suivi, ou d'un produit sans
     // prix d'achat renseigné à l'instant de la vente — leur marge est
     // inconnue plutôt que comptée comme 0.
@@ -87,11 +87,26 @@ export function useFinances(selectedBusiness) {
     // une vraie dépense), daté du jour de la réception, pas de la commande.
     const receivedOrders = purchaseOrders.filter(o => o.status === 'received');
 
-    const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
+    // Sorties d'argent, achats de stock compris : c'est la trésorerie qui
+    // bouge, pas le bénéfice (voir netProfit plus bas).
+    const totalCashOut = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
         + receivedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
     const totalRevenue = collectedSales.reduce((sum, s) => sum + Number(s.total_price), 0)
         + paidDebts.reduce((sum, d) => sum + Number(d.amount), 0);
-    const netProfit = totalRevenue - totalExpenses;
+
+    // Dépenses de fonctionnement seules (transport, loyer...). Les achats de
+    // stock en sont exclus volontairement : leur coût arrive dans le bénéfice
+    // au moment où la marchandise est vendue (costOfGoodsSold). Les compter
+    // ici aussi les déduirait deux fois.
+    const operatingExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+    // Bénéfice = ce que les ventes ont réellement rapporté une fois la
+    // marchandise payée, moins les frais de fonctionnement. Le chiffre
+    // d'affaires seul ne dit rien du bénéfice : vendre 28 500 F de
+    // marchandise achetée 22 000 F ne rapporte pas 28 500 F. Un
+    // remboursement de dette n'y entre pas : c'est de l'argent qui rentre,
+    // pas une marge (la vente d'origine a déjà compté sa marge).
+    const netProfit = salesMargin - operatingExpenses;
 
     // --- Regroupement par mois (revenu / dépenses) ---
     const revenueByMonth = {};
@@ -104,14 +119,26 @@ export function useFinances(selectedBusiness) {
         revenueByMonth[key] = (revenueByMonth[key] || 0) + Number(d.amount);
     });
 
-    const expensesByMonth = {};
+    // Deux regroupements distincts, pour deux questions différentes :
+    // cashOutByMonth alimente le graphique des entrées/sorties, tandis que le
+    // bénéfice du mois ne retient que les frais de fonctionnement.
+    const cashOutByMonth = {};
+    const operatingExpensesByMonth = {};
     expenses.forEach(e => {
         const key = monthKey(e.created_at);
-        expensesByMonth[key] = (expensesByMonth[key] || 0) + Number(e.amount);
+        cashOutByMonth[key] = (cashOutByMonth[key] || 0) + Number(e.amount);
+        operatingExpensesByMonth[key] = (operatingExpensesByMonth[key] || 0) + Number(e.amount);
     });
     receivedOrders.forEach(o => {
         const key = monthKey(o.received_at || o.created_at);
-        expensesByMonth[key] = (expensesByMonth[key] || 0) + Number(o.total_amount);
+        cashOutByMonth[key] = (cashOutByMonth[key] || 0) + Number(o.total_amount);
+    });
+
+    const marginByMonth = {};
+    salesWithKnownCost.forEach(s => {
+        const key = monthKey(s.created_at);
+        marginByMonth[key] = (marginByMonth[key] || 0)
+            + (Number(s.total_price) - Number(s.total_cost));
     });
 
     const now = new Date();
@@ -120,8 +147,9 @@ export function useFinances(selectedBusiness) {
 
     const revenueThisMonth = revenueByMonth[currentMonthKey] || 0;
     const revenueLastMonth = revenueByMonth[lastMonthKey] || 0;
-    const expensesThisMonth = expensesByMonth[currentMonthKey] || 0;
-    const profitThisMonth = revenueThisMonth - expensesThisMonth;
+    const expensesThisMonth = operatingExpensesByMonth[currentMonthKey] || 0;
+    const marginThisMonth = marginByMonth[currentMonthKey] || 0;
+    const profitThisMonth = marginThisMonth - expensesThisMonth;
 
     // --- Ce qu'il reste réellement en caisse et sur Mobile Money ---
     // Solde courant d'un moyen de paiement : le point de départ déclaré
@@ -176,12 +204,11 @@ export function useFinances(selectedBusiness) {
     for (let i = 5; i >= 0; i--) {
         const { key, monthIndex, year } = monthKeyFromOffset(i, now);
         const revenue = revenueByMonth[key] || 0;
-        const monthExpenses = expensesByMonth[key] || 0;
+        const monthCashOut = cashOutByMonth[key] || 0;
         monthlyTrend.push({
             name: `${MONTH_LABELS[monthIndex]} ${year}`,
             revenue,
-            expenses: monthExpenses,
-            profit: revenue - monthExpenses,
+            expenses: monthCashOut,
         });
     }
 
@@ -213,7 +240,9 @@ export function useFinances(selectedBusiness) {
     return {
         isLoading,
         totalRevenue,
-        totalExpenses,
+        totalCashOut,
+        costOfGoodsSold,
+        operatingExpenses,
         netProfit,
         revenueThisMonth,
         expensesThisMonth,
