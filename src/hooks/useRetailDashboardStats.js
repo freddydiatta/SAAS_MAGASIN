@@ -7,6 +7,12 @@ import { startOfDay, startOfToday, formatDate } from '../lib/dates';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 const DAY_MS = 24 * 60 * 60 * 1000;
+// À partir de combien d'unités un produit est signalé comme bas. Le même
+// seuil déclenche la notification push au moment de la vente, côté base
+// (process_sale, voir supabase/setup.sql) : les deux doivent rester d'accord,
+// sinon la carte "Alertes Stock" et l'alerte reçue sur le téléphone ne
+// parleraient pas des mêmes produits.
+const LOW_STOCK_THRESHOLD = 5;
 
 // Tous les calculs de KPI du tableau de bord commerce (caisse du jour,
 // variation vs hier, panier moyen, alertes stock, graphique 7 jours, top
@@ -127,7 +133,7 @@ export function useRetailDashboardStats(selectedBusiness) {
     const transactionsHier = salesYesterday.length;
     const diffTransactions = transactions - transactionsHier;
 
-    const lowStockProducts = products.filter(p => p.stock_quantity <= 2);
+    const lowStockProducts = products.filter(p => p.stock_quantity <= LOW_STOCK_THRESHOLD);
     const alertesStock = lowStockProducts.length;
 
     // --- Chart Data (Last 7 Days) ---

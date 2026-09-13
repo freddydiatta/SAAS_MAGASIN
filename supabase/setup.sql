@@ -687,9 +687,13 @@ BEGIN
         v_new_stock := v_product.stock_quantity - v_qty;
         UPDATE public.products SET stock_quantity = v_new_stock WHERE id = v_product.id;
 
-        -- Notification push dès le franchissement du seuil de stock bas
-        -- (cf. section NOTIFICATIONS PUSH plus bas dans ce fichier).
-        IF v_product.stock_quantity > 2 AND v_new_stock <= 2 THEN
+        -- Notification push au franchissement du seuil de stock bas, et
+        -- uniquement là : sinon chaque vente d'un produit déjà bas renverrait
+        -- la même alerte (cf. section NOTIFICATIONS PUSH plus bas). Le seuil
+        -- doit rester d'accord avec LOW_STOCK_THRESHOLD côté application
+        -- (src/hooks/useRetailDashboardStats.js), qui alimente la carte
+        -- "Alertes Stock".
+        IF v_product.stock_quantity > 5 AND v_new_stock <= 5 THEN
             PERFORM public.notify_low_stock(p_business_id, v_product.name, v_new_stock);
         END IF;
     END LOOP;

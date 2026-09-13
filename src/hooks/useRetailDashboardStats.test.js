@@ -27,7 +27,7 @@ vi.mock('../contexts/AuthContext', () => ({
 
 const BUSINESS = { id: 'biz-1' };
 const PRODUCTS = [
-    { id: 'p1', name: 'Casque Moto', stock_quantity: 1 }, // <= 2, counts as low stock
+    { id: 'p1', name: 'Casque Moto', stock_quantity: 1 }, // sous le seuil de 5 -> stock bas
     { id: 'p2', name: 'Pneu', stock_quantity: 10 },
 ];
 
@@ -76,6 +76,27 @@ describe('useRetailDashboardStats', () => {
         expect(result.current.panierMoyen).toBe(1500); // 3000 / 2
         expect(result.current.alertesStock).toBe(1);
         expect(result.current.lowStockProducts).toEqual([{ id: 'p1', name: 'Casque Moto', stock_quantity: 1 }]);
+    });
+
+    it('flags a product as low stock up to 5 units, the same threshold that fires the push alert', async () => {
+        fromMock.mockImplementation((table) => {
+            if (table === 'products') return createQueryBuilder({
+                data: [
+                    { id: 'p1', name: 'Juste au seuil', stock_quantity: 5 },
+                    { id: 'p2', name: 'Sous le seuil', stock_quantity: 4 },
+                    { id: 'p3', name: 'Au-dessus', stock_quantity: 6 },
+                ],
+                error: null,
+            });
+            if (table === 'debts') return createQueryBuilder({ data: [], error: null });
+            return createQueryBuilder({ data: SALES, error: null });
+        });
+        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
+        await waitFor(() => expect(result.current.loadingSales).toBe(false));
+
+        // le seuil est inclusif : 5 alerte, 6 non
+        expect(result.current.lowStockProducts.map((p) => p.name)).toEqual(['Juste au seuil', 'Sous le seuil']);
+        expect(result.current.alertesStock).toBe(2);
     });
 
     it('produces a 7-day chart series and top products ranked by quantity sold', async () => {
