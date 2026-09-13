@@ -96,7 +96,10 @@ export function useSalesHistory(selectedBusiness) {
     const handleModify = (receipt) => {
         setReceiptToModify(receipt);
         setModifiedItems(receipt.sales.map(s => ({
+            // id de ligne pour l'existant ; une ligne ajoutée pendant la
+            // correction n'en a pas encore et se repère par sa clé locale.
             id: s.id,
+            saleId: s.id,
             product_id: s.product_id,
             name: s.products?.name || 'Produit',
             original_qty: s.quantity,
@@ -105,11 +108,37 @@ export function useSalesHistory(selectedBusiness) {
         })));
     };
 
-    const updateModifiedQty = (saleId, newQty) => {
+    // 0 est une valeur légitime : c'est ainsi qu'on retire un article rendu
+    // par le client (la ligne est supprimée côté base, voir modify_sale).
+    const updateModifiedQty = (itemId, newQty) => {
         if (newQty < 0) return;
         setModifiedItems(prev => prev.map(item =>
-            item.id === saleId ? { ...item, new_qty: newQty } : item
+            item.id === itemId ? { ...item, new_qty: newQty } : item
         ));
+    };
+
+    // Échange au comptoir : le client rend un article et en prend un autre.
+    // Le produit ajouté part à sa quantité 1, ajustable ensuite comme les
+    // autres lignes.
+    const addProductToModify = (product) => {
+        if (!product) return;
+        setModifiedItems(prev => {
+            const existing = prev.find(item => item.product_id === product.id);
+            if (existing) {
+                return prev.map(item =>
+                    item.product_id === product.id ? { ...item, new_qty: item.new_qty + 1 } : item
+                );
+            }
+            return [...prev, {
+                id: `new-${product.id}`,
+                saleId: null,
+                product_id: product.id,
+                name: product.name,
+                original_qty: 0,
+                new_qty: 1,
+                price: Number(product.price),
+            }];
+        });
     };
 
     const modifyReceiptMutation = useMutation({
@@ -117,15 +146,15 @@ export function useSalesHistory(selectedBusiness) {
             // Mise à jour des lignes de vente + ajustement du stock + audit log
             // en une seule transaction côté base de données (voir modify_sale
             // dans supabase/patches/2026-08-21_critical_fixes.sql).
+            // Ni prix ni nom ne sont transmis : la base garde le prix facturé
+            // à l'époque pour une ligne existante, et applique le prix courant
+            // pour un produit ajouté (voir modify_sale).
             const { error } = await modifySale({
                 receiptId: receipt.id,
                 items: items.map(item => ({
-                    sale_id: item.id,
+                    sale_id: item.saleId,
                     product_id: item.product_id,
-                    name: item.name,
-                    original_qty: item.original_qty,
                     new_qty: item.new_qty,
-                    price: item.price
                 }))
             });
             if (error) throw error;
@@ -136,8 +165,11 @@ export function useSalesHistory(selectedBusiness) {
             showToast('✅ Vente modifiée avec succès.');
         },
         onError: (error) => {
+            // modify_sale renvoie un message précis (stock insuffisant, vente
+            // vidée de tous ses articles...) : l'afficher tel quel aide plus
+            // qu'un message générique.
             console.error("Erreur modif:", error.message);
-            showToast('❌ Erreur lors de la modification.');
+            showToast(`❌ ${error.message || 'Erreur lors de la modification.'}`);
         }
     });
 
@@ -170,6 +202,7 @@ export function useSalesHistory(selectedBusiness) {
         modifiedItems,
         handleModify,
         updateModifiedQty,
+        addProductToModify,
         confirmModify,
         isModifying: modifyReceiptMutation.isPending,
     };

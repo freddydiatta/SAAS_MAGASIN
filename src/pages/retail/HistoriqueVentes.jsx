@@ -1,12 +1,13 @@
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useSalesHistory } from '../../hooks/useSalesHistory';
 import { InvoicePrint } from '../../components/InvoicePrint';
-import { FileText, Edit2, Ban, AlertTriangle, Plus, Minus } from 'lucide-react';
+import { FileText, Edit2, Ban, AlertTriangle, Plus, Minus, Trash2 } from 'lucide-react';
 import { Modal } from '../../components/Modal';
 import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { DateRangeFilter } from '../../components/DateRangeFilter';
 import { formatDate, formatTime } from '../../lib/dates';
+import { useProducts } from '../../hooks/useProducts';
 
 export const HistoriqueVentes = () => {
     const { selectedBusiness } = useBusiness();
@@ -17,8 +18,12 @@ export const HistoriqueVentes = () => {
         toastMessage,
         receiptToCancel, setReceiptToCancel, confirmCancel, isCancelling,
         receiptToPrint, setReceiptToPrint, handlePrint,
-        receiptToModify, setReceiptToModify, modifiedItems, handleModify, updateModifiedQty, confirmModify, isModifying,
+        receiptToModify, setReceiptToModify, modifiedItems, handleModify, updateModifiedQty, addProductToModify, confirmModify, isModifying,
     } = useSalesHistory(selectedBusiness);
+
+    // Catalogue du commerce : sert a remplacer un article rendu par un autre
+    // sans devoir annuler puis ressaisir toute la vente.
+    const { data: products = [] } = useProducts(selectedBusiness?.id);
 
     if (isLoading) {
         return <div className="p-8 text-center text-secondary">Chargement de l'historique...</div>;
@@ -191,26 +196,67 @@ export const HistoriqueVentes = () => {
             <Modal isOpen={!!receiptToModify} onClose={() => setReceiptToModify(null)} title="Modifier la Vente">
                 <div className="space-y-4 mb-8 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
                     {modifiedItems.map(item => (
-                        <div key={item.id} className="flex justify-between items-center bg-surface dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-border-theme">
-                            <div>
-                                <p className="font-semibold text-primary text-sm">{item.name}</p>
-                                <p className="text-xs text-secondary">{item.price.toLocaleString('fr-FR')} F / unité</p>
+                        <div
+                            key={item.id}
+                            className={`flex justify-between items-center p-4 rounded-xl border transition-colors ${
+                                item.new_qty === 0
+                                    ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30'
+                                    : 'bg-surface dark:bg-slate-800/50 border-slate-100 dark:border-border-theme'
+                            }`}
+                        >
+                            <div className="min-w-0">
+                                <p className={`font-semibold text-sm ${item.new_qty === 0 ? 'text-red-600 line-through' : 'text-primary'}`}>{item.name}</p>
+                                <p className="text-xs text-secondary">
+                                    {item.new_qty === 0
+                                        ? 'Retiré de la vente'
+                                        : `${item.price.toLocaleString('fr-FR')} FCFA / unité`}
+                                </p>
                             </div>
-                            <div className="flex items-center gap-1 bg-panel rounded-lg border border-slate-200 dark:border-border-theme p-1">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-1 bg-panel rounded-lg border border-slate-200 dark:border-border-theme p-1">
+                                    <button
+                                        onClick={() => updateModifiedQty(item.id, item.new_qty - 1)}
+                                        aria-label="Diminuer la quantité"
+                                        className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-secondary transition-colors"
+                                    ><Minus className="w-4 h-4" /></button>
+                                    <span className="w-8 text-center font-bold text-primary">{item.new_qty}</span>
+                                    <button
+                                        onClick={() => updateModifiedQty(item.id, item.new_qty + 1)}
+                                        aria-label="Augmenter la quantité"
+                                        className="w-8 h-8 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-accent font-bold shadow-sm transition-colors"
+                                    ><Plus className="w-4 h-4" /></button>
+                                </div>
                                 <button
-                                    onClick={() => updateModifiedQty(item.id, item.new_qty - 1)}
-                                    aria-label="Diminuer la quantité"
-                                    className="w-8 h-8 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-secondary transition-colors"
-                                ><Minus className="w-4 h-4" /></button>
-                                <span className="w-8 text-center font-bold text-primary">{item.new_qty}</span>
-                                <button
-                                    onClick={() => updateModifiedQty(item.id, item.new_qty + 1)}
-                                    aria-label="Augmenter la quantité"
-                                    className="w-8 h-8 flex items-center justify-center rounded bg-white dark:bg-slate-700 text-accent font-bold shadow-sm transition-colors"
-                                ><Plus className="w-4 h-4" /></button>
+                                    onClick={() => updateModifiedQty(item.id, 0)}
+                                    aria-label={`Retirer ${item.name} de la vente`}
+                                    disabled={item.new_qty === 0}
+                                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-30"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* Echange : la cliente rend un article et repart avec un autre.
+                    Sans ca, il fallait annuler la vente et tout ressaisir. */}
+                <div className="mb-6">
+                    <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
+                        Ajouter un article
+                    </label>
+                    <select
+                        value=""
+                        onChange={(e) => addProductToModify(products.find(p => p.id === e.target.value))}
+                        className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    >
+                        <option value="">Choisir un produit…</option>
+                        {products.map(product => (
+                            <option key={product.id} value={product.id}>
+                                {product.name} — {Number(product.price).toLocaleString('fr-FR')} FCFA (stock {product.stock_quantity})
+                            </option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="flex justify-between items-center mb-6 px-2">

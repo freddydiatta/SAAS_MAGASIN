@@ -82,7 +82,7 @@ describe('useSalesHistory', () => {
 
         act(() => result.current.handleModify(RECEIPT));
         expect(result.current.modifiedItems).toEqual([
-            { id: 's1', product_id: 'p1', name: 'Casque Moto', original_qty: 1, new_qty: 1, price: 1000 },
+            { id: 's1', saleId: 's1', product_id: 'p1', name: 'Casque Moto', original_qty: 1, new_qty: 1, price: 1000 },
         ]);
 
         act(() => result.current.updateModifiedQty('s1', -1));
@@ -104,11 +104,82 @@ describe('useSalesHistory', () => {
         await waitFor(() => {
             expect(rpcMock).toHaveBeenCalledWith('modify_sale', {
                 p_receipt_id: 'r1',
-                p_items: [{ sale_id: 's1', product_id: 'p1', name: 'Casque Moto', original_qty: 1, new_qty: 3, price: 1000 }],
+                p_items: [{ sale_id: 's1', product_id: 'p1', new_qty: 3 }],
             });
         });
         await waitFor(() => expect(result.current.receiptToModify).toBeNull());
         expect(result.current.toastMessage).toMatch(/modifiée avec succès/);
+    });
+
+    it('lets a returned item be taken off the sale, quantity zero', async () => {
+        rpcMock.mockResolvedValueOnce({ data: RECEIPT, error: null });
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
+        await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
+
+        act(() => result.current.handleModify(RECEIPT));
+        act(() => result.current.updateModifiedQty('s1', 0));
+
+        expect(result.current.modifiedItems[0].new_qty).toBe(0);
+
+        await act(async () => result.current.confirmModify());
+
+        await waitFor(() => {
+            expect(rpcMock).toHaveBeenCalledWith('modify_sale', {
+                p_receipt_id: 'r1',
+                p_items: [{ sale_id: 's1', product_id: 'p1', new_qty: 0 }],
+            });
+        });
+    });
+
+    it('swaps one product for another in a single correction', async () => {
+        rpcMock.mockResolvedValueOnce({ data: RECEIPT, error: null });
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
+        await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
+
+        // la cliente rend le grand modele et repart avec deux petits
+        act(() => result.current.handleModify(RECEIPT));
+        act(() => result.current.updateModifiedQty('s1', 0));
+        act(() => result.current.addProductToModify({ id: 'p2', name: 'ANANAS PM', price: 350 }));
+        act(() => result.current.updateModifiedQty('new-p2', 2));
+
+        await act(async () => result.current.confirmModify());
+
+        await waitFor(() => {
+            expect(rpcMock).toHaveBeenCalledWith('modify_sale', {
+                p_receipt_id: 'r1',
+                p_items: [
+                    { sale_id: 's1', product_id: 'p1', new_qty: 0 },
+                    // sale_id null : la ligne n'existe pas encore en base
+                    { sale_id: null, product_id: 'p2', new_qty: 2 },
+                ],
+            });
+        });
+    });
+
+    it('bumps the quantity instead of duplicating a product already on the sale', async () => {
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
+        await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
+
+        act(() => result.current.handleModify(RECEIPT));
+        act(() => result.current.addProductToModify({ id: 'p1', name: 'Casque Moto', price: 1000 }));
+
+        expect(result.current.modifiedItems).toHaveLength(1);
+        expect(result.current.modifiedItems[0].new_qty).toBe(2);
+    });
+
+    it('surfaces the exact reason the correction was refused', async () => {
+        rpcMock.mockResolvedValueOnce({
+            data: null,
+            error: new Error('Stock insuffisant pour "ANANAS PM": disponible 1, demandé 2'),
+        });
+        const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
+        await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
+
+        act(() => result.current.handleModify(RECEIPT));
+        act(() => result.current.updateModifiedQty('s1', 3));
+        await act(async () => result.current.confirmModify());
+
+        await waitFor(() => expect(result.current.toastMessage).toMatch(/Stock insuffisant pour "ANANAS PM"/));
     });
 
     it('filters receipts by date range while keeping the unfiltered total available', async () => {

@@ -115,20 +115,31 @@ describe('HistoriqueVentes cancel/modify', () => {
         await user.click(within(modal).getByRole('button', { name: 'Enregistrer' }));
 
         await waitFor(() => {
+            // Ni prix ni nom : la base garde le prix facturé à l'époque pour
+            // une ligne existante (voir modify_sale), le client ne le dicte pas.
             expect(rpcMock).toHaveBeenCalledWith('modify_sale', {
                 p_receipt_id: 'r1',
                 p_items: [
-                    {
-                        sale_id: 's1',
-                        product_id: 'p1',
-                        name: 'Casque Moto',
-                        original_qty: 1,
-                        new_qty: 2,
-                        price: 1000,
-                    },
+                    { sale_id: 's1', product_id: 'p1', new_qty: 2 },
                 ],
             });
         });
         expect(await screen.findByText(/Vente modifiée avec succès/)).toBeInTheDocument();
+    });
+
+    it('offers to take a line off the sale and to add another product', async () => {
+        const user = userEvent.setup();
+
+        renderWithQueryClient(<HistoriqueVentes />);
+        await screen.findByText('Casque Moto');
+
+        await user.click(screen.getByTitle('Modifier'));
+        const heading = await screen.findByText('Modifier la Vente');
+        const modal = heading.closest('.bg-panel');
+
+        // l'échange au comptoir a besoin des deux : retirer l'article rendu,
+        // ajouter celui que le client emporte à la place
+        expect(within(modal).getByRole('button', { name: /Retirer Casque Moto de la vente/ })).toBeInTheDocument();
+        expect(within(modal).getByRole('combobox')).toBeInTheDocument();
     });
 });
