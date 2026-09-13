@@ -172,7 +172,9 @@ export const Caisse = () => {
                     </span>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-surface/50 dark:bg-panel custom-scrollbar">
+                {/* Fiches compactes : trois articles doivent tenir sans scroller,
+                    c'est le panier courant qu'on veut voir d'un coup d'œil. */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface/50 dark:bg-panel custom-scrollbar">
                     {cart.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 space-y-4">
                             <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-2">
@@ -189,33 +191,33 @@ export const Caisse = () => {
                                     animate={{ opacity: 1, scale: 1 }}
                                     exit={{ opacity: 0, scale: 0.9, height: 0, marginBottom: 0 }}
                                     key={item.id}
-                                    className="flex flex-col gap-3 p-4 bg-panel rounded-2xl border border-slate-100 dark:border-border-theme shadow-sm"
+                                    className="flex flex-col gap-2 p-3 bg-panel rounded-2xl border border-slate-100 dark:border-border-theme shadow-sm"
                                 >
                                     <div className="flex justify-between items-start gap-2">
-                                        <span className="font-bold text-primary leading-tight">{item.name}</span>
+                                        <span className="font-bold text-primary text-sm leading-tight">{item.name}</span>
                                         <button
                                             onClick={() => removeFromCart(item.id)}
                                             aria-label="Retirer du panier"
-                                            className="text-slate-400 hover:text-red-500 transition-colors p-1"
+                                            className="text-slate-400 hover:text-red-500 transition-colors p-0.5 shrink-0"
                                         >
                                             <X className="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <div className="flex justify-between items-end mt-1">
+                                    <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-1 bg-surface dark:bg-slate-800 rounded-xl p-1 border border-slate-100 dark:border-border-theme">
                                             <button
                                                 onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                                 aria-label="Diminuer la quantité"
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm text-secondary transition-all"
+                                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm text-secondary transition-all"
                                             ><Minus className="w-4 h-4" /></button>
-                                            <span className="w-8 text-center font-bold text-primary">{item.quantity}</span>
+                                            <span className="w-7 text-center font-bold text-primary text-sm">{item.quantity}</span>
                                             <button
                                                 onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                                 aria-label="Augmenter la quantité"
-                                                className="w-8 h-8 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm text-accent font-bold transition-all"
+                                                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white dark:bg-slate-700 shadow-sm text-accent font-bold transition-all"
                                             ><Plus className="w-4 h-4" /></button>
                                         </div>
-                                        <span className="font-bold text-primary text-lg">
+                                        <span className="font-bold text-primary whitespace-nowrap">
                                             {(item.price * item.quantity).toLocaleString('fr-FR')}&nbsp;FCFA
                                         </span>
                                     </div>
@@ -225,8 +227,8 @@ export const Caisse = () => {
                     )}
                 </div>
 
-                <div className="p-6 bg-panel border-t border-slate-100 dark:border-border-theme">
-                    <div className="space-y-3 mb-6">
+                <div className="p-5 bg-panel border-t border-slate-100 dark:border-border-theme">
+                    <div className="space-y-2 mb-4">
                         <div className="flex justify-between text-sm">
                             <span className="text-secondary font-medium">Sous-total</span>
                             <span className="font-bold text-primary">{cartTotal.toLocaleString('fr-FR')} FCFA</span>
@@ -262,7 +264,7 @@ export const Caisse = () => {
                     </div>
 
                     {paymentMethod === 'credit' && (
-                        <div className="mb-6 animate-fade-in-up space-y-3">
+                        <div className="mb-4 animate-fade-in-up space-y-3">
                             <div>
                                 <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">
                                     Nom du client <span className="text-red-500">*</span>
@@ -292,7 +294,7 @@ export const Caisse = () => {
                     )}
 
                     {paymentMethod === 'cash' && (
-                        <div className="mb-6 animate-fade-in-up">
+                        <div className="mb-4 animate-fade-in-up">
                             <label className="block text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Montant reçu du client</label>
                             <div className="relative">
                                 <input
