@@ -376,8 +376,11 @@ const ProductCard = memo(function ProductCard({ product, onAdd }) {
                     : 'bg-panel shadow-premium hover:shadow-premium-lg cursor-pointer border border-transparent hover:border-accent/30'
             }`}
         >
-            {/* Photo du produit, ou pastille "à venir" si aucune n'a été ajoutée */}
-            <div className="w-full aspect-square bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-3 sm:p-4">
+            {/* Photo du produit, ou pastille "à venir" si aucune n'a été ajoutée.
+                shrink-0 : sans lui, une carte dont le nom tient sur deux lignes
+                comprime sa vignette, et le nom des produits voisins ne tombe
+                plus à la même hauteur dans la rangée. */}
+            <div className="w-full aspect-square shrink-0 bg-orange-50 dark:bg-accent/10 flex items-center justify-center p-3 sm:p-4">
                 {product.image_url ? (
                     <img
                         src={product.image_url}
@@ -392,10 +395,13 @@ const ProductCard = memo(function ProductCard({ product, onAdd }) {
                 )}
             </div>
             <div className="p-3 sm:p-4 flex flex-col flex-1">
-                <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base">{product.name}</div>
+                {/* Hauteur de deux lignes réservée d'office : "COCA COLA GM"
+                    passe à la ligne, "BARON" non, et sans cette réserve le prix
+                    des deux ne s'aligne pas d'une carte à l'autre. */}
+                <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base h-9 sm:h-10">{product.name}</div>
                 <div className="mt-auto pt-2 flex flex-col xl:flex-row xl:items-end justify-between gap-1">
                     <div className="text-accent font-bold text-sm sm:text-lg whitespace-nowrap">{product.price.toLocaleString('fr-FR')}&nbsp;FCFA</div>
-                    <div className="text-xs text-secondary font-medium">
+                    <div className="text-xs text-secondary font-medium whitespace-nowrap">
                         Stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
                     </div>
                 </div>
