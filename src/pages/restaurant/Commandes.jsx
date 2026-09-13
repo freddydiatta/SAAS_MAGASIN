@@ -282,7 +282,7 @@ export const Commandes = () => {
                                         )}
                                         <div className="p-5 flex-1 flex flex-col justify-between min-h-[90px]">
                                             <div className="font-bold text-primary mb-2 line-clamp-2 group-hover:text-accent transition-colors">{item.name}</div>
-                                            <div className="text-accent font-black text-lg">{item.price.toLocaleString('fr-FR')} F</div>
+                                            <div className="text-accent font-black text-lg">{item.price.toLocaleString('fr-FR')}&nbsp;FCFA</div>
                                         </div>
                                     </motion.button>
                                 ))}
@@ -329,7 +329,7 @@ export const Commandes = () => {
                                     >
                                         <div className="flex-1 pr-2">
                                             <div className="font-bold text-primary text-sm line-clamp-1">{item.name}</div>
-                                            <div className="text-xs text-accent font-bold mt-0.5">{item.price.toLocaleString('fr-FR')} F</div>
+                                            <div className="text-xs text-accent font-bold mt-0.5">{item.price.toLocaleString('fr-FR')}&nbsp;FCFA</div>
                                         </div>
                                         <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-1">
                                             <button
@@ -353,7 +353,7 @@ export const Commandes = () => {
                     <div className="p-6 border-t border-slate-100 dark:border-border-theme bg-slate-50/50 dark:bg-slate-800/20">
                         <div className="flex justify-between items-center mb-6">
                             <span className="text-secondary font-medium">Total TTC</span>
-                            <span className="text-2xl font-black text-accent">{cartTotal.toLocaleString('fr-FR')} F</span>
+                            <span className="text-2xl font-black text-accent">{cartTotal.toLocaleString('fr-FR')}&nbsp;FCFA</span>
                         </div>
                         <button
                             onClick={handleCheckout}

@@ -236,15 +236,6 @@ export const DashboardLayout = () => {
                         </button>
 
                         <OfflineStatusBadge />
-
-                        <div className="relative w-full hidden sm:block">
-                            <input 
-                                type="text" 
-                                placeholder="Rechercher une vente, un produit, un clie..."
-                                className="w-full bg-panel shadow-premium rounded-full py-3.5 px-5 pl-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all border border-slate-100/50 dark:border-border-theme text-primary placeholder:text-slate-400"
-                            />
-                            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
-                        </div>
                     </div>
 
                     {/* Quick Nav Segmented Control */}

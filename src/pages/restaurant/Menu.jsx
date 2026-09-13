@@ -120,7 +120,7 @@ export const Menu = () => {
                                                 )}
                                                 <div className="min-w-0">
                                                     <p className="font-medium text-primary text-sm group-hover/item:text-accent transition-colors truncate">{item.name}</p>
-                                                    <p className="text-xs text-secondary font-bold">{item.price.toLocaleString('fr-FR')} F</p>
+                                                    <p className="text-xs text-secondary font-bold">{item.price.toLocaleString('fr-FR')}&nbsp;FCFA</p>
                                                 </div>
                                             </div>
                                             <StatusBadge

@@ -20,7 +20,7 @@ const MethodBalance = ({ label, balance, accounts, emptyLabel, isLoading, format
         ) : (
             <>
                 <p className="text-3xl font-bold text-primary">
-                    {isLoading ? '…' : formatFCFA(balance.current)} <span className="text-base font-medium">F</span>
+                    {isLoading ? '…' : formatFCFA(balance.current)}&nbsp;<span className="text-base font-medium">FCFA</span>
                 </p>
                 {/* D'où vient le chiffre : sans ça, un solde calculé qui ne
                     correspond pas au tiroir n'est pas vérifiable. */}
@@ -36,7 +36,7 @@ const MethodBalance = ({ label, balance, accounts, emptyLabel, isLoading, format
                         <div key={account.id} className="flex items-center justify-between gap-2">
                             <p className="text-sm font-medium text-primary truncate">{account.name}</p>
                             <div className="flex items-center gap-1 shrink-0">
-                                <span className="text-sm text-secondary">{formatFCFA(account.opening_balance)} F</span>
+                                <span className="text-sm text-secondary">{formatFCFA(account.opening_balance)}&nbsp;FCFA</span>
                                 <button
                                     onClick={() => onEdit(account)}
                                     aria-label={`Modifier ${account.name}`}
@@ -113,7 +113,7 @@ export const Finances = () => {
                         </div>
                         <p className="text-secondary text-sm font-medium">Chiffre d'affaires total</p>
                     </div>
-                    <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(totalRevenue)} <span className="text-sm font-medium">F</span></h3>
+                    <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(totalRevenue)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                     <p className="text-xs text-slate-400 mt-1">Argent réellement encaissé, depuis le début</p>
                 </motion.div>
 
@@ -130,7 +130,7 @@ export const Finances = () => {
                         <p className="text-secondary text-sm font-medium">Bénéfice net total</p>
                     </div>
                     <h3 className={`text-2xl font-bold ${netProfit >= 0 ? 'text-primary' : 'text-red-500'}`}>
-                        {isLoading ? '…' : formatFCFA(netProfit)} <span className="text-sm font-medium">F</span>
+                        {isLoading ? '…' : formatFCFA(netProfit)}&nbsp;<span className="text-sm font-medium">FCFA</span>
                     </h3>
                     <p className="text-xs text-slate-400 mt-1">Chiffre d'affaires moins les dépenses</p>
                 </motion.div>
@@ -147,7 +147,7 @@ export const Finances = () => {
                         </div>
                         <p className="text-secondary text-sm font-medium">Ce mois-ci</p>
                     </div>
-                    <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(revenueThisMonth)} <span className="text-sm font-medium">F</span></h3>
+                    <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(revenueThisMonth)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                     <div className="flex items-center gap-1 text-xs mt-1">
                         <span className={`flex items-center gap-1 font-bold ${percentChangeMonth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                             {percentChangeMonth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -155,7 +155,7 @@ export const Finances = () => {
                         </span>
                         <span className="text-slate-400">vs mois dernier</span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1">Bénéfice du mois : {formatFCFA(profitThisMonth)} F</p>
+                    <p className="text-xs text-slate-400 mt-1">Bénéfice du mois : {formatFCFA(profitThisMonth)}&nbsp;FCFA</p>
                 </motion.div>
 
                 <motion.div
@@ -171,7 +171,7 @@ export const Finances = () => {
                         </div>
                         <p className="text-secondary text-sm font-medium">Dettes en attente</p>
                     </div>
-                    <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(pendingDebtsTotal)} <span className="text-sm font-medium">F</span></h3>
+                    <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(pendingDebtsTotal)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                     <p className="text-xs text-slate-400 mt-1">Pas encore compté dans le chiffre d'affaires</p>
                 </motion.div>
             </div>
@@ -221,7 +221,7 @@ export const Finances = () => {
                 {(cashBalance || mobileBalance) && (
                     <div className="pt-6 mt-6 border-t border-slate-100 dark:border-border-theme flex items-center justify-between gap-2">
                         <span className="text-secondary font-medium">Total en main</span>
-                        <span className="text-2xl font-bold text-accent">{isLoading ? '…' : formatFCFA(totalOnHand)} F</span>
+                        <span className="text-2xl font-bold text-accent">{isLoading ? '…' : formatFCFA(totalOnHand)}&nbsp;FCFA</span>
                     </div>
                 )}
             </div>
@@ -238,7 +238,7 @@ export const Finances = () => {
                 </div>
 
                 <p className={`text-2xl font-bold ${salesMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                    {isLoading ? '…' : formatFCFA(salesMargin)} <span className="text-sm font-medium">F</span>
+                    {isLoading ? '…' : formatFCFA(salesMargin)}&nbsp;<span className="text-sm font-medium">FCFA</span>
                 </p>
 
                 {salesWithoutCostCount > 0 && (
@@ -262,16 +262,16 @@ export const Finances = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
                     <div>
                         <p className="text-secondary text-sm font-medium mb-1">Valeur de vente du stock</p>
-                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(stockSaleValue)} F</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(stockSaleValue)}&nbsp;FCFA</p>
                     </div>
                     <div>
                         <p className="text-secondary text-sm font-medium mb-1">Coût du stock</p>
-                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(stockCost)} F</p>
+                        <p className="text-xl font-bold text-primary">{isLoading ? '…' : formatFCFA(stockCost)}&nbsp;FCFA</p>
                     </div>
                     <div>
                         <p className="text-secondary text-sm font-medium mb-1">Bénéfice potentiel</p>
                         <p className={`text-xl font-bold ${stockPotentialProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                            {isLoading ? '…' : formatFCFA(stockPotentialProfit)} F
+                            {isLoading ? '…' : formatFCFA(stockPotentialProfit)}&nbsp;FCFA
                         </p>
                     </div>
                 </div>
@@ -279,7 +279,7 @@ export const Finances = () => {
                 <div className="pt-6 border-t border-slate-100 dark:border-border-theme flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <span className="text-secondary font-medium">Bénéfice total si vous vendez tout</span>
                     <span className={`text-2xl font-bold ${projectedTotalProfit >= 0 ? 'text-accent' : 'text-red-500'}`}>
-                        {isLoading ? '…' : formatFCFA(projectedTotalProfit)} F
+                        {isLoading ? '…' : formatFCFA(projectedTotalProfit)}&nbsp;FCFA
                     </span>
                 </div>
 

@@ -4,7 +4,7 @@ import { AddProductModal } from '../AddProductModal';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard, Wallet } from 'lucide-react';
+import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDate } from '../../lib/dates';
 
@@ -20,8 +20,6 @@ export const RetailDashboard = () => {
         caisseDuJourMobile,
         caisseDuJourCredit,
         caisseDuJourMoyenInconnu,
-        depensesDuJour,
-        beneficeDuJour,
         percentChange,
         panierMoyen,
         transactions,
@@ -56,7 +54,7 @@ export const RetailDashboard = () => {
             </div>
 
             {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -70,7 +68,7 @@ export const RetailDashboard = () => {
                         </div>
                         <div>
                             <p className="text-secondary text-sm font-medium">Caisse du jour</p>
-                            <h3 className="text-2xl font-bold text-primary">{formatFCFA(caisseDuJour)} <span className="text-sm font-medium">F</span></h3>
+                            <h3 className="text-2xl font-bold text-primary">{formatFCFA(caisseDuJour)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm relative mb-3">
@@ -84,22 +82,22 @@ export const RetailDashboard = () => {
                     <div className="pt-3 border-t border-slate-100 dark:border-border-theme/50 flex justify-between text-xs relative gap-2">
                         <div className="flex flex-col gap-0.5">
                             <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Espèces</span>
-                            <span className="font-bold text-primary">{formatFCFA(caisseDuJourCash)} F</span>
+                            <span className="font-bold text-primary">{formatFCFA(caisseDuJourCash)}&nbsp;FCFA</span>
                         </div>
                         <div className="flex flex-col gap-0.5">
                             <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>Mobile</span>
-                            <span className="font-bold text-primary">{formatFCFA(caisseDuJourMobile)} F</span>
+                            <span className="font-bold text-primary">{formatFCFA(caisseDuJourMobile)}&nbsp;FCFA</span>
                         </div>
                         {caisseDuJourMoyenInconnu > 0 && (
                             <div className="flex flex-col gap-0.5" title="Dettes remboursées aujourd'hui sans moyen de paiement enregistré — comptées comme encaissées, mais impossible de dire si c'est en espèces ou par Mobile Money">
                                 <span className="text-slate-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Moyen inconnu</span>
-                                <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatFCFA(caisseDuJourMoyenInconnu)} F</span>
+                                <span className="font-bold text-emerald-600 dark:text-emerald-400">{formatFCFA(caisseDuJourMoyenInconnu)}&nbsp;FCFA</span>
                             </div>
                         )}
                         {caisseDuJourCredit > 0 && (
                             <div className="flex flex-col gap-0.5 text-right" title="Vendu à crédit aujourd'hui — pas encore encaissé, voir Dettes">
                                 <span className="text-slate-400 flex items-center justify-end gap-1"><span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>Crédit</span>
-                                <span className="font-bold text-purple-600 dark:text-purple-400">{formatFCFA(caisseDuJourCredit)} F</span>
+                                <span className="font-bold text-purple-600 dark:text-purple-400">{formatFCFA(caisseDuJourCredit)}&nbsp;FCFA</span>
                             </div>
                         )}
                     </div>
@@ -140,7 +138,7 @@ export const RetailDashboard = () => {
                         </div>
                         <div>
                             <p className="text-secondary text-sm font-medium">Panier Moyen</p>
-                            <h3 className="text-2xl font-bold text-primary">{formatFCFA(panierMoyen)} <span className="text-sm font-medium">F</span></h3>
+                            <h3 className="text-2xl font-bold text-primary">{formatFCFA(panierMoyen)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                         </div>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-400 font-medium">
@@ -178,26 +176,6 @@ export const RetailDashboard = () => {
                     )}
                 </motion.div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5 }}
-                    onClick={() => navigate('/dashboard/depenses')}
-                    className="bg-panel rounded-3xl p-6 shadow-premium border border-slate-100 dark:border-border-theme relative overflow-hidden group hover:border-accent/30 transition-colors cursor-pointer"
-                >
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                            <Wallet className={`w-6 h-6 ${beneficeDuJour >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
-                        </div>
-                        <div>
-                            <p className="text-secondary text-sm font-medium">Bénéfice net (jour)</p>
-                            <h3 className={`text-2xl font-bold ${beneficeDuJour >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatFCFA(beneficeDuJour)} <span className="text-sm font-medium">F</span></h3>
-                        </div>
-                    </div>
-                    <div className="text-sm font-medium text-slate-400">
-                        Dépenses : {formatFCFA(depensesDuJour)} F
-                    </div>
-                </motion.div>
             </div>
 
             {/* Bottom Section: Chart & Top Products */}
@@ -270,7 +248,7 @@ export const RetailDashboard = () => {
                                                 </div>
                                             </div>
                                             <div className="font-bold text-accent">
-                                                {formatFCFA(product.revenue)} F
+                                                {formatFCFA(product.revenue)}&nbsp;FCFA
                                             </div>
                                         </motion.div>
                                     );

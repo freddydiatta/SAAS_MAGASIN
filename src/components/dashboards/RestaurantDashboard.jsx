@@ -115,7 +115,7 @@ export const RestaurantDashboard = () => {
                         </div>
                     </div>
                     <div className="text-sm font-medium text-slate-400">
-                        Dépenses : {formatFCFA(depensesDuJour)} F
+                        Dépenses : {formatFCFA(depensesDuJour)}&nbsp;FCFA
                     </div>
                 </motion.div>
             </div>
@@ -154,7 +154,7 @@ export const RestaurantDashboard = () => {
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <span className="font-bold text-primary">{formatFCFA(order.total_amount)} F</span>
+                                        <span className="font-bold text-primary">{formatFCFA(order.total_amount)}&nbsp;FCFA</span>
                                         <StatusBadge label={status.label} tone={status.tone} />
                                     </div>
                                 </div>

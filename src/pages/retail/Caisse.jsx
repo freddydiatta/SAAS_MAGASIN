@@ -216,7 +216,7 @@ export const Caisse = () => {
                                             ><Plus className="w-4 h-4" /></button>
                                         </div>
                                         <span className="font-bold text-primary text-lg">
-                                            {(item.price * item.quantity).toLocaleString('fr-FR')} F
+                                            {(item.price * item.quantity).toLocaleString('fr-FR')}&nbsp;FCFA
                                         </span>
                                     </div>
                                 </motion.div>
@@ -392,7 +392,7 @@ const ProductCard = memo(function ProductCard({ product, onAdd }) {
             <div className="p-3 sm:p-4 flex flex-col flex-1">
                 <div className="font-semibold text-primary mb-1 line-clamp-2 leading-tight text-sm sm:text-base">{product.name}</div>
                 <div className="mt-auto pt-2 flex flex-col xl:flex-row xl:items-end justify-between gap-1">
-                    <div className="text-accent font-bold text-sm sm:text-lg whitespace-nowrap">{product.price.toLocaleString('fr-FR')} F</div>
+                    <div className="text-accent font-bold text-sm sm:text-lg whitespace-nowrap">{product.price.toLocaleString('fr-FR')}&nbsp;FCFA</div>
                     <div className="text-xs text-secondary font-medium">
                         Stock: <span className={product.stock_quantity <= 0 ? 'text-red-500 font-bold' : ''}>{product.stock_quantity}</span>
                     </div>

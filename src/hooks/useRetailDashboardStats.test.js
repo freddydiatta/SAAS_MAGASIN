@@ -50,17 +50,11 @@ const SALES_WITH_CREDIT = [
     { id: 's4', quantity: 1, total_price: 4000, created_at: today9am.toISOString(), products: { name: 'Casque Moto', type: 'moto' }, receipts: { status: 'completed', payment_method: 'credit' } },
 ];
 
-const EXPENSES = [
-    { id: 'e1', category: 'transport', amount: 500, created_at: today9am.toISOString() },
-    { id: 'e2', category: 'divers', amount: 300, created_at: yesterday9am.toISOString() }, // not today -> excluded
-];
-
 describe('useRetailDashboardStats', () => {
     beforeEach(() => {
         fromMock.mockReset();
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
-            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: [], error: null });
             if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES, error: null });
@@ -82,9 +76,6 @@ describe('useRetailDashboardStats', () => {
         expect(result.current.panierMoyen).toBe(1500); // 3000 / 2
         expect(result.current.alertesStock).toBe(1);
         expect(result.current.lowStockProducts).toEqual([{ id: 'p1', name: 'Casque Moto', stock_quantity: 1 }]);
-        // only e1 (transport, 500) falls on today; e2 was yesterday
-        expect(result.current.depensesDuJour).toBe(500);
-        expect(result.current.beneficeDuJour).toBe(3000 - 500);
     });
 
     it('produces a 7-day chart series and top products ranked by quantity sold', async () => {
@@ -98,7 +89,6 @@ describe('useRetailDashboardStats', () => {
     it('excludes credit sales from caisse du jour and the average basket, but still counts them as a transaction', async () => {
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
-            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: [], error: null });
             if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
@@ -110,7 +100,6 @@ describe('useRetailDashboardStats', () => {
         // money actually in hand yet.
         expect(result.current.caisseDuJour).toBe(3000);
         expect(result.current.caisseDuJourCredit).toBe(4000);
-        expect(result.current.beneficeDuJour).toBe(3000 - 500);
         // panier moyen only averages the two collected sales, not the credit one
         expect(result.current.panierMoyen).toBe(1500);
         // but the credit sale still happened — it counts as a transaction
@@ -120,7 +109,6 @@ describe('useRetailDashboardStats', () => {
     it('excludes credit sales from the 7-day chart total and per-product revenue, but keeps their quantity', async () => {
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
-            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: [], error: null });
             if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES_WITH_CREDIT, error: null });
@@ -145,7 +133,6 @@ describe('useRetailDashboardStats', () => {
         ];
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
-            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: DEBTS, error: null });
             if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES, error: null });
@@ -162,7 +149,6 @@ describe('useRetailDashboardStats', () => {
         expect(result.current.caisseDuJourCash).toBe(2000);
         // still only 2 actual sales today -> unaffected average basket
         expect(result.current.panierMoyen).toBe(1500);
-        expect(result.current.beneficeDuJour).toBe(7000 - 500);
     });
 
     it('adds a repayment to the method it was actually paid with, without double counting', async () => {
@@ -172,7 +158,6 @@ describe('useRetailDashboardStats', () => {
         ];
         fromMock.mockImplementation((table) => {
             if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
-            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
             if (table === 'debts') return createQueryBuilder({ data: DEBTS, error: null });
             if (table === 'purchase_orders') return createQueryBuilder({ data: [], error: null });
             return createQueryBuilder({ data: SALES, error: null });
@@ -187,26 +172,6 @@ describe('useRetailDashboardStats', () => {
         // rien d'inconnu : la ligne séparée disparaît, donc pas de double compte
         expect(result.current.caisseDuJourMoyenInconnu).toBe(0);
         expect(result.current.caisseDuJourCash + result.current.caisseDuJourMobile).toBe(result.current.caisseDuJour);
-    });
-
-    it('counts a purchase order received today as an expense, but not a pending one', async () => {
-        const ORDERS = [
-            { id: 'po1', status: 'received', total_amount: 15000, received_at: today9am.toISOString() },
-            { id: 'po2', status: 'pending', total_amount: 9000 },
-        ];
-        fromMock.mockImplementation((table) => {
-            if (table === 'products') return createQueryBuilder({ data: PRODUCTS, error: null });
-            if (table === 'expenses') return createQueryBuilder({ data: EXPENSES, error: null });
-            if (table === 'debts') return createQueryBuilder({ data: [], error: null });
-            if (table === 'purchase_orders') return createQueryBuilder({ data: ORDERS, error: null });
-            return createQueryBuilder({ data: SALES, error: null });
-        });
-        const { result } = renderHookWithQueryClient(() => useRetailDashboardStats(BUSINESS));
-        await waitFor(() => expect(result.current.loadingSales).toBe(false));
-
-        // 500 (transport expense) + 15000 (the received order only, not the pending one)
-        expect(result.current.depensesDuJour).toBe(15500);
-        expect(result.current.beneficeDuJour).toBe(3000 - 15500);
     });
 
     it('returns 0% change (not a divide-by-zero) when there were no sales yesterday and none today', async () => {

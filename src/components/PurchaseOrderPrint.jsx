@@ -224,8 +224,8 @@ export const PurchaseOrderPrint = ({ orderDetails, business, onClose }) => {
                                             <tr key={idx} className="border-b border-slate-100">
                                                 <td className="py-4 font-medium text-primary text-sm md:text-base">{item.name || 'Produit inconnu'}</td>
                                                 <td className="py-4 text-center text-sm md:text-base">{qty}</td>
-                                                <td className="py-4 text-right text-secondary text-sm md:text-base">{price.toLocaleString('fr-FR')} F</td>
-                                                <td className="py-4 text-right font-bold text-primary text-sm md:text-base">{(price * qty).toLocaleString('fr-FR')} F</td>
+                                                <td className="py-4 text-right text-secondary text-sm md:text-base">{price.toLocaleString('fr-FR')}&nbsp;FCFA</td>
+                                                <td className="py-4 text-right font-bold text-primary text-sm md:text-base">{(price * qty).toLocaleString('fr-FR')}&nbsp;FCFA</td>
                                             </tr>
                                         );
                                     })}
@@ -237,7 +237,7 @@ export const PurchaseOrderPrint = ({ orderDetails, business, onClose }) => {
                             <div className="w-full md:w-64">
                                 <div className="flex justify-between py-2 border-b border-slate-100">
                                     <span className="text-secondary text-sm md:text-base">Sous-total</span>
-                                    <span className="font-medium text-primary text-sm md:text-base">{Number(orderDetails.total).toLocaleString('fr-FR')} F</span>
+                                    <span className="font-medium text-primary text-sm md:text-base">{Number(orderDetails.total).toLocaleString('fr-FR')}&nbsp;FCFA</span>
                                 </div>
                                 <div className="flex justify-between py-4">
                                     <span className="text-lg md:text-xl font-bold text-primary">Total</span>

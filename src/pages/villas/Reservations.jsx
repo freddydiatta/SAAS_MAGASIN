@@ -236,7 +236,7 @@ export const Reservations = () => {
                         <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl mt-4 border border-indigo-100 dark:border-indigo-500/20">
                             <div className="flex justify-between items-center text-indigo-900 dark:text-indigo-400">
                                 <span className="font-medium text-sm">Total Estimé:</span>
-                                <span className="text-xl font-bold">{getCalculatedPrice().toLocaleString('fr-FR')} F</span>
+                                <span className="text-xl font-bold">{getCalculatedPrice().toLocaleString('fr-FR')}&nbsp;FCFA</span>
                             </div>
                         </div>
                     )}

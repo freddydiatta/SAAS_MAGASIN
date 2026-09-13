@@ -105,9 +105,9 @@ export const AuditLogs = () => {
             return (
                 <div className="text-sm space-y-1">
                     <div className="flex gap-2 items-center text-secondary text-xs mb-2">
-                        <span className="line-through">{details.old_total?.toLocaleString('fr-FR')} F</span>
+                        <span className="line-through">{details.old_total?.toLocaleString('fr-FR')}&nbsp;FCFA</span>
                         <ArrowRight className="w-3 h-3" />
-                        <strong className="text-indigo-600 dark:text-indigo-400">{details.new_total?.toLocaleString('fr-FR')} F</strong>
+                        <strong className="text-indigo-600 dark:text-indigo-400">{details.new_total?.toLocaleString('fr-FR')}&nbsp;FCFA</strong>
                     </div>
                     {details.changes?.map((change, idx) => (
                         <div key={idx} className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme flex items-center gap-2">
@@ -128,9 +128,9 @@ export const AuditLogs = () => {
             return (
                 <div className="text-sm space-y-2">
                     <div className="flex gap-2 items-center text-secondary text-xs">
-                        <span className="line-through">{Number(details.before?.total_amount ?? 0).toLocaleString('fr-FR')} F</span>
+                        <span className="line-through">{Number(details.before?.total_amount ?? 0).toLocaleString('fr-FR')}&nbsp;FCFA</span>
                         <ArrowRight className="w-3 h-3" />
-                        <strong className="text-amber-600">{Number(details.after?.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>
+                        <strong className="text-amber-600">{Number(details.after?.total_amount ?? 0).toLocaleString('fr-FR')}&nbsp;FCFA</strong>
                     </div>
                     <div className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme space-y-1">
                         <div className="text-slate-500 line-through">{formatItems(details.before?.items)}</div>
@@ -143,7 +143,7 @@ export const AuditLogs = () => {
         if (log.action === 'UNRECEIVE_PURCHASE_ORDER') {
             return (
                 <div className="text-sm text-secondary">
-                    Le stock ajouté par ce bon (<strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>) a été retiré ; le bon est repassé en attente.
+                    Le stock ajouté par ce bon (<strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')}&nbsp;FCFA</strong>) a été retiré ; le bon est repassé en attente.
                 </div>
             );
         }
@@ -155,7 +155,7 @@ export const AuditLogs = () => {
                 <div className="text-sm space-y-1">
                     <div className="text-secondary text-xs">Statut au moment de la suppression : {details.status}</div>
                     <div className="bg-surface dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-border-theme">
-                        {formatItems(details.items)} — <strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')} F</strong>
+                        {formatItems(details.items)} — <strong className="text-primary">{Number(details.total_amount ?? 0).toLocaleString('fr-FR')}&nbsp;FCFA</strong>
                     </div>
                 </div>
             );

@@ -209,7 +209,7 @@ export const Villas = () => {
                             <div className="pt-4 border-t border-slate-100 dark:border-border-theme flex justify-between items-end">
                                 <div>
                                     <span className="text-secondary text-xs font-medium block mb-1">Prix / Nuit</span>
-                                    <span className="font-bold text-accent text-lg leading-none">{villa.price_per_night.toLocaleString('fr-FR')} F</span>
+                                    <span className="font-bold text-accent text-lg leading-none">{villa.price_per_night.toLocaleString('fr-FR')}&nbsp;FCFA</span>
                                 </div>
                                 <div className="flex gap-1">
                                     <button

@@ -169,7 +169,7 @@ export const Hero = () => {
                                                     </div>
                                                     <span className="text-primary font-bold">{t.type}</span>
                                                 </div>
-                                                <span className="font-extrabold text-primary text-base">{t.amount.toLocaleString('fr-FR')} F</span>
+                                                <span className="font-extrabold text-primary text-base">{t.amount.toLocaleString('fr-FR')}&nbsp;FCFA</span>
                                             </motion.div>
                                         ))}
                                     </div>
