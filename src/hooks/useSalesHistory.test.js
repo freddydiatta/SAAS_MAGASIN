@@ -65,15 +65,18 @@ describe('useSalesHistory', () => {
         expect(result.current.toastMessage).toMatch(/annulée avec succès/);
     });
 
-    it('shows an error toast when cancel_sale rejects', async () => {
-        rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Déjà annulée') });
+    it('says why an annulation was refused, rather than a generic error', async () => {
+        rpcMock.mockResolvedValueOnce({
+            data: null,
+            error: new Error('Cette vente à crédit a déjà été remboursée : elle ne peut plus être annulée.'),
+        });
         const { result } = renderHookWithQueryClient(() => useSalesHistory(BUSINESS));
         await waitFor(() => expect(result.current.receipts).toEqual([RECEIPT]));
 
         act(() => result.current.setReceiptToCancel(RECEIPT));
         await act(async () => result.current.confirmCancel());
 
-        await waitFor(() => expect(result.current.toastMessage).toMatch(/erreur est survenue lors de l'annulation/));
+        await waitFor(() => expect(result.current.toastMessage).toMatch(/déjà été remboursée/));
     });
 
     it('handleModify seeds modifiedItems from the receipt lines, and updateModifiedQty ignores negatives', async () => {

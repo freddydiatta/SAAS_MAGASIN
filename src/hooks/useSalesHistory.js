@@ -67,8 +67,11 @@ export function useSalesHistory(selectedBusiness) {
             showToast('✅ Vente annulée avec succès. Le stock a été restauré.');
         },
         onError: (error) => {
+            // cancel_sale refuse explicitement certaines annulations (vente à
+            // crédit déjà remboursée, vente déjà annulée) : dire laquelle vaut
+            // mieux qu'un "une erreur est survenue" qui laisse chercher.
             console.error("Erreur lors de l'annulation:", error.message);
-            showToast('❌ Une erreur est survenue lors de l\'annulation.');
+            showToast(`❌ ${error.message || "Une erreur est survenue lors de l'annulation."}`);
         }
     });
 

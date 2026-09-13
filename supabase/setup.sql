@@ -740,6 +740,7 @@ AS $$
 DECLARE
     v_receipt public.receipts;
     v_sale RECORD;
+    v_debt_amount numeric;
 BEGIN
     SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id FOR UPDATE;
 
@@ -750,6 +751,15 @@ BEGIN
     IF v_receipt.status = 'cancelled' THEN
         RAISE EXCEPTION 'Cette vente est déjà annulée.';
     END IF;
+
+    IF EXISTS (SELECT 1 FROM public.debts WHERE receipt_id = p_receipt_id AND status = 'paid') THEN
+        RAISE EXCEPTION 'Cette vente à crédit a déjà été remboursée : elle ne peut plus être annulée.';
+    END IF;
+
+    -- Dette encore due : la vente disparaît, ce qu'elle devait aussi. Sans ça,
+    -- le client resterait redevable d'une vente annulée.
+    SELECT SUM(amount) INTO v_debt_amount FROM public.debts WHERE receipt_id = p_receipt_id;
+    DELETE FROM public.debts WHERE receipt_id = p_receipt_id;
 
     UPDATE public.receipts SET status = 'cancelled' WHERE id = p_receipt_id;
 
@@ -763,7 +773,8 @@ BEGIN
     END LOOP;
 
     INSERT INTO public.audit_logs (business_id, user_email, action, receipt_id, details)
-    VALUES (v_receipt.business_id, public.current_actor_label(v_receipt.business_id), 'CANCEL_SALE', p_receipt_id, jsonb_build_object('total_amount', v_receipt.total_amount));
+    VALUES (v_receipt.business_id, public.current_actor_label(v_receipt.business_id), 'CANCEL_SALE', p_receipt_id,
+            jsonb_build_object('total_amount', v_receipt.total_amount, 'debt_cleared', v_debt_amount));
 
     SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id;
     RETURN v_receipt;
@@ -796,6 +807,7 @@ DECLARE
     v_old_total numeric;
     v_new_total numeric;
     v_remaining integer;
+    v_debt_updated boolean := false;
     v_changes jsonb := '[]'::jsonb;
 BEGIN
     SELECT * INTO v_receipt FROM public.receipts WHERE id = p_receipt_id FOR UPDATE;
@@ -804,6 +816,9 @@ BEGIN
     END IF;
     IF v_receipt.status = 'cancelled' THEN
         RAISE EXCEPTION 'Cette vente est annulée : elle ne peut plus être modifiée.';
+    END IF;
+    IF EXISTS (SELECT 1 FROM public.debts WHERE receipt_id = p_receipt_id AND status = 'paid') THEN
+        RAISE EXCEPTION 'Cette vente à crédit a déjà été remboursée : elle ne peut plus être corrigée.';
     END IF;
     v_old_total := v_receipt.total_amount;
 
@@ -904,13 +919,21 @@ BEGIN
 
     IF v_new_total <> v_old_total THEN
         UPDATE public.receipts SET total_amount = v_new_total WHERE id = p_receipt_id;
+
+        -- La dette née de cette vente à crédit vaut ce que la vente vaut
+        -- désormais : sans ça, le client resterait redevable de l'ancien
+        -- montant après un échange.
+        UPDATE public.debts SET amount = v_new_total
+            WHERE receipt_id = p_receipt_id AND status <> 'paid';
+        v_debt_updated := FOUND;
     END IF;
 
     IF jsonb_array_length(v_changes) > 0 THEN
         INSERT INTO public.audit_logs (business_id, user_email, action, receipt_id, details)
         VALUES (
             v_receipt.business_id, public.current_actor_label(v_receipt.business_id), 'MODIFY_SALE', p_receipt_id,
-            jsonb_build_object('changes', v_changes, 'old_total', v_old_total, 'new_total', v_new_total)
+            jsonb_build_object('changes', v_changes, 'old_total', v_old_total, 'new_total', v_new_total,
+                               'debt_updated', v_debt_updated)
         );
     END IF;
 

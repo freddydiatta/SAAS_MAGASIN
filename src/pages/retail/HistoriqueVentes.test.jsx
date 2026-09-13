@@ -94,7 +94,7 @@ describe('HistoriqueVentes cancel/modify', () => {
         await user.click(screen.getByTitle('Annuler Vente'));
         await user.click(await screen.findByRole('button', { name: 'Oui, annuler' }));
 
-        expect(await screen.findByText(/erreur est survenue lors de l'annulation/)).toBeInTheDocument();
+        expect(await screen.findByText(/Cette vente est déjà annulée/)).toBeInTheDocument();
     });
 
     it('sends the updated quantity through the atomic modify_sale RPC', async () => {
