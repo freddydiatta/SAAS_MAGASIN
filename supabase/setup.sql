@@ -1068,6 +1068,12 @@ CREATE TABLE IF NOT EXISTS public.money_accounts (
     -- comptent, sinon les ventes déjà incluses dedans seraient comptées deux
     -- fois. Corriger le montant redate donc le point de départ.
     opening_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    -- Tout premier solde déclaré, à la création du compte, et jamais modifié
+    -- ensuite (created_at en donne la date). C'est ce que le commerce avait
+    -- déjà gagné avant l'application : le chiffre d'affaires total part de là.
+    -- Le garder à part d'opening_balance évite qu'il baisse tout seul quand
+    -- le commerçant redéclare un solde ou ajoute un deuxième compte.
+    initial_balance DECIMAL(12, 2) NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 

@@ -102,13 +102,20 @@ export function useFinances(selectedBusiness) {
     // Quand plusieurs comptes partagent un moyen (Wave et Orange Money), un
     // encaissement "mobile money" n'indique pas sur lequel il est arrivé :
     // le solde se raisonne donc par moyen, pas par compte, et les mouvements
-    // comptent à partir du point de départ le plus récent du groupe.
+    // comptent à partir du point de départ le PLUS ANCIEN du groupe.
+    //
+    // Le plus récent paraissait plus prudent, mais ajouter un deuxième compte
+    // (Orange Money déclaré à 0 aujourd'hui) décalait alors la frontière de
+    // tout le groupe et faisait disparaître les encaissements Wave des jours
+    // précédents — de l'argent bien réel, effacé par la création d'un compte
+    // vide. Un compte déclaré aujourd'hui ne contient rien du passé : partir
+    // de la déclaration la plus ancienne garde cet historique.
     const balanceFor = (kind, method) => {
         const group = accounts.filter((account) => account.kind === kind);
         if (group.length === 0) return null;
 
         const opening = group.reduce((sum, account) => sum + Number(account.opening_balance), 0);
-        const since = Math.max(...group.map((account) => new Date(account.opening_at).getTime()));
+        const since = Math.min(...group.map((account) => new Date(account.opening_at).getTime()));
         const after = (dateStr) => dateStr && new Date(dateStr).getTime() >= since;
 
         const salesIn = sales
@@ -141,29 +148,44 @@ export function useFinances(selectedBusiness) {
     const totalCashOut = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
         + receivedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
 
-    // Ce que le commerce avait déjà en main le jour où les comptes ont été
-    // déclarés. Ce n'est pas de l'argent venu d'ailleurs : le commerce tourne
-    // depuis des années, cette somme vient elle aussi des ventes — simplement
-    // de ventes faites avant qu'on ne les enregistre ici. Elle fait donc
-    // partie du chiffre d'affaires, au même titre que les ventes du jour.
-    const openingTotal = (cashBalance?.opening || 0) + (mobileBalance?.opening || 0);
+    // Ce que le commerce avait déjà gagné avant d'être suivi ici. Ce n'est pas
+    // de l'argent venu d'ailleurs : le commerce tourne depuis des années,
+    // cette somme vient elle aussi des ventes — simplement de ventes faites
+    // avant qu'on ne les enregistre. Elle fait donc partie du chiffre
+    // d'affaires, au même titre que les ventes du jour.
+    //
+    // On part de la TOUTE PREMIÈRE déclaration de chaque compte
+    // (initial_balance, figé à la création) et non du solde courant : celui-ci
+    // est redaté à chaque correction, et le chiffre d'affaires se serait mis à
+    // baisser tout seul le jour où le commerçant rectifie son tiroir-caisse.
+    const declaredAt = (account) => new Date(account.created_at || account.opening_at).getTime();
+    const revenueBeforeApp = accounts.reduce(
+        (sum, account) => sum + Number(account.initial_balance ?? account.opening_balance),
+        0
+    );
 
-    // Et comme ce montant contient déjà tout ce qui est rentré avant lui, on
-    // ne compte ensuite que les encaissements postérieurs — exactement la même
-    // frontière que les soldes ci-dessus, sinon une vente antérieure serait
-    // comptée deux fois. Sans point de départ déclaré, tout compte.
-    const declaredSince = [cashBalance, mobileBalance].filter(Boolean).map((b) => b.since);
-    const openingSince = (method) => {
-        if (method === 'cash') return cashBalance ? cashBalance.since : null;
-        if (method === 'mobile_money') return mobileBalance ? mobileBalance.since : null;
+    // Comme ce montant contient déjà tout ce qui était rentré avant lui, on ne
+    // compte ensuite que les encaissements postérieurs, sinon une vente
+    // antérieure serait comptée deux fois. Sans compte déclaré, tout compte.
+    const firstDeclaredAt = (kind) => {
+        const group = accounts.filter((account) => account.kind === kind);
+        return group.length > 0 ? Math.min(...group.map(declaredAt)) : null;
+    };
+    const cashDeclaredAt = firstDeclaredAt('cash');
+    const mobileDeclaredAt = firstDeclaredAt('mobile_money');
+
+    const revenueSince = (method) => {
+        if (method === 'cash') return cashDeclaredAt;
+        if (method === 'mobile_money') return mobileDeclaredAt;
         // Moyen inconnu (dette remboursée avant que le moyen ne soit
-        // enregistré) : impossible de le rattacher à un solde précis. On
-        // retient le point de départ le plus récent, le seul qui ne risque
-        // pas de faire compter cet encaissement une deuxième fois.
-        return declaredSince.length > 0 ? Math.max(...declaredSince) : null;
+        // enregistré) : impossible de le rattacher à un compte précis. On
+        // retient la déclaration la plus récente, la seule qui ne risque pas
+        // de faire compter cet encaissement une deuxième fois.
+        const known = [cashDeclaredAt, mobileDeclaredAt].filter((t) => t !== null);
+        return known.length > 0 ? Math.max(...known) : null;
     };
     const countsInRevenue = (method, dateStr) => {
-        const since = openingSince(method);
+        const since = revenueSince(method);
         if (since === null) return true;
         return !!dateStr && new Date(dateStr).getTime() >= since;
     };
@@ -176,7 +198,7 @@ export function useFinances(selectedBusiness) {
             .filter((d) => countsInRevenue(d.payment_method, d.paid_at || d.created_at))
             .reduce((sum, d) => sum + Number(d.amount), 0);
 
-    const totalRevenue = openingTotal + recordedRevenue;
+    const totalRevenue = revenueBeforeApp + recordedRevenue;
 
     // Dépenses de fonctionnement seules (transport, loyer...). Les achats de
     // stock en sont exclus volontairement : leur coût arrive dans le bénéfice
@@ -281,7 +303,7 @@ export function useFinances(selectedBusiness) {
         isLoading,
         totalRevenue,
         recordedRevenue,
-        openingTotal,
+        revenueBeforeApp,
         totalCashOut,
         revenueOfSoldGoods,
         costOfGoodsSold,

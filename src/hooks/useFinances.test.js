@@ -276,6 +276,47 @@ describe('useFinances', () => {
         expect(result.current.mobileBalance.current).toBe(5000 + 2000 - 700);
     });
 
+    it('keeps the history of an existing account when a second one is added on the same method', async () => {
+        // cas réel : Orange Money créé à 0 aujourd'hui, bien après Wave. Prendre
+        // la déclaration la plus récente du groupe effaçait les encaissements
+        // Wave des jours précédents — 7 800 F d'argent réel disparus du solde
+        // comme du chiffre d'affaires, sans qu'aucune vente ne soit touchée.
+        const waveOpenedAt = new Date(thisMonth.getTime() - 60 * 60 * 1000).toISOString();
+        const orangeOpenedAt = new Date(thisMonth.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Wave', kind: 'mobile_money', opening_balance: 39000, initial_balance: 39000, opening_at: waveOpenedAt, created_at: waveOpenedAt },
+            { id: 'a2', name: 'Orange Money', kind: 'mobile_money', opening_balance: 0, initial_balance: 0, opening_at: orangeOpenedAt, created_at: orangeOpenedAt },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // les 2 000 de vente Mobile Money comptent toujours
+        expect(result.current.mobileBalance.current).toBe(41000);
+        expect(result.current.revenueBeforeApp).toBe(39000);
+        // 2 000 Mobile Money + 1 500 de dette remboursée, plus les ventes en
+        // espèces (aucune caisse déclarée ici, donc rien ne les borne)
+        expect(result.current.recordedRevenue).toBe(2000 + 1500 + 3000 + 1000);
+    });
+
+    it('holds the total revenue steady when a balance is corrected afterwards', async () => {
+        // redéclarer un solde redate opening_at : si le chiffre d'affaires en
+        // dépendait, il baisserait tout seul à chaque correction du tiroir.
+        const createdAt = new Date(thisMonth.getTime() - 60 * 60 * 1000).toISOString();
+        const correctedAt = new Date(thisMonth.getTime() + 24 * 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 25000, initial_balance: 10000, opening_at: correctedAt, created_at: createdAt },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // le chiffre d'affaires part de la première déclaration (10 000) et
+        // garde les ventes enregistrées depuis
+        expect(result.current.revenueBeforeApp).toBe(10000);
+        expect(result.current.totalRevenue).toBe(10000 + 6500);
+        // le solde en main, lui, obéit bien à la correction la plus récente
+        expect(result.current.cashBalance.current).toBe(25000);
+    });
+
     it('counts what the shop had already earned before the app in the total revenue', async () => {
         // un commerce qui tourne depuis des années n'a pas de "capital de
         // départ" : les 15 000 déclarés viennent eux aussi de ses ventes,
@@ -288,7 +329,7 @@ describe('useFinances', () => {
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        expect(result.current.openingTotal).toBe(15000);
+        expect(result.current.revenueBeforeApp).toBe(15000);
         // 3 000 espèces + 2 000 Wave + 1 500 de dette remboursée ; la vente du
         // mois dernier est antérieure au point de départ, elle est déjà dedans
         expect(result.current.recordedRevenue).toBe(6500);

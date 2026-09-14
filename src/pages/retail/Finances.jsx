@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
-import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Percent, Banknote, Plus, Edit2, Trash2 } from 'lucide-react';
+import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Banknote, Plus, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMoneyAccounts } from '../../hooks/useMoneyAccounts';
 import { Modal } from '../../components/Modal';
@@ -66,8 +66,7 @@ export const Finances = () => {
     const {
         isLoading,
         totalRevenue,
-        openingTotal,
-        revenueOfSoldGoods,
+        revenueBeforeApp,
         netProfit,
         revenueThisMonth,
         profitThisMonth,
@@ -80,10 +79,6 @@ export const Finances = () => {
         productsWithoutCostPrice,
         productsWithoutCostPriceCount,
         projectedTotalProfit,
-        salesMargin,
-        salesWithoutCostCount,
-        costOfGoodsSold,
-        operatingExpenses,
         cashBalance,
         mobileBalance,
         totalOnHand,
@@ -122,8 +117,8 @@ export const Finances = () => {
                         avant l'application : sans ça, le chiffre d'affaires
                         était plus petit que l'argent réellement en main. */}
                     <p className="text-xs text-slate-400 mt-1">
-                        {openingTotal > 0
-                            ? <>Dont {formatFCFA(openingTotal)} FCFA gagnés avant l'application</>
+                        {revenueBeforeApp > 0
+                            ? <>Dont {formatFCFA(revenueBeforeApp)} FCFA gagnés avant l'application</>
                             : <>Tout ce que les ventes ont rapporté depuis le début</>}
                     </p>
                 </motion.div>
@@ -234,58 +229,6 @@ export const Finances = () => {
                         <span className="text-secondary font-medium">Total en main</span>
                         <span className="text-2xl font-bold text-accent">{isLoading ? '…' : formatFCFA(totalOnHand)}&nbsp;FCFA</span>
                     </div>
-                )}
-            </div>
-
-            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-emerald-500">
-                        <Percent className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-primary">D'où vient votre bénéfice</h2>
-                        <p className="text-xs text-secondary">Calculé sur les ventes passées dans l'application : ce sont les seules dont on connaît le prix d'achat. Ce prix est celui payé au moment de la vente — il ne bouge pas si vous réapprovisionnez plus cher ensuite.</p>
-                    </div>
-                </div>
-
-                {/* Le detail du calcul, ligne a ligne : un chiffre d'affaires
-                    eleve ne veut pas dire un benefice eleve, et c'est la
-                    marchandise vendue qui fait la difference. */}
-                <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                        <span className="text-secondary">Ventes enregistrées ici</span>
-                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(revenueOfSoldGoods)}&nbsp;FCFA</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-secondary">− Coût des marchandises vendues</span>
-                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(costOfGoodsSold)}&nbsp;FCFA</span>
-                    </div>
-                    <div className="flex justify-between pt-2 border-t border-slate-100 dark:border-border-theme">
-                        <span className="text-secondary">= Marge sur les ventes</span>
-                        <span className={`font-bold ${salesMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                            {isLoading ? '…' : formatFCFA(salesMargin)}&nbsp;FCFA
-                        </span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span className="text-secondary">− Dépenses (transport, loyer…)</span>
-                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(operatingExpenses)}&nbsp;FCFA</span>
-                    </div>
-                    <div className="flex justify-between pt-3 mt-1 border-t border-slate-100 dark:border-border-theme">
-                        <span className="font-bold text-primary">= Bénéfice net</span>
-                        <span className={`text-xl font-bold ${netProfit >= 0 ? 'text-accent' : 'text-red-500'}`}>
-                            {isLoading ? '…' : formatFCFA(netProfit)}&nbsp;FCFA
-                        </span>
-                    </div>
-                </div>
-
-                <p className="text-xs text-slate-400 mt-4">
-                    Vos achats de stock ne sont pas déduits ici : leur coût compte au moment où la marchandise est vendue. Le stock non vendu garde sa valeur, il n'est pas une perte.
-                </p>
-
-                {salesWithoutCostCount > 0 && (
-                    <p className="text-xs text-slate-400 mt-3">
-                        {salesWithoutCostCount} vente{salesWithoutCostCount > 1 ? 's' : ''} sans coût connu au moment de la vente (avant l'activation de ce suivi, ou produit sans prix d'achat renseigné), non comptée{salesWithoutCostCount > 1 ? 's' : ''}.
-                    </p>
                 )}
             </div>
 

@@ -14,12 +14,17 @@ export const fetchMoneyAccounts = async (businessId) => {
     return data || [];
 };
 
+// initial_balance est figé ici une fois pour toutes : c'est ce que le compte
+// contenait le jour où on l'a créé, donc ce que le commerce avait gagné avant
+// d'être suivi par l'application. Le chiffre d'affaires total en part, et
+// aucune correction de solde ultérieure ne doit le faire bouger.
 export const addMoneyAccount = async ({ businessId, name, kind, openingBalance }) => {
     const { error } = await supabase.from('money_accounts').insert([{
         business_id: businessId,
         name,
         kind,
         opening_balance: openingBalance,
+        initial_balance: openingBalance,
     }]);
     if (error) throw error;
 };

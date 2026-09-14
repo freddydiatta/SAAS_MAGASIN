@@ -42,14 +42,16 @@ describe('moneyAccountsService', () => {
         expect(data).toEqual([{ id: 'a1', name: 'Caisse' }]);
     });
 
-    it('addMoneyAccount stores the opening balance', async () => {
+    it('addMoneyAccount stores the opening balance, and freezes it as the initial one', async () => {
         const builder = createQueryBuilder({ data: null, error: null });
         fromMock.mockImplementation(() => builder);
 
         await addMoneyAccount({ businessId: 'biz-1', name: 'Wave', kind: 'mobile_money', openingBalance: 39000 });
 
+        // initial_balance ne bougera plus : c'est ce que le commerce avait
+        // gagné avant l'application, dont part le chiffre d'affaires total.
         expect(builder.insert).toHaveBeenCalledWith([{
-            business_id: 'biz-1', name: 'Wave', kind: 'mobile_money', opening_balance: 39000,
+            business_id: 'biz-1', name: 'Wave', kind: 'mobile_money', opening_balance: 39000, initial_balance: 39000,
         }]);
     });
 
