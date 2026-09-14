@@ -23,6 +23,9 @@ export function useDebts(selectedBusiness) {
     // le choix espèces/Mobile Money est ce qui permet ensuite de recouper la
     // caisse dans Finances et dans la caisse du jour.
     const [debtToSettle, setDebtToSettle] = useState(null);
+    // Montant saisi quand le client ne rembourse qu'une partie. Vide = il
+    // solde tout ce qu'il reste, le cas le plus courant au comptoir.
+    const [partialAmount, setPartialAmount] = useState('');
 
     const queryKey = ['debts', selectedBusiness?.id];
 
@@ -32,8 +35,11 @@ export function useDebts(selectedBusiness) {
         enabled: !!selectedBusiness,
     });
 
-    const unpaidDebts = debts.filter((d) => d.status !== 'paid');
-    const totalOwed = unpaidDebts.reduce((sum, d) => sum + Number(d.amount), 0);
+    // Une dette partiellement remboursée reste une dette en cours, mais ne
+    // pèse plus que ce qu'il en reste : un client qui devait 10 000 et a versé
+    // 5 000 ne doit plus 10 000.
+    const unpaidDebts = debts.filter((d) => !d.isSettled);
+    const totalOwed = unpaidDebts.reduce((sum, d) => sum + Number(d.remaining), 0);
 
     const addDebtMutation = useMutation({
         mutationFn: (debt) => addDebt({ businessId: selectedBusiness.id, ...debt }),
@@ -63,12 +69,16 @@ export function useDebts(selectedBusiness) {
 
     const markPaidMutation = useMutation({
         mutationFn: markDebtPaid,
-        onSuccess: () => {
+        onSuccess: (_result, variables) => {
             queryClient.invalidateQueries({ queryKey });
+            const settled = Number(variables.amount) >= Number(variables.remaining);
             setDebtToSettle(null);
-            toast.success('Dette marquée comme remboursée.');
+            setPartialAmount('');
+            toast.success(settled
+                ? 'Dette entièrement remboursée.'
+                : `Avance de ${Number(variables.amount).toLocaleString('fr-FR')} FCFA enregistrée.`);
         },
-        onError: () => toast.error('Erreur lors de la mise à jour de la dette.'),
+        onError: (error) => toast.error(error.message || 'Erreur lors de la mise à jour de la dette.'),
     });
 
     const deleteDebtMutation = useMutation({
@@ -117,11 +127,30 @@ export function useDebts(selectedBusiness) {
         }
     };
 
-    const handleMarkPaid = (debt) => setDebtToSettle(debt);
-    const closeSettleForm = () => setDebtToSettle(null);
+    const handleMarkPaid = (debt) => {
+        setPartialAmount('');
+        setDebtToSettle(debt);
+    };
+    const closeSettleForm = () => {
+        setDebtToSettle(null);
+        setPartialAmount('');
+    };
     const confirmRepayment = (paymentMethod) => {
         if (!debtToSettle) return;
-        markPaidMutation.mutate({ id: debtToSettle.id, paymentMethod });
+        const remaining = Number(debtToSettle.remaining);
+        // Champ laissé vide = le client solde tout ce qu'il reste.
+        const amount = partialAmount.trim() === '' ? remaining : Number(partialAmount);
+
+        if (!Number.isFinite(amount) || amount <= 0) {
+            toast.error('Indiquez un montant supérieur à 0.');
+            return;
+        }
+        if (amount > remaining) {
+            toast.error(`Ce client ne doit plus que ${remaining.toLocaleString('fr-FR')} FCFA.`);
+            return;
+        }
+
+        markPaidMutation.mutate({ id: debtToSettle.id, paymentMethod, amount, remaining });
     };
 
     const handleDelete = (debt) => setConfirmAction({ type: 'delete', item: debt });
@@ -155,6 +184,8 @@ export function useDebts(selectedBusiness) {
         debtToSettle,
         closeSettleForm,
         confirmRepayment,
+        partialAmount,
+        setPartialAmount,
         isSettlingDebt: markPaidMutation.isPending,
 
         confirmAction,

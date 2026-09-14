@@ -29,7 +29,7 @@ export const Dettes = () => {
         formData, setFormData,
         handleSubmit, handleMarkPaid, handleDelete, isSaving,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
-        debtToSettle, closeSettleForm, confirmRepayment, isSettlingDebt,
+        debtToSettle, closeSettleForm, confirmRepayment, partialAmount, setPartialAmount, isSettlingDebt,
     } = useDebts(selectedBusiness);
 
     const columns = [
@@ -71,22 +71,35 @@ export const Dettes = () => {
         },
         {
             key: 'amount',
-            header: 'Montant',
+            header: 'Reste à payer',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
             cellClassName: 'py-4 px-6 text-right font-bold text-primary',
-            render: (debt) => `${formatFCFA(debt.amount)} F`,
+            // Ce qui compte au comptoir, c'est ce que le client doit ENCORE.
+            // Le total d'origine reste visible en dessous dès qu'une avance a
+            // été versée, pour que la somme reste vérifiable.
+            render: (debt) => (
+                <>
+                    <div>{formatFCFA(debt.isSettled ? 0 : debt.remaining)}&nbsp;FCFA</div>
+                    {debt.amountPaid > 0 && (
+                        <div className="text-xs font-normal text-secondary mt-0.5">
+                            {formatFCFA(debt.amountPaid)} versés sur {formatFCFA(debt.amount)}
+                        </div>
+                    )}
+                </>
+            ),
         },
         {
             key: 'status',
             header: 'Statut',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-center',
             cellClassName: 'py-4 px-6 text-center',
-            render: (debt) => (
-                <StatusBadge
-                    label={debt.status === 'paid' ? 'Remboursé' : 'Non remboursé'}
-                    tone={debt.status === 'paid' ? 'emerald' : 'amber'}
-                />
-            ),
+            render: (debt) => {
+                // Trois états, pas deux : une avance versée n'est ni un
+                // remboursement complet, ni « rien payé ».
+                if (debt.isSettled) return <StatusBadge label="Remboursé" tone="emerald" />;
+                if (debt.amountPaid > 0) return <StatusBadge label="Partiellement payé" tone="blue" />;
+                return <StatusBadge label="Non remboursé" tone="amber" />;
+            },
         },
         {
             key: 'paid_at',
@@ -104,10 +117,10 @@ export const Dettes = () => {
             cellClassName: 'py-4 px-6 text-right',
             render: (debt) => (
                 <div className="flex justify-end gap-2">
-                    {debt.status !== 'paid' && (
+                    {!debt.isSettled && (
                         <button
                             onClick={() => handleMarkPaid(debt)}
-                            title="Marquer comme remboursé"
+                            title="Enregistrer un remboursement (total ou partiel)"
                             className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors"
                         >
                             <CheckCircle2 className="w-4 h-4" />
@@ -237,12 +250,45 @@ export const Dettes = () => {
                 {...(confirmAction ? CONFIRM_CONFIG[confirmAction.type](confirmAction.item) : {})}
             />
 
-            <Modal isOpen={!!debtToSettle} onClose={closeSettleForm} title="Comment a-t-il remboursé ?" maxWidth="max-w-sm">
+            <Modal isOpen={!!debtToSettle} onClose={closeSettleForm} title="Enregistrer un remboursement" maxWidth="max-w-sm">
                 {debtToSettle && (
                     <div className="space-y-4">
+                        <div className="rounded-xl bg-surface border border-slate-200 dark:border-border-theme p-3">
+                            <div className="flex justify-between text-sm">
+                                <span className="text-secondary">{debtToSettle.customer_name} doit encore</span>
+                                <span className="font-bold text-primary">{formatFCFA(debtToSettle.remaining)}&nbsp;FCFA</span>
+                            </div>
+                            {debtToSettle.amountPaid > 0 && (
+                                <p className="text-xs text-secondary mt-1">
+                                    Déjà versé : {formatFCFA(debtToSettle.amountPaid)} sur {formatFCFA(debtToSettle.amount)} FCFA
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Le client donne souvent une avance plutôt que la
+                            totalité : le champ vide vaut « il solde tout »,
+                            pour ne pas alourdir le geste le plus courant. */}
+                        <div>
+                            <label className="block text-sm font-semibold text-primary mb-1.5">
+                                Montant reçu aujourd'hui
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                value={partialAmount}
+                                onChange={(e) => setPartialAmount(e.target.value)}
+                                placeholder={`${formatFCFA(debtToSettle.remaining)} (tout)`}
+                                className="w-full bg-surface border border-slate-300 dark:border-border-theme rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-accent/50 text-primary"
+                            />
+                            <p className="text-xs text-slate-400 mt-1">
+                                Laissez vide s'il rembourse tout. Sinon, saisissez l'avance (par exemple 5 000).
+                            </p>
+                        </div>
+
                         <p className="text-secondary text-sm">
-                            {debtToSettle.customer_name} rembourse <span className="font-bold text-primary">{formatFCFA(debtToSettle.amount)} FCFA</span>.
-                            Le moyen choisi permet de retrouver cet argent dans la bonne colonne au moment de compter la caisse.
+                            Par quel moyen ? Ce choix permet de retrouver cet argent dans la bonne colonne au moment de compter la caisse.
                         </p>
                         <div className="grid grid-cols-2 gap-3">
                             <button

@@ -65,7 +65,18 @@ export function useFinances(selectedBusiness) {
     const isLoading = loadingSales || loadingExpenses || loadingDebts || loadingOrders || loadingProducts;
 
     const collectedSales = sales.filter(s => s.receipts?.payment_method !== 'credit');
-    const paidDebts = debts.filter(d => d.status === 'paid');
+
+    // Une dette se rembourse par tranches : ce qui rentre, ce sont les
+    // VERSEMENTS, chacun avec sa date et son moyen de paiement. Compter la
+    // dette entière le jour où elle se solde ferait apparaître une avance de
+    // 5 000 reçue lundi comme un encaissement du vendredi.
+    const paidDebts = debts.flatMap((debt) => (debt.payments || []).map((payment) => ({
+        id: payment.id,
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        paid_at: payment.paid_at,
+        created_at: payment.paid_at,
+    })));
 
     // Marge réelle sur les ventes : prix de vente moins le coût réellement
     // payé AU MOMENT de chaque vente (total_cost, figé par process_sale),
@@ -83,9 +94,13 @@ export function useFinances(selectedBusiness) {
     // prix d'achat renseigné à l'instant de la vente — leur marge est
     // inconnue plutôt que comptée comme 0.
     const salesWithoutCostCount = sales.length - salesWithKnownCost.length;
-    const pendingDebtsTotal = debts
-        .filter(d => d.status !== 'paid')
-        .reduce((sum, d) => sum + Number(d.amount), 0);
+    // Ce qui reste réellement dû : le montant d'origine moins les avances déjà
+    // encaissées. Une dette de 10 000 sur laquelle 5 000 ont été versés ne
+    // compte plus que pour 5 000.
+    const pendingDebtsTotal = debts.reduce((sum, debt) => {
+        const paid = (debt.payments || []).reduce((total, p) => total + Number(p.amount), 0);
+        return sum + Math.max(Number(debt.amount) - paid, 0);
+    }, 0);
 
     // Un bon de commande "en attente" n'est pas encore payé au fournisseur —
     // seul un bon "reçu" représente de l'argent réellement sorti (et donc

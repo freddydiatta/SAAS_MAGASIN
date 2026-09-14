@@ -752,8 +752,12 @@ BEGIN
         RAISE EXCEPTION 'Cette vente est déjà annulée.';
     END IF;
 
-    IF EXISTS (SELECT 1 FROM public.debts WHERE receipt_id = p_receipt_id AND status = 'paid') THEN
-        RAISE EXCEPTION 'Cette vente à crédit a déjà été remboursée : elle ne peut plus être annulée.';
+    -- Le moindre versement suffit à bloquer, pas seulement une dette soldée :
+    -- depuis les remboursements par tranches, une dette peut avoir déjà reçu
+    -- de l'argent tout en restant « unpaid », et cet argent se volatiliserait
+    -- avec la dette supprimée ci-dessous.
+    IF public.debt_has_payments(p_receipt_id) THEN
+        RAISE EXCEPTION 'Cette vente à crédit a déjà reçu un remboursement : elle ne peut plus être annulée.';
     END IF;
 
     -- Dette encore due : la vente disparaît, ce qu'elle devait aussi. Sans ça,
@@ -817,8 +821,9 @@ BEGIN
     IF v_receipt.status = 'cancelled' THEN
         RAISE EXCEPTION 'Cette vente est annulée : elle ne peut plus être modifiée.';
     END IF;
-    IF EXISTS (SELECT 1 FROM public.debts WHERE receipt_id = p_receipt_id AND status = 'paid') THEN
-        RAISE EXCEPTION 'Cette vente à crédit a déjà été remboursée : elle ne peut plus être corrigée.';
+    -- Idem : un versement déjà encaissé fige la vente, même partiel.
+    IF public.debt_has_payments(p_receipt_id) THEN
+        RAISE EXCEPTION 'Cette vente à crédit a déjà reçu un remboursement : elle ne peut plus être corrigée.';
     END IF;
     v_old_total := v_receipt.total_amount;
 

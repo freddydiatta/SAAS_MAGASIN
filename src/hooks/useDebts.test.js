@@ -39,9 +39,11 @@ describe('useDebts', () => {
         deleteDebtMock.mockReset();
         toastSuccessMock.mockReset();
         toastErrorMock.mockReset();
+        // fetchDebts enrichit chaque dette de ses versements (voir
+        // withDebtProgress) : c'est ce que le hook consomme.
         fetchDebtsMock.mockResolvedValue([
-            { id: 'd1', customer_name: 'Moussa', customer_phone: '77000', amount: 5000, note: 'Pièces moto', status: 'unpaid' },
-            { id: 'd2', customer_name: 'Awa', amount: 2000, status: 'paid' },
+            { id: 'd1', customer_name: 'Moussa', customer_phone: '77000', amount: 5000, note: 'Pièces moto', status: 'unpaid', payments: [], amountPaid: 0, remaining: 5000, isSettled: false },
+            { id: 'd2', customer_name: 'Awa', amount: 2000, status: 'paid', payments: [{ id: 'dp1', amount: 2000 }], amountPaid: 2000, remaining: 0, isSettled: true },
         ]);
     });
 
@@ -82,29 +84,64 @@ describe('useDebts', () => {
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
-        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
+        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000, remaining: 5000 }));
 
-        expect(result.current.debtToSettle).toEqual({ id: 'd1', customer_name: 'Moussa', amount: 5000 });
+        expect(result.current.debtToSettle).toMatchObject({ id: 'd1', customer_name: 'Moussa' });
         expect(markDebtPaidMock).not.toHaveBeenCalled();
     });
 
-    it('marks a debt paid with the chosen payment method', async () => {
+    it('settles the whole remaining amount when no figure is typed', async () => {
+        // le geste le plus courant au comptoir : le client solde tout, on ne
+        // lui demande donc pas de retaper le montant.
         markDebtPaidMock.mockResolvedValueOnce('d1');
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
-        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
+        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000, remaining: 5000 }));
         await act(async () => result.current.confirmRepayment('mobile_money'));
 
-        expect(markDebtPaidMock.mock.calls[0]?.[0]).toEqual({ id: 'd1', paymentMethod: 'mobile_money' });
+        expect(markDebtPaidMock.mock.calls[0]?.[0]).toEqual({
+            id: 'd1', paymentMethod: 'mobile_money', amount: 5000, remaining: 5000,
+        });
         await waitFor(() => expect(result.current.debtToSettle).toBeNull());
+    });
+
+    it('records a part payment when an amount is typed', async () => {
+        // le client doit 5 000 et donne 2 000 : l'avance est enregistree, la
+        // dette reste en cours pour le reste.
+        markDebtPaidMock.mockResolvedValueOnce('d1');
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
+        await waitFor(() => expect(result.current.debts).toHaveLength(2));
+
+        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000, remaining: 5000 }));
+        act(() => result.current.setPartialAmount('2000'));
+        await act(async () => result.current.confirmRepayment('cash'));
+
+        expect(markDebtPaidMock.mock.calls[0]?.[0]).toEqual({
+            id: 'd1', paymentMethod: 'cash', amount: 2000, remaining: 5000,
+        });
+    });
+
+    it('refuses an instalment larger than what is still owed', async () => {
+        // sinon la caisse encaisserait plus que ce que le client devait
+        const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
+        await waitFor(() => expect(result.current.debts).toHaveLength(2));
+
+        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000, remaining: 5000 }));
+        act(() => result.current.setPartialAmount('9000'));
+        await act(async () => result.current.confirmRepayment('cash'));
+
+        expect(markDebtPaidMock).not.toHaveBeenCalled();
+        // (le séparateur de milliers de toLocaleString est une espace fine
+        // insécable, pas une espace ordinaire — d'où le \s)
+        expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/ne doit plus que 5\s000 FCFA/));
     });
 
     it('does not mark paid when the repayment prompt is dismissed', async () => {
         const { result } = renderHookWithQueryClient(() => useDebts(BUSINESS));
         await waitFor(() => expect(result.current.debts).toHaveLength(2));
 
-        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000 }));
+        act(() => result.current.handleMarkPaid({ id: 'd1', customer_name: 'Moussa', amount: 5000, remaining: 5000 }));
         act(() => result.current.closeSettleForm());
 
         expect(markDebtPaidMock).not.toHaveBeenCalled();

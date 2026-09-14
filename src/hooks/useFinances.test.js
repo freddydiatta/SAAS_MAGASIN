@@ -59,9 +59,14 @@ const SALES = [
     { id: 's4', total_price: 1000, created_at: lastMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
 ];
 
+// Une dette porte désormais ses versements : c'est chaque versement qui entre
+// en caisse, à sa propre date, pas la dette entière le jour où elle se solde.
 const DEBTS = [
-    { id: 'd1', customer_name: 'Moussa', amount: 1500, status: 'paid', paid_at: thisMonth.toISOString() },
-    { id: 'd2', customer_name: 'Awa', amount: 800, status: 'unpaid' },
+    {
+        id: 'd1', customer_name: 'Moussa', amount: 1500, status: 'paid', paid_at: thisMonth.toISOString(),
+        payments: [{ id: 'dp1', amount: 1500, payment_method: null, paid_at: thisMonth.toISOString() }],
+    },
+    { id: 'd2', customer_name: 'Awa', amount: 800, status: 'unpaid', payments: [] },
 ];
 
 const EXPENSES = [
@@ -182,7 +187,10 @@ describe('useFinances', () => {
         fetchAllSalesMock.mockResolvedValue([]);
         fetchExpensesMock.mockResolvedValue([]);
         fetchDebtsMock.mockResolvedValue([
-            { id: 'd1', amount: 5000, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash' },
+            {
+                id: 'd1', amount: 5000, status: 'paid', paid_at: thisMonth.toISOString(), payment_method: 'cash',
+                payments: [{ id: 'dp1', amount: 5000, payment_method: 'cash', paid_at: thisMonth.toISOString() }],
+            },
         ]);
         const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -191,6 +199,26 @@ describe('useFinances', () => {
         expect(result.current.totalRevenue).toBe(5000);
         // ...mais récupérer une créance ne crée aucune marge
         expect(result.current.netProfit).toBe(0);
+    });
+
+    it('counts an instalment on the day it was received, and only what is still owed', async () => {
+        // un client doit 10 000 et donne 5 000 : l'avance entre en caisse tout
+        // de suite, et il ne reste plus que 5 000 en attente. Compter la dette
+        // entière au moment du solde daterait cette avance du mauvais jour.
+        fetchAllSalesMock.mockResolvedValue([]);
+        fetchExpensesMock.mockResolvedValue([]);
+        fetchDebtsMock.mockResolvedValue([
+            {
+                id: 'd1', customer_name: 'Awa', amount: 10000, status: 'unpaid',
+                payments: [{ id: 'dp1', amount: 5000, payment_method: 'cash', paid_at: thisMonth.toISOString() }],
+            },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        expect(result.current.totalRevenue).toBe(5000);
+        expect(result.current.revenueThisMonth).toBe(5000);
+        expect(result.current.pendingDebtsTotal).toBe(5000);
     });
 
     it('computes the potential profit of the current stock, excluding products with no cost price', async () => {

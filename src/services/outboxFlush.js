@@ -5,8 +5,8 @@ import {
     insertExpenseRow, deleteExpenseRow,
 } from './expensesService';
 import {
-    DEBT_ADD, DEBT_UPDATE, DEBT_PAY, DEBT_DELETE,
-    insertDebtRow, updateDebtRow, markDebtPaidRow, deleteDebtRow,
+    DEBT_ADD, DEBT_UPDATE, DEBT_PAY, DEBT_DELETE, DEBT_PAYMENT_DELETE,
+    insertDebtRow, updateDebtRow, markDebtPaidRow, deleteDebtRow, deleteDebtPaymentRow,
 } from './debtsService';
 import {
     PRODUCT_ADD, PRODUCT_UPDATE, PRODUCT_DELETE,
@@ -52,6 +52,7 @@ const HANDLERS = {
     [DEBT_ADD]: (payload) => insertDebtRow(payload),
     [DEBT_UPDATE]: (payload) => updateDebtRow(payload),
     [DEBT_PAY]: (payload) => markDebtPaidRow(payload),
+    [DEBT_PAYMENT_DELETE]: (payload) => deleteDebtPaymentRow(payload),
     [DEBT_DELETE]: (payload) => deleteDebtRow(payload.id),
 
     [PRODUCT_ADD]: (payload) => insertProductRow(payload),
