@@ -158,8 +158,8 @@ export const Fournisseurs = () => {
             key: 'total',
             header: 'Total',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
-            cellClassName: 'px-6 py-4 text-right font-bold text-primary',
-            render: (order) => `${Number(order.total_amount).toLocaleString('fr-FR')} F`,
+            cellClassName: 'px-6 py-4 text-right font-bold text-primary whitespace-nowrap',
+            render: (order) => `${Number(order.total_amount).toLocaleString('fr-FR')} FCFA`,
         },
         {
             key: 'status',
@@ -205,12 +205,17 @@ export const Fournisseurs = () => {
                             >
                                 <Edit2 className="w-4 h-4" />
                             </button>
+                            {/* Seule action écrite en toutes lettres : c'est celle
+                                qu'on fait à chaque livraison, et une icône de
+                                colis seule ne disait pas qu'elle valide la
+                                réception et fait entrer le stock. */}
                             <button
                                 onClick={() => handleReceiveOrder(order)}
-                                title="Marquer comme reçu (met à jour le stock)"
-                                className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-500/10 rounded-lg transition-colors"
+                                title="Valider la réception : joindre la facture, choisir le paiement, mettre le stock à jour"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
                             >
                                 <PackageCheck className="w-4 h-4" />
+                                Réceptionner
                             </button>
                             <button
                                 onClick={() => handleCancelOrder(order)}
