@@ -77,3 +77,34 @@ export const monthKeyFromOffset = (monthsAgo, from = new Date()) => {
     const totalMonths = year * 12 + (month - 1) - monthsAgo;
     return { key: `${Math.floor(totalMonths / 12)}-${totalMonths % 12}`, monthIndex: totalMonths % 12, year: Math.floor(totalMonths / 12) };
 };
+
+// Heure (0-23), jour de la semaine et jour calendaire tels qu'ils se lisent à
+// Dakar. Servent aux analyses de ventes : « à quelle heure ça marche le
+// mieux » n'a de sens que dans l'heure du commerce, pas celle de l'appareil.
+const zonedParts = (value) => {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: BUSINESS_TIME_ZONE,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', hour12: false, weekday: 'short',
+    }).formatToParts(toDate(value));
+    const get = (type) => parts.find((part) => part.type === type).value;
+    return {
+        year: Number(get('year')),
+        month: Number(get('month')),
+        day: Number(get('day')),
+        // hour12: false rend minuit "24" sur certains moteurs.
+        hour: Number(get('hour')) % 24,
+        weekday: get('weekday'),
+    };
+};
+
+export const zonedHour = (value) => zonedParts(value).hour;
+
+// 0 = lundi ... 6 = dimanche : la semaine d'un commerçant commence le lundi.
+const WEEKDAY_INDEX = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+export const zonedWeekday = (value) => WEEKDAY_INDEX[zonedParts(value).weekday];
+
+export const zonedDayKey = (value) => {
+    const { year, month, day } = zonedParts(value);
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+};

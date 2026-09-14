@@ -12,8 +12,6 @@ import { useMoneyAccounts } from './useMoneyAccounts';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 
-const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-
 // Vue d'ensemble des gains réels du commerce (chiffre d'affaires total,
 // bénéfice, tendance mensuelle) — contrairement à "Caisse du jour"
 // (RetailDashboard), qui ne montre que la journée en cours. Même définition
@@ -240,19 +238,12 @@ export function useFinances(selectedBusiness) {
         revenueByMonth[key] = (revenueByMonth[key] || 0) + Number(d.amount);
     });
 
-    // Deux regroupements distincts, pour deux questions différentes :
-    // cashOutByMonth alimente le graphique des entrées/sorties, tandis que le
-    // bénéfice du mois ne retient que les frais de fonctionnement.
-    const cashOutByMonth = {};
+    // Le bénéfice du mois ne retient que les frais de fonctionnement : les
+    // achats de stock arrivent dans le bénéfice via le coût des ventes.
     const operatingExpensesByMonth = {};
     expenses.forEach(e => {
         const key = monthKey(e.created_at);
-        cashOutByMonth[key] = (cashOutByMonth[key] || 0) + Number(e.amount);
         operatingExpensesByMonth[key] = (operatingExpensesByMonth[key] || 0) + Number(e.amount);
-    });
-    receivedOrders.forEach(o => {
-        const key = monthKey(o.received_at || o.created_at);
-        cashOutByMonth[key] = (cashOutByMonth[key] || 0) + Number(o.total_amount);
     });
 
     const marginByMonth = {};
@@ -275,19 +266,6 @@ export function useFinances(selectedBusiness) {
     const percentChangeMonth = revenueLastMonth > 0
         ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
         : (revenueThisMonth > 0 ? 100 : 0);
-
-    // --- Tendance sur les 6 derniers mois ---
-    const monthlyTrend = [];
-    for (let i = 5; i >= 0; i--) {
-        const { key, monthIndex, year } = monthKeyFromOffset(i, now);
-        const revenue = revenueByMonth[key] || 0;
-        const monthCashOut = cashOutByMonth[key] || 0;
-        monthlyTrend.push({
-            name: `${MONTH_LABELS[monthIndex]} ${year}`,
-            revenue,
-            expenses: monthCashOut,
-        });
-    }
 
     // --- Potentiel du stock restant ---
     // Ce que rapporterait le stock actuel s'il était entièrement vendu — un
@@ -334,13 +312,16 @@ export function useFinances(selectedBusiness) {
         mobileBalance,
         totalOnHand,
         pendingDebtsTotal,
-        monthlyTrend,
         stockSaleValue,
         stockCost,
         stockPotentialProfit,
         productsWithoutCostPrice,
         productsWithoutCostPriceCount,
         projectedTotalProfit,
+        // Données brutes pour les analyses de ventes (voir SalesInsights) : déjà
+        // chargées ici, inutile de refaire les requêtes.
+        sales,
+        products,
         formatFCFA,
     };
 }

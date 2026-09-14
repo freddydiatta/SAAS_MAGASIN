@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../../contexts/BusinessContext';
 import { useFinances } from '../../hooks/useFinances';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { DollarSign, Wallet, TrendingUp, TrendingDown, HandCoins, Package, Banknote, Plus, Edit2, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMoneyAccounts } from '../../hooks/useMoneyAccounts';
 import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
 import { formatDate } from '../../lib/dates';
+import { SalesInsights } from '../../components/SalesInsights';
 
 // Ce qu'il reste sur un moyen de paiement : le point de départ déclaré, que
 // les ventes et les dépenses font ensuite monter ou descendre tout seul. Le
@@ -25,9 +25,9 @@ const MethodBalance = ({ label, balance, accounts, emptyLabel, isLoading, format
                 {/* D'où vient le chiffre : sans ça, un solde calculé qui ne
                     correspond pas au tiroir n'est pas vérifiable. */}
                 <p className="text-xs text-slate-400 mt-1">
-                    Départ {formatFCFA(balance.opening)} F le {formatDate(balance.since, { day: 'numeric', month: 'short' })}
+                    Départ {formatFCFA(balance.opening)}&nbsp;FCFA le {formatDate(balance.since, { day: 'numeric', month: 'short' })}
                     {balance.movements !== 0 && (
-                        <> · {balance.movements > 0 ? '+' : '−'} {formatFCFA(Math.abs(balance.movements))} F depuis</>
+                        <> · {balance.movements > 0 ? '+' : '−'} {formatFCFA(Math.abs(balance.movements))}&nbsp;FCFA depuis</>
                     )}
                 </p>
 
@@ -72,7 +72,6 @@ export const Finances = () => {
         profitThisMonth,
         percentChangeMonth,
         pendingDebtsTotal,
-        monthlyTrend,
         stockSaleValue,
         stockCost,
         stockPotentialProfit,
@@ -82,6 +81,8 @@ export const Finances = () => {
         cashBalance,
         mobileBalance,
         totalOnHand,
+        sales,
+        products,
         formatFCFA,
     } = useFinances(selectedBusiness);
 
@@ -287,26 +288,11 @@ export const Finances = () => {
                 )}
             </div>
 
-            <div className="bg-panel rounded-3xl p-8 shadow-premium border border-slate-100 dark:border-border-theme">
-                <h2 className="text-lg font-bold text-primary mb-1">Entrées et sorties d'argent — 6 derniers mois</h2>
-                <p className="text-xs text-secondary mb-6">Les sorties incluent les achats de stock : c'est votre trésorerie, pas votre bénéfice.</p>
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={monthlyTrend}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                            <Tooltip
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px -2px rgba(0,0,0,0.05)' }}
-                                formatter={(value) => `${Number(value).toLocaleString('fr-FR')} FCFA`}
-                            />
-                            <Legend />
-                            <Bar dataKey="revenue" name="Entrées" fill="#10B981" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="expenses" name="Sorties" fill="#D96645" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
+            {/* Remplace l'ancien graphique des entrées et sorties d'argent : avec un
+                seul mois d'historique il n'apprenait rien, et même plein il ne
+                disait pas quoi faire. Ici, chaque bloc débouche sur une décision
+                (mettre en avant, recommander, être au comptoir). */}
+            <SalesInsights sales={sales} products={products} isLoading={isLoading} formatFCFA={formatFCFA} />
 
             <Modal
                 isOpen={isFormOpen}

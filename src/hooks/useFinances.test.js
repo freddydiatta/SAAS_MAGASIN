@@ -117,16 +117,6 @@ describe('useFinances', () => {
         expect(result.current.percentChangeMonth).toBe(550);
     });
 
-    it('produces a 6-month trend with the current month last', async () => {
-        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
-        await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-        expect(result.current.monthlyTrend).toHaveLength(6);
-        const currentMonthEntry = result.current.monthlyTrend[5];
-        // le graphique montre la trésorerie : entrées et sorties, sans bénéfice
-        expect(currentMonthEntry).toMatchObject({ revenue: 6500, expenses: 700 });
-    });
-
     it('returns 0% change (not a divide-by-zero) with no revenue at all', async () => {
         fetchAllSalesMock.mockResolvedValue([]);
         fetchDebtsMock.mockResolvedValue([]);
