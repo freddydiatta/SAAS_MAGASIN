@@ -43,9 +43,9 @@ describe('suppliersService', () => {
 
         await addSupplier({ businessId: 'biz-1', name: 'Import Moto', contactName: '', phone: '', email: '' });
 
-        expect(builder.insert).toHaveBeenCalledWith([{
+        expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({
             business_id: 'biz-1', name: 'Import Moto', contact_name: null, phone: null, email: null,
-        }]);
+        })]);
     });
 
     it('updateSupplier defaults blank optional fields to null', async () => {

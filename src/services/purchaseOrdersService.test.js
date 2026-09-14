@@ -45,10 +45,14 @@ describe('purchaseOrdersService', () => {
             items: [{ productId: 'p1', quantity: 5, unitCost: 300 }],
         });
 
+        // p_id est tiré côté client : le bon garde le même identifiant même
+        // s'il a été passé hors-ligne, donc on peut le recevoir ou le
+        // corriger avant le retour du réseau.
         expect(rpcMock).toHaveBeenCalledWith('create_purchase_order', {
             p_business_id: 'biz-1',
             p_supplier_id: 's1',
             p_items: [{ product_id: 'p1', quantity: 5, unit_cost: 300 }],
+            p_id: expect.any(String),
         });
     });
 

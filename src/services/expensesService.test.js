@@ -42,9 +42,14 @@ describe('expensesService', () => {
 
         await addExpense({ businessId: 'biz-1', category: 'transport', label: '', amount: 500, createdBy: 'owner@test.com' });
 
-        expect(builder.insert).toHaveBeenCalledWith([{
+        // id et created_at sont tirés côté client : la ligne est complète dès
+        // la saisie, pour pouvoir être rejouée telle quelle après une coupure.
+        expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({
             business_id: 'biz-1', category: 'transport', label: null, amount: 500, created_by: 'owner@test.com',
-        }]);
+        })]);
+        const [[row]] = builder.insert.mock.calls[0];
+        expect(row.id).toEqual(expect.any(String));
+        expect(row.created_at).toEqual(expect.any(String));
     });
 
     it('deleteExpense removes the row by id', async () => {

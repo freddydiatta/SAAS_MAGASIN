@@ -10,11 +10,13 @@ export const OfflineStatusBadge = () => {
 
     if (isOnline && pendingCount === 0) return null;
 
+    // "opération" plutôt que "vente" : la file contient désormais aussi les
+    // dépenses, les dettes, les produits et les fournisseurs saisis sans réseau.
     const label = !isOnline
         ? (pendingCount > 0
-            ? `Hors-ligne · ${pendingCount} vente${pendingCount > 1 ? 's' : ''} en attente`
+            ? `Hors-ligne · ${pendingCount} opération${pendingCount > 1 ? 's' : ''} en attente`
             : 'Hors-ligne')
-        : `Synchronisation de ${pendingCount} vente${pendingCount > 1 ? 's' : ''}...`;
+        : `Synchronisation de ${pendingCount} opération${pendingCount > 1 ? 's' : ''}...`;
 
     return (
         <StatusBadge

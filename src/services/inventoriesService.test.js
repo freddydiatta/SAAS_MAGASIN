@@ -56,8 +56,11 @@ describe('inventoriesService', () => {
 
         const result = await startInventory({ businessId: 'biz-1', note: 'Septembre' });
 
+        // p_items reste nul en ligne : le serveur constitue lui-même la liste
+        // depuis les produits, c'est la source la plus fraîche. Hors-ligne,
+        // c'est l'appareil qui la fournit (voir le test plus bas).
         expect(rpcMock).toHaveBeenCalledWith('start_inventory', {
-            p_business_id: 'biz-1', p_note: 'Septembre',
+            p_business_id: 'biz-1', p_note: 'Septembre', p_id: expect.any(String), p_items: null,
         });
         expect(result).toEqual({ id: 'inv1', status: 'draft' });
     });

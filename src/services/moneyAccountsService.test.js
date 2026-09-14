@@ -50,9 +50,9 @@ describe('moneyAccountsService', () => {
 
         // initial_balance ne bougera plus : c'est ce que le commerce avait
         // gagné avant l'application, dont part le chiffre d'affaires total.
-        expect(builder.insert).toHaveBeenCalledWith([{
+        expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({
             business_id: 'biz-1', name: 'Wave', kind: 'mobile_money', opening_balance: 39000, initial_balance: 39000,
-        }]);
+        })]);
     });
 
     it('updateMoneyAccount redates the starting point, so past sales are not counted twice', async () => {

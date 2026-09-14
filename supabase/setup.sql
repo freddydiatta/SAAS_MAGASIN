@@ -1492,10 +1492,15 @@ CREATE INDEX idx_purchase_orders_business_id ON public.purchase_orders (business
 -- fonctionnement que process_sale : boucle de validation d'abord, insertion
 -- ensuite). SECURITY INVOKER : s'appuie sur les policies RLS ci-dessus
 -- (is_business_member) pour l'autorisation, comme process_sale/cancel_sale.
+-- p_id : identifiant fourni par le client. Indispensable pour une commande
+-- passée hors-ligne (voir src/services/outbox.js) — le commerçant peut alors
+-- enchaîner sur ce bon sans attendre le réseau, et un rejeu bute sur la clé
+-- primaire au lieu de créer un doublon.
 CREATE OR REPLACE FUNCTION public.create_purchase_order(
     p_business_id uuid,
     p_supplier_id uuid,
-    p_items jsonb -- [{ "product_id": uuid, "quantity": int, "unit_cost": numeric }, ...]
+    p_items jsonb, -- [{ "product_id": uuid, "quantity": int, "unit_cost": numeric }, ...]
+    p_id uuid DEFAULT NULL
 )
 RETURNS public.purchase_orders
 LANGUAGE plpgsql
@@ -1532,8 +1537,8 @@ BEGIN
         v_total := v_total + (v_unit_cost * v_qty);
     END LOOP;
 
-    INSERT INTO public.purchase_orders (business_id, supplier_id, status, total_amount)
-    VALUES (p_business_id, p_supplier_id, 'pending', v_total)
+    INSERT INTO public.purchase_orders (id, business_id, supplier_id, status, total_amount)
+    VALUES (COALESCE(p_id, gen_random_uuid()), p_business_id, p_supplier_id, 'pending', v_total)
     RETURNING * INTO v_order;
 
     FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
@@ -1550,7 +1555,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.create_purchase_order(uuid, uuid, jsonb) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.create_purchase_order(uuid, uuid, jsonb, uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.create_purchase_order(uuid, uuid, jsonb, uuid) TO authenticated;
 
 -- Réception : augmente le stock de chaque produit de la quantité commandée
 -- et aligne son prix d'achat (cost_price) sur celui payé sur ce bon — c'est
@@ -1877,9 +1883,16 @@ CREATE INDEX idx_inventories_business_id ON public.inventories (business_id, cre
 -- Démarre un inventaire : fige le stock théorique de chaque produit du
 -- commerce dans une ligne d'inventory_items (counted_quantity NULL tant que
 -- non compté). SECURITY INVOKER, comme create_purchase_order.
+-- p_id / p_items : pour un inventaire démarré hors-ligne. Le serveur ne peut
+-- alors pas constituer la liste des articles à compter — c'est l'appareil qui
+-- a le catalogue en cache — donc il la fournit, identifiant de chaque ligne
+-- compris, pour que le comptage démarre tout de suite et se rejoue tel quel.
+-- Sans p_items, la liste est dérivée des produits comme auparavant.
 CREATE OR REPLACE FUNCTION public.start_inventory(
     p_business_id uuid,
-    p_note text
+    p_note text,
+    p_id uuid DEFAULT NULL,
+    p_items jsonb DEFAULT NULL -- [{ "id": uuid, "product_id": uuid, "product_name": text, "expected_quantity": int }, ...]
 )
 RETURNS public.inventories
 LANGUAGE plpgsql
@@ -1888,20 +1901,33 @@ AS $$
 DECLARE
     v_inventory public.inventories;
 BEGIN
-    INSERT INTO public.inventories (business_id, status, note, created_by)
-    VALUES (p_business_id, 'draft', p_note, public.current_actor_label(p_business_id))
+    INSERT INTO public.inventories (id, business_id, status, note, created_by)
+    VALUES (COALESCE(p_id, gen_random_uuid()), p_business_id, 'draft', p_note, public.current_actor_label(p_business_id))
     RETURNING * INTO v_inventory;
 
-    INSERT INTO public.inventory_items (inventory_id, business_id, product_id, product_name, expected_quantity)
-    SELECT v_inventory.id, p_business_id, id, name, stock_quantity
-    FROM public.products
-    WHERE business_id = p_business_id;
+    IF p_items IS NULL THEN
+        INSERT INTO public.inventory_items (inventory_id, business_id, product_id, product_name, expected_quantity)
+        SELECT v_inventory.id, p_business_id, id, name, stock_quantity
+        FROM public.products
+        WHERE business_id = p_business_id;
+    ELSE
+        INSERT INTO public.inventory_items (id, inventory_id, business_id, product_id, product_name, expected_quantity)
+        SELECT
+            COALESCE((item->>'id')::uuid, gen_random_uuid()),
+            v_inventory.id,
+            p_business_id,
+            (item->>'product_id')::uuid,
+            item->>'product_name',
+            (item->>'expected_quantity')::integer
+        FROM jsonb_array_elements(p_items) AS item;
+    END IF;
 
     RETURN v_inventory;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.start_inventory(uuid, text) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.start_inventory(uuid, text, uuid, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.start_inventory(uuid, text, uuid, jsonb) TO authenticated;
 
 -- Valide l'inventaire : applique le compté comme nouveau stock pour chaque
 -- article réellement compté et dont le compté diffère du théorique figé au

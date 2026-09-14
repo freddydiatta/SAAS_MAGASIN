@@ -44,9 +44,11 @@ describe('debtsService', () => {
 
         await addDebt({ businessId: 'biz-1', customerName: 'Moussa Diop', customerPhone: '', amount: 5000, note: '' });
 
-        expect(builder.insert).toHaveBeenCalledWith([{
+        // id et created_at tirés côté client, pour que la ligne soit rejouable
+        // telle quelle si elle a été saisie hors-ligne.
+        expect(builder.insert).toHaveBeenCalledWith([expect.objectContaining({
             business_id: 'biz-1', customer_name: 'Moussa Diop', customer_phone: null, amount: 5000, note: null, receipt_id: null,
-        }]);
+        })]);
     });
 
     it('addDebt stores the linked receipt id when a credit sale created it', async () => {

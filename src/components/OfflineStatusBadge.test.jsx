@@ -14,7 +14,7 @@ describe('OfflineStatusBadge', () => {
         useOfflineStatusMock.mockReset();
     });
 
-    it('renders nothing when online with no pending sales', () => {
+    it('renders nothing when online with nothing pending', () => {
         useOfflineStatusMock.mockReturnValue({ isOnline: true, pendingCount: 0 });
         const { container } = renderWithQueryClient(<OfflineStatusBadge />);
 
@@ -32,13 +32,13 @@ describe('OfflineStatusBadge', () => {
         useOfflineStatusMock.mockReturnValue({ isOnline: false, pendingCount: 2 });
         renderWithQueryClient(<OfflineStatusBadge />);
 
-        expect(await screen.findByText(/Hors-ligne · 2 ventes en attente/)).toBeInTheDocument();
+        expect(await screen.findByText(/Hors-ligne · 2 opérations en attente/)).toBeInTheDocument();
     });
 
-    it('shows a syncing message when back online with sales still queued', async () => {
+    it('shows a syncing message when back online with writes still queued', async () => {
         useOfflineStatusMock.mockReturnValue({ isOnline: true, pendingCount: 1 });
         renderWithQueryClient(<OfflineStatusBadge />);
 
-        expect(await screen.findByText(/Synchronisation de 1 vente\.\.\./)).toBeInTheDocument();
+        expect(await screen.findByText(/Synchronisation de 1 opération\.\.\./)).toBeInTheDocument();
     });
 });

@@ -1,15 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { get, set } from 'idb-keyval';
 import { saveOfflineSale, syncOfflineSales, getOfflineSalesCount } from './syncService';
-
-const { getMock, setMock } = vi.hoisted(() => ({
-    getMock: vi.fn(),
-    setMock: vi.fn(),
-}));
-
-vi.mock('idb-keyval', () => ({
-    get: getMock,
-    set: setMock,
-}));
+import { readOutbox } from './outbox';
 
 function createDebtsInsertBuilder(result) {
     const builder = {
@@ -36,59 +28,59 @@ vi.mock('react-hot-toast', () => ({
 
 const onlineSpy = vi.spyOn(navigator, 'onLine', 'get');
 
+const CART = [{ id: 'p1', name: 'Casque', type: 'moto', price: 1000, quantity: 2 }];
+
 describe('saveOfflineSale', () => {
     beforeEach(() => {
-        getMock.mockReset();
-        setMock.mockReset();
+        onlineSpy.mockReturnValue(false);
     });
 
-    it('queues a receipt with line items derived from the cart', async () => {
-        getMock.mockResolvedValueOnce([]);
-
-        const cart = [{ id: 'p1', name: 'Casque', type: 'moto', price: 1000, quantity: 2 }];
-        const receipt = await saveOfflineSale('biz-1', cart, 'Client Test', '77000', 2000, 'cash');
+    it('queues the sale and returns a provisional receipt for the screen', async () => {
+        const receipt = await saveOfflineSale('biz-1', CART, 'Client Test', '77000', 2000, 'cash');
 
         expect(receipt.business_id).toBe('biz-1');
         expect(receipt.total_amount).toBe(2000);
         expect(receipt.sales).toHaveLength(1);
         expect(receipt.sales[0]).toMatchObject({ product_id: 'p1', quantity: 2, total_price: 2000 });
 
-        expect(setMock).toHaveBeenCalledWith('offline_sales', [receipt]);
+        const entries = await readOutbox();
+        expect(entries).toHaveLength(1);
+        expect(entries[0]).toMatchObject({
+            kind: 'sale.process',
+            businessId: 'biz-1',
+            payload: { paymentMethod: 'cash', total: 2000, items: [{ product_id: 'p1', quantity: 2 }] },
+        });
     });
 
-    it('appends to any sales already queued', async () => {
-        const existing = { id: 'temp-existing', sales: [] };
-        getMock.mockResolvedValueOnce([existing]);
+    it('appends to whatever is already queued, sales or not', async () => {
+        await saveOfflineSale('biz-1', CART, '', '', 500, 'cash');
+        await saveOfflineSale('biz-1', CART, '', '', 700, 'cash');
 
-        const cart = [{ id: 'p1', name: 'Casque', price: 500, quantity: 1 }];
-        await saveOfflineSale('biz-1', cart, '', '', 500, 'cash');
-
-        const [, queued] = setMock.mock.calls[0];
-        expect(queued).toHaveLength(2);
-        expect(queued[0]).toBe(existing);
+        const entries = await readOutbox();
+        expect(entries.map((e) => e.payload.total)).toEqual([500, 700]);
     });
 });
 
 describe('getOfflineSalesCount', () => {
-    beforeEach(() => {
-        getMock.mockReset();
-    });
+    it('counts only the sales in the shared queue', async () => {
+        onlineSpy.mockReturnValue(false);
+        await saveOfflineSale('biz-1', CART, '', '', 500, 'cash');
+        // une écriture d'un autre type ne doit pas être comptée comme une vente
+        await set('offline_outbox', [
+            ...(await get('offline_outbox')),
+            { id: 'x', kind: 'expense.add', payload: {}, attempts: 0 },
+        ]);
 
-    it('returns the number of queued receipts', async () => {
-        getMock.mockResolvedValueOnce([{ id: 'temp-1' }, { id: 'temp-2' }]);
-        await expect(getOfflineSalesCount()).resolves.toBe(2);
+        await expect(getOfflineSalesCount()).resolves.toBe(1);
     });
 
     it('returns 0 when nothing is queued yet', async () => {
-        getMock.mockResolvedValueOnce(undefined);
         await expect(getOfflineSalesCount()).resolves.toBe(0);
     });
 });
 
 describe('syncOfflineSales', () => {
     beforeEach(() => {
-        getMock.mockReset();
-        setMock.mockReset();
         rpcMock.mockReset();
         fromMock.mockReset();
         toastErrorMock.mockReset();
@@ -96,35 +88,37 @@ describe('syncOfflineSales', () => {
         onlineSpy.mockReturnValue(true);
     });
 
+    const queueSale = async (overrides = {}) => {
+        onlineSpy.mockReturnValue(false);
+        await saveOfflineSale(
+            overrides.businessId || 'biz-1',
+            overrides.cart || CART,
+            overrides.customerName ?? 'Client',
+            overrides.customerPhone ?? '77000',
+            overrides.total ?? 2000,
+            overrides.paymentMethod || 'cash'
+        );
+        onlineSpy.mockReturnValue(true);
+    };
+
     it('does nothing when the browser is offline', async () => {
+        await queueSale();
         onlineSpy.mockReturnValue(false);
 
         await syncOfflineSales();
 
-        expect(getMock).not.toHaveBeenCalled();
         expect(rpcMock).not.toHaveBeenCalled();
+        expect(await readOutbox()).toHaveLength(1);
     });
 
-    it('does nothing when there is no queued sale', async () => {
-        getMock.mockResolvedValueOnce([]);
-
+    it('does nothing when there is no queued write', async () => {
         await syncOfflineSales();
-
         expect(rpcMock).not.toHaveBeenCalled();
-        expect(setMock).not.toHaveBeenCalled();
     });
 
-    it('replays each queued receipt through process_sale, preserving its original date', async () => {
-        const receipt = {
-            id: 'temp-1',
-            business_id: 'biz-1',
-            customer_name: 'Client',
-            customer_phone: '77000',
-            payment_method: 'mobile_money',
-            created_at: '2026-08-20T10:00:00.000Z',
-            sales: [{ product_id: 'p1', quantity: 3 }],
-        };
-        getMock.mockResolvedValueOnce([receipt]);
+    it('replays a queued sale through process_sale, preserving its original date', async () => {
+        await queueSale({ paymentMethod: 'mobile_money' });
+        const [queued] = await readOutbox();
         rpcMock.mockResolvedValueOnce({ data: { id: 'real-receipt-1' }, error: null });
 
         const queryClient = { invalidateQueries: vi.fn() };
@@ -135,153 +129,130 @@ describe('syncOfflineSales', () => {
             p_customer_name: 'Client',
             p_customer_phone: '77000',
             p_payment_method: 'mobile_money',
-            p_items: [{ product_id: 'p1', quantity: 3 }],
-            p_created_at: '2026-08-20T10:00:00.000Z',
+            p_items: [{ product_id: 'p1', quantity: 2 }],
+            // la date de la vente réelle, pas celle de la synchronisation
+            p_created_at: queued.payload.createdAt,
         });
 
-        // fully synced -> queue emptied, dashboards refreshed
-        expect(setMock).toHaveBeenCalledWith('offline_sales', []);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['receipts']);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['products']);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['sales']);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['debts']);
-        expect(fromMock).not.toHaveBeenCalled();
+        expect(await readOutbox()).toHaveLength(0);
+        expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['products'] });
+        expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales'] });
     });
 
     it('records a debt once a queued credit sale is synced', async () => {
-        const receipt = {
-            id: 'temp-1',
-            business_id: 'biz-1',
-            customer_name: 'Moussa Diop',
-            customer_phone: '77000',
-            payment_method: 'credit',
-            total_amount: 5000,
-            created_at: '2026-09-02T10:00:00.000Z',
-            sales: [{ product_id: 'p1', quantity: 1 }],
-        };
-        getMock.mockResolvedValueOnce([receipt]);
+        await queueSale({ paymentMethod: 'credit', customerName: 'Moussa Diop', total: 5000 });
         rpcMock.mockResolvedValueOnce({ data: { id: 'real-receipt-1' }, error: null });
         const debtsBuilder = createDebtsInsertBuilder({ data: null, error: null });
         fromMock.mockImplementation(() => debtsBuilder);
 
-        const queryClient = { invalidateQueries: vi.fn() };
-        await syncOfflineSales(queryClient);
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
 
         expect(fromMock).toHaveBeenCalledWith('debts');
         expect(debtsBuilder.insert).toHaveBeenCalledWith([expect.objectContaining({
             business_id: 'biz-1', customer_name: 'Moussa Diop', amount: 5000,
-            // l'id du VRAI reçu créé par la synchro, pas l'id temporaire de
-            // la file hors-ligne — pour que Dettes.jsx puisse retrouver les
-            // articles pris.
+            // l'id du VRAI reçu créé par la synchro, pas celui du reçu
+            // provisoire — pour que Dettes.jsx retrouve les articles pris.
             receipt_id: 'real-receipt-1',
         })]);
-        expect(setMock).toHaveBeenCalledWith('offline_sales', []);
+        expect(await readOutbox()).toHaveLength(0);
     });
 
-    it('warns but still counts the sale as synced when debt registration fails for a credit sale', async () => {
-        const receipt = {
-            id: 'temp-1', business_id: 'biz-1', customer_name: 'Moussa Diop',
-            payment_method: 'credit', total_amount: 5000,
-            sales: [{ product_id: 'p1', quantity: 1 }],
-        };
-        getMock.mockResolvedValueOnce([receipt]);
+    it('never replays a sale that went through just because its debt failed', async () => {
+        // la vente est passée : la rejouer créerait un deuxième reçu et un
+        // deuxième décrément de stock. L'entrée sort donc de la file, et
+        // l'échec de la dette est signalé à part.
+        await queueSale({ paymentMethod: 'credit', customerName: 'Moussa Diop', total: 5000 });
         rpcMock.mockResolvedValueOnce({ data: { id: 'real-receipt-1' }, error: null });
-        const debtsBuilder = createDebtsInsertBuilder({ data: null, error: new Error('network down') });
-        fromMock.mockImplementation(() => debtsBuilder);
+        fromMock.mockImplementation(() => createDebtsInsertBuilder({ data: null, error: new Error('network down') }));
 
-        await syncOfflineSales();
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
 
         expect(toastErrorMock).toHaveBeenCalledWith(
             expect.stringMatching(/Moussa Diop synchronisée, mais la dette n'a pas pu être enregistrée/),
             expect.objectContaining({ duration: 10000 })
         );
-        // La vente reste bien synchronisée malgré l'échec de la dette.
-        expect(setMock).toHaveBeenCalledWith('offline_sales', []);
+        expect(await readOutbox()).toHaveLength(0);
     });
 
-    it('invalidates products/sales even when nothing succeeded, to correct optimistic stock from the failed queue', async () => {
-        // saveOfflineSale decremented the locally-cached stock optimistically
-        // when the sale was first queued, before any server confirmation. If
-        // sync fails outright (e.g. another device already sold the same
-        // stock while this one was offline), that optimistic number is wrong
-        // and must be corrected from the real server state — not just left
-        // stale until the next 15s poll.
-        const failingReceipt = { id: 'temp-fail', business_id: 'biz-1', sales: [{ product_id: 'p1', quantity: 1 }] };
-        getMock.mockResolvedValueOnce([failingReceipt]);
+    it('keeps a failed sale queued and refreshes the optimistic stock', async () => {
+        // saveOfflineSale a décrémenté le stock affiché sans confirmation
+        // serveur : si la synchro échoue (un autre appareil a vendu le même
+        // produit entre-temps), ce nombre est faux et doit être corrigé.
+        await queueSale();
         rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Stock insuffisant') });
 
         const queryClient = { invalidateQueries: vi.fn() };
         await syncOfflineSales(queryClient);
 
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['offlineSalesPending']);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['products']);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['sales']);
-        expect(queryClient.invalidateQueries).toHaveBeenCalledWith(['receipts']);
+        const entries = await readOutbox();
+        expect(entries).toHaveLength(1);
+        expect(entries[0].attempts).toBe(1);
+        expect(entries[0].lastError).toBe('Stock insuffisant');
+        expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['products'] });
     });
 
-    it('names the customer and the server error in the failure toast, so the cashier can act on it', async () => {
-        const receipt = {
-            id: 'temp-fail', business_id: 'biz-1', customer_name: 'Jean Dupont',
-            sales: [{ product_id: 'p1', quantity: 2, products: { name: 'Casque Moto' } }],
-        };
-        getMock.mockResolvedValueOnce([receipt]);
-        rpcMock.mockResolvedValueOnce({
-            data: null,
-            error: new Error('Stock insuffisant pour "Casque Moto": disponible 0, demandé 2'),
-        });
+    it('stops at the first failure instead of applying later writes out of order', async () => {
+        // créer un fournisseur puis lui passer commande n'a pas de sens à
+        // l'envers : une entrée en échec retient celles d'après.
+        await queueSale({ total: 1000 });
+        await queueSale({ total: 2000 });
+        rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Stock insuffisant') });
 
-        await syncOfflineSales();
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
 
-        expect(toastErrorMock).toHaveBeenCalledWith(
-            '❌ Vente à Jean Dupont non synchronisée : Stock insuffisant pour "Casque Moto": disponible 0, demandé 2',
-            expect.objectContaining({ duration: 10000 })
-        );
+        expect(rpcMock).toHaveBeenCalledTimes(1);
+        expect(await readOutbox()).toHaveLength(2);
     });
 
-    it('falls back to a walk-in-customer label when the failed receipt has no name', async () => {
-        const receipt = { id: 'temp-fail', business_id: 'biz-1', customer_name: null, sales: [{ product_id: 'p1', quantity: 1 }] };
-        getMock.mockResolvedValueOnce([receipt]);
-        rpcMock.mockResolvedValueOnce({ data: null, error: new Error('boom') });
+    it('sets a write aside after too many attempts, so it stops blocking the rest', async () => {
+        await queueSale();
+        rpcMock.mockResolvedValue({ data: null, error: new Error('refusé') });
 
-        await syncOfflineSales();
+        for (let i = 0; i < 5; i++) {
+            await syncOfflineSales({ invalidateQueries: vi.fn() });
+        }
 
+        const [entry] = await readOutbox();
+        expect(entry.blocked).toBe(true);
         expect(toastErrorMock).toHaveBeenCalledWith(
-            expect.stringContaining('Vente (client comptoir) non synchronisée : boom'),
-            expect.anything()
+            expect.stringContaining('refusé'),
+            expect.objectContaining({ duration: 12000 })
         );
     });
 
     it('ignores a concurrent call while a sync is already in flight', async () => {
-        // isSyncing is set synchronously before syncOfflineSales' first await,
-        // so calling it a second time before the first call is awaited hits
-        // the guard immediately — no need to fake a slow network round-trip.
-        const receipt = { id: 'temp-1', business_id: 'biz-1', sales: [{ product_id: 'p1', quantity: 1 }] };
-        getMock.mockResolvedValueOnce([receipt]);
+        await queueSale();
         rpcMock.mockResolvedValueOnce({ data: { id: 'real-1' }, error: null });
 
-        const first = syncOfflineSales();
-        const second = syncOfflineSales(); // lock already held -> no-op
+        const first = syncOfflineSales({ invalidateQueries: vi.fn() });
+        const second = syncOfflineSales({ invalidateQueries: vi.fn() }); // verrou déjà pris
 
         await Promise.all([first, second]);
 
-        expect(getMock).toHaveBeenCalledTimes(1);
         expect(rpcMock).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps only the receipts that actually failed, regardless of order', async () => {
-        const okReceipt = { id: 'temp-ok', business_id: 'biz-1', sales: [{ product_id: 'p1', quantity: 1 }] };
-        const failingReceipt = { id: 'temp-fail', business_id: 'biz-1', sales: [{ product_id: 'p2', quantity: 1 }] };
+    it('takes over sales left in the queue of a previous app version', async () => {
+        // une vente en attente sur le téléphone au moment de la mise à jour ne
+        // doit pas être perdue, et doit repartir avant celles d'aujourd'hui.
+        await set('offline_sales', [{
+            id: 'temp-old',
+            business_id: 'biz-1',
+            customer_name: 'Ancien Client',
+            payment_method: 'cash',
+            total_amount: 3000,
+            created_at: '2026-08-20T10:00:00.000Z',
+            sales: [{ product_id: 'p9', quantity: 1 }],
+        }]);
+        rpcMock.mockResolvedValueOnce({ data: { id: 'real-old' }, error: null });
 
-        // The failure happens FIRST in the queue — this is the case the old
-        // slice(syncedCount) logic got wrong (it would have kept okReceipt
-        // and silently dropped failingReceipt).
-        getMock.mockResolvedValueOnce([failingReceipt, okReceipt]);
-        rpcMock
-            .mockResolvedValueOnce({ data: null, error: new Error('Stock insuffisant') })
-            .mockResolvedValueOnce({ data: { id: 'real-2' }, error: null });
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
 
-        await syncOfflineSales();
-
-        expect(setMock).toHaveBeenCalledWith('offline_sales', [failingReceipt]);
+        expect(rpcMock).toHaveBeenCalledWith('process_sale', expect.objectContaining({
+            p_customer_name: 'Ancien Client',
+            p_created_at: '2026-08-20T10:00:00.000Z',
+            p_items: [{ product_id: 'p9', quantity: 1 }],
+        }));
+        expect(await get('offline_sales')).toBeUndefined();
     });
 });

@@ -29,7 +29,13 @@ export function useInventories(selectedBusiness) {
     const [confirmAction, setConfirmAction] = useState(null);
 
     const startInventoryMutation = useMutation({
-        mutationFn: () => startInventory({ businessId, note }),
+        // Les produits en cache servent hors-ligne : c'est l'appareil, et non
+        // le serveur, qui constitue alors la liste des articles à compter.
+        mutationFn: () => startInventory({
+            businessId,
+            note,
+            products: queryClient.getQueryData(productKeys.all(businessId)),
+        }),
         onSuccess: (created) => {
             queryClient.invalidateQueries({ queryKey });
             setIsStartFormOpen(false);

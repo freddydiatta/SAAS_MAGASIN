@@ -3,17 +3,17 @@ import { act, waitFor } from '@testing-library/react';
 import { useOfflineStatus } from './useOfflineStatus';
 import { renderHookWithQueryClient } from '../test/testUtils';
 
-const { getOfflineSalesCountMock } = vi.hoisted(() => ({ getOfflineSalesCountMock: vi.fn() }));
+const { getOutboxCountMock } = vi.hoisted(() => ({ getOutboxCountMock: vi.fn() }));
 
-vi.mock('../services/syncService', () => ({
-    getOfflineSalesCount: getOfflineSalesCountMock,
+vi.mock('../services/outbox', () => ({
+    getOutboxCount: getOutboxCountMock,
 }));
 
 describe('useOfflineStatus', () => {
     const onlineSpy = vi.spyOn(navigator, 'onLine', 'get');
 
     beforeEach(() => {
-        getOfflineSalesCountMock.mockReset();
+        getOutboxCountMock.mockReset();
         onlineSpy.mockReturnValue(true);
     });
 
@@ -21,8 +21,8 @@ describe('useOfflineStatus', () => {
         onlineSpy.mockReturnValue(true);
     });
 
-    it('reflects navigator.onLine at mount and the queued sales count', async () => {
-        getOfflineSalesCountMock.mockResolvedValue(3);
+    it('reflects navigator.onLine at mount and the queued operations count', async () => {
+        getOutboxCountMock.mockResolvedValue(3);
         const { result } = renderHookWithQueryClient(() => useOfflineStatus());
 
         expect(result.current.isOnline).toBe(true);
@@ -30,7 +30,7 @@ describe('useOfflineStatus', () => {
     });
 
     it('flips to offline/online when the browser dispatches those events', async () => {
-        getOfflineSalesCountMock.mockResolvedValue(0);
+        getOutboxCountMock.mockResolvedValue(0);
         const { result } = renderHookWithQueryClient(() => useOfflineStatus());
         await waitFor(() => expect(result.current.pendingCount).toBe(0));
 
