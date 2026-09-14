@@ -66,6 +66,8 @@ export const Finances = () => {
     const {
         isLoading,
         totalRevenue,
+        openingTotal,
+        revenueOfSoldGoods,
         netProfit,
         revenueThisMonth,
         profitThisMonth,
@@ -116,7 +118,14 @@ export const Finances = () => {
                         <p className="text-secondary text-sm font-medium">Chiffre d'affaires total</p>
                     </div>
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(totalRevenue)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
-                    <p className="text-xs text-slate-400 mt-1">Ce que les ventes ont rapporté, hors solde de départ</p>
+                    {/* Le total inclut ce que le commerce avait déjà gagné
+                        avant l'application : sans ça, le chiffre d'affaires
+                        était plus petit que l'argent réellement en main. */}
+                    <p className="text-xs text-slate-400 mt-1">
+                        {openingTotal > 0
+                            ? <>Dont {formatFCFA(openingTotal)} FCFA gagnés avant l'application</>
+                            : <>Tout ce que les ventes ont rapporté depuis le début</>}
+                    </p>
                 </motion.div>
 
                 <motion.div
@@ -235,7 +244,7 @@ export const Finances = () => {
                     </div>
                     <div>
                         <h2 className="text-lg font-bold text-primary">D'où vient votre bénéfice</h2>
-                        <p className="text-xs text-secondary">Le prix d'achat retenu est celui payé au moment de chaque vente — il ne bouge pas si vous réapprovisionnez plus cher ensuite.</p>
+                        <p className="text-xs text-secondary">Calculé sur les ventes passées dans l'application : ce sont les seules dont on connaît le prix d'achat. Ce prix est celui payé au moment de la vente — il ne bouge pas si vous réapprovisionnez plus cher ensuite.</p>
                     </div>
                 </div>
 
@@ -244,8 +253,8 @@ export const Finances = () => {
                     marchandise vendue qui fait la difference. */}
                 <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                        <span className="text-secondary">Chiffre d'affaires</span>
-                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(totalRevenue)}&nbsp;FCFA</span>
+                        <span className="text-secondary">Ventes enregistrées ici</span>
+                        <span className="font-medium text-primary">{isLoading ? '…' : formatFCFA(revenueOfSoldGoods)}&nbsp;FCFA</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-secondary">− Coût des marchandises vendues</span>

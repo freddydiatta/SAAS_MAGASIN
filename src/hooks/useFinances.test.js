@@ -276,6 +276,62 @@ describe('useFinances', () => {
         expect(result.current.mobileBalance.current).toBe(5000 + 2000 - 700);
     });
 
+    it('counts what the shop had already earned before the app in the total revenue', async () => {
+        // un commerce qui tourne depuis des années n'a pas de "capital de
+        // départ" : les 15 000 déclarés viennent eux aussi de ses ventes,
+        // simplement de ventes faites avant qu'on ne les enregistre ici
+        const openedAt = new Date(thisMonth.getTime() - 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 10000, opening_at: openedAt },
+            { id: 'a2', name: 'Wave', kind: 'mobile_money', opening_balance: 5000, opening_at: openedAt },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        expect(result.current.openingTotal).toBe(15000);
+        // 3 000 espèces + 2 000 Wave + 1 500 de dette remboursée ; la vente du
+        // mois dernier est antérieure au point de départ, elle est déjà dedans
+        expect(result.current.recordedRevenue).toBe(6500);
+        expect(result.current.totalRevenue).toBe(15000 + 6500);
+    });
+
+    it('never counts a sale twice when it is already inside the declared balance', async () => {
+        // point de départ déclaré après toutes les ventes : le chiffre
+        // d'affaires ne doit pas les rajouter par-dessus les 15 000
+        const openedAt = new Date(thisMonth.getTime() + 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 10000, opening_at: openedAt },
+            { id: 'a2', name: 'Wave', kind: 'mobile_money', opening_balance: 5000, opening_at: openedAt },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        expect(result.current.recordedRevenue).toBe(0);
+        expect(result.current.totalRevenue).toBe(15000);
+    });
+
+    it('leaves the declared balance out of the profit, having no known purchase cost', async () => {
+        const openedAt = new Date(thisMonth.getTime() - 60 * 60 * 1000).toISOString();
+        fetchMoneyAccountsMock.mockResolvedValue([
+            { id: 'a1', name: 'Caisse', kind: 'cash', opening_balance: 10000, opening_at: openedAt },
+        ]);
+        fetchAllSalesMock.mockResolvedValue([
+            { id: 's1', total_price: 3000, total_cost: 1800, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },
+        ]);
+        fetchDebtsMock.mockResolvedValue([]);
+        fetchExpensesMock.mockResolvedValue([]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // le chiffre d'affaires porte les 10 000 d'avant l'app...
+        expect(result.current.totalRevenue).toBe(13000);
+        // ...mais on ignore ce que cette marchandise-là avait coûté : la marge
+        // ne se calcule que sur les ventes enregistrées ici
+        expect(result.current.revenueOfSoldGoods).toBe(3000);
+        expect(result.current.salesMargin).toBe(1200);
+        expect(result.current.netProfit).toBe(1200);
+    });
+
     it('computes sales margin from total_cost frozen at sale time, excluding sales with an unknown cost', async () => {
         fetchAllSalesMock.mockResolvedValue([
             { id: 's1', total_price: 3000, total_cost: 2000, created_at: thisMonth.toISOString(), products: { name: 'Casque Moto' }, receipts: { status: 'completed', payment_method: 'cash' } },

@@ -19,6 +19,11 @@ const MONTH_LABELS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août
 // (RetailDashboard), qui ne montre que la journée en cours. Même définition
 // de "argent encaissé" que useRetailDashboardStats : ventes cash/mobile +
 // dettes remboursées, jamais les ventes à crédit encore en attente.
+//
+// Le chiffre d'affaires total part en plus des soldes déclarés : un commerce
+// qui tourne depuis des années avait déjà gagné cet argent avant d'ouvrir
+// l'application, et l'exclure donnait un total plus petit que ce que le
+// commerçant a réellement en main — le chiffre paraissait faux.
 export function useFinances(selectedBusiness) {
     const businessId = selectedBusiness?.id;
 
@@ -87,12 +92,91 @@ export function useFinances(selectedBusiness) {
     // une vraie dépense), daté du jour de la réception, pas de la commande.
     const receivedOrders = purchaseOrders.filter(o => o.status === 'received');
 
+    // --- Ce qu'il reste réellement en caisse et sur Mobile Money ---
+    // Solde courant d'un moyen de paiement : le point de départ déclaré
+    // (money_accounts), plus ce qui est entré par ce moyen depuis cette date,
+    // moins ce qui en est sorti. Le montant saisi décrit ce qu'on avait en
+    // main à un instant précis : ne compter que les mouvements postérieurs
+    // évite de compter deux fois des ventes déjà incluses dedans.
+    //
+    // Quand plusieurs comptes partagent un moyen (Wave et Orange Money), un
+    // encaissement "mobile money" n'indique pas sur lequel il est arrivé :
+    // le solde se raisonne donc par moyen, pas par compte, et les mouvements
+    // comptent à partir du point de départ le plus récent du groupe.
+    const balanceFor = (kind, method) => {
+        const group = accounts.filter((account) => account.kind === kind);
+        if (group.length === 0) return null;
+
+        const opening = group.reduce((sum, account) => sum + Number(account.opening_balance), 0);
+        const since = Math.max(...group.map((account) => new Date(account.opening_at).getTime()));
+        const after = (dateStr) => dateStr && new Date(dateStr).getTime() >= since;
+
+        const salesIn = sales
+            .filter((s) => s.receipts?.payment_method === method && after(s.created_at))
+            .reduce((sum, s) => sum + Number(s.total_price), 0);
+        const debtsIn = paidDebts
+            .filter((d) => d.payment_method === method && after(d.paid_at || d.created_at))
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+        const expensesOut = expenses
+            .filter((e) => e.payment_method === method && after(e.created_at))
+            .reduce((sum, e) => sum + Number(e.amount), 0);
+        const ordersOut = receivedOrders
+            .filter((o) => o.payment_method === method && after(o.received_at || o.created_at))
+            .reduce((sum, o) => sum + Number(o.total_amount), 0);
+
+        return {
+            opening,
+            since,
+            current: opening + salesIn + debtsIn - expensesOut - ordersOut,
+            movements: salesIn + debtsIn - expensesOut - ordersOut,
+        };
+    };
+
+    const cashBalance = balanceFor('cash', 'cash');
+    const mobileBalance = balanceFor('mobile_money', 'mobile_money');
+    const totalOnHand = (cashBalance?.current || 0) + (mobileBalance?.current || 0);
+
     // Sorties d'argent, achats de stock compris : c'est la trésorerie qui
     // bouge, pas le bénéfice (voir netProfit plus bas).
     const totalCashOut = expenses.reduce((sum, e) => sum + Number(e.amount), 0)
         + receivedOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
-    const totalRevenue = collectedSales.reduce((sum, s) => sum + Number(s.total_price), 0)
-        + paidDebts.reduce((sum, d) => sum + Number(d.amount), 0);
+
+    // Ce que le commerce avait déjà en main le jour où les comptes ont été
+    // déclarés. Ce n'est pas de l'argent venu d'ailleurs : le commerce tourne
+    // depuis des années, cette somme vient elle aussi des ventes — simplement
+    // de ventes faites avant qu'on ne les enregistre ici. Elle fait donc
+    // partie du chiffre d'affaires, au même titre que les ventes du jour.
+    const openingTotal = (cashBalance?.opening || 0) + (mobileBalance?.opening || 0);
+
+    // Et comme ce montant contient déjà tout ce qui est rentré avant lui, on
+    // ne compte ensuite que les encaissements postérieurs — exactement la même
+    // frontière que les soldes ci-dessus, sinon une vente antérieure serait
+    // comptée deux fois. Sans point de départ déclaré, tout compte.
+    const declaredSince = [cashBalance, mobileBalance].filter(Boolean).map((b) => b.since);
+    const openingSince = (method) => {
+        if (method === 'cash') return cashBalance ? cashBalance.since : null;
+        if (method === 'mobile_money') return mobileBalance ? mobileBalance.since : null;
+        // Moyen inconnu (dette remboursée avant que le moyen ne soit
+        // enregistré) : impossible de le rattacher à un solde précis. On
+        // retient le point de départ le plus récent, le seul qui ne risque
+        // pas de faire compter cet encaissement une deuxième fois.
+        return declaredSince.length > 0 ? Math.max(...declaredSince) : null;
+    };
+    const countsInRevenue = (method, dateStr) => {
+        const since = openingSince(method);
+        if (since === null) return true;
+        return !!dateStr && new Date(dateStr).getTime() >= since;
+    };
+
+    // Ce que les ventes enregistrées dans l'application ont rapporté, seules.
+    const recordedRevenue = collectedSales
+        .filter((s) => countsInRevenue(s.receipts?.payment_method, s.created_at))
+        .reduce((sum, s) => sum + Number(s.total_price), 0)
+        + paidDebts
+            .filter((d) => countsInRevenue(d.payment_method, d.paid_at || d.created_at))
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+
+    const totalRevenue = openingTotal + recordedRevenue;
 
     // Dépenses de fonctionnement seules (transport, loyer...). Les achats de
     // stock en sont exclus volontairement : leur coût arrive dans le bénéfice
@@ -151,50 +235,6 @@ export function useFinances(selectedBusiness) {
     const marginThisMonth = marginByMonth[currentMonthKey] || 0;
     const profitThisMonth = marginThisMonth - expensesThisMonth;
 
-    // --- Ce qu'il reste réellement en caisse et sur Mobile Money ---
-    // Solde courant d'un moyen de paiement : le point de départ déclaré
-    // (money_accounts), plus ce qui est entré par ce moyen depuis cette date,
-    // moins ce qui en est sorti. Le montant saisi décrit ce qu'on avait en
-    // main à un instant précis : ne compter que les mouvements postérieurs
-    // évite de compter deux fois des ventes déjà incluses dedans.
-    //
-    // Quand plusieurs comptes partagent un moyen (Wave et Orange Money), un
-    // encaissement "mobile money" n'indique pas sur lequel il est arrivé :
-    // le solde se raisonne donc par moyen, pas par compte, et les mouvements
-    // comptent à partir du point de départ le plus récent du groupe.
-    const balanceFor = (kind, method) => {
-        const group = accounts.filter((account) => account.kind === kind);
-        if (group.length === 0) return null;
-
-        const opening = group.reduce((sum, account) => sum + Number(account.opening_balance), 0);
-        const since = Math.max(...group.map((account) => new Date(account.opening_at).getTime()));
-        const after = (dateStr) => dateStr && new Date(dateStr).getTime() >= since;
-
-        const salesIn = sales
-            .filter((s) => s.receipts?.payment_method === method && after(s.created_at))
-            .reduce((sum, s) => sum + Number(s.total_price), 0);
-        const debtsIn = paidDebts
-            .filter((d) => d.payment_method === method && after(d.paid_at || d.created_at))
-            .reduce((sum, d) => sum + Number(d.amount), 0);
-        const expensesOut = expenses
-            .filter((e) => e.payment_method === method && after(e.created_at))
-            .reduce((sum, e) => sum + Number(e.amount), 0);
-        const ordersOut = receivedOrders
-            .filter((o) => o.payment_method === method && after(o.received_at || o.created_at))
-            .reduce((sum, o) => sum + Number(o.total_amount), 0);
-
-        return {
-            opening,
-            since,
-            current: opening + salesIn + debtsIn - expensesOut - ordersOut,
-            movements: salesIn + debtsIn - expensesOut - ordersOut,
-        };
-    };
-
-    const cashBalance = balanceFor('cash', 'cash');
-    const mobileBalance = balanceFor('mobile_money', 'mobile_money');
-    const totalOnHand = (cashBalance?.current || 0) + (mobileBalance?.current || 0);
-
     const percentChangeMonth = revenueLastMonth > 0
         ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
         : (revenueThisMonth > 0 ? 100 : 0);
@@ -240,7 +280,10 @@ export function useFinances(selectedBusiness) {
     return {
         isLoading,
         totalRevenue,
+        recordedRevenue,
+        openingTotal,
         totalCashOut,
+        revenueOfSoldGoods,
         costOfGoodsSold,
         operatingExpenses,
         netProfit,
