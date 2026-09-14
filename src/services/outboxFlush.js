@@ -21,8 +21,8 @@ import {
     replayQueuedSale, cancelSaleRow, modifySaleRow,
 } from './salesService';
 import {
-    PO_CREATE, PO_UPDATE, PO_RECEIVE, PO_CANCEL, PO_UNRECEIVE, PO_DELETE,
-    createPurchaseOrderRow, updatePurchaseOrderRow, receivePurchaseOrderRow,
+    PO_CREATE, PO_UPDATE, PO_INVOICE, PO_RECEIVE, PO_CANCEL, PO_UNRECEIVE, PO_DELETE,
+    createPurchaseOrderRow, updatePurchaseOrderRow, attachInvoiceRow, receivePurchaseOrderRow,
     cancelPurchaseOrderRow, unreceivePurchaseOrderRow, deletePurchaseOrderRow,
 } from './purchaseOrdersService';
 import {
@@ -64,6 +64,10 @@ const HANDLERS = {
 
     [PO_CREATE]: (payload) => createPurchaseOrderRow(payload),
     [PO_UPDATE]: (payload) => updatePurchaseOrderRow(payload),
+    // Placée avant la réception dans la file : celle-ci sera refusée par la
+    // base tant que la facture n'est pas arrivée, et l'ordre garantit
+    // qu'elle l'est.
+    [PO_INVOICE]: (payload) => attachInvoiceRow(payload),
     [PO_RECEIVE]: (payload) => receivePurchaseOrderRow(payload),
     [PO_CANCEL]: (payload) => cancelPurchaseOrderRow(payload.id),
     [PO_UNRECEIVE]: (payload) => unreceivePurchaseOrderRow(payload),

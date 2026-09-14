@@ -997,6 +997,61 @@ USING (
 );
 
 -- ==========================================
+-- FACTURES FOURNISSEURS (bons de commande)
+-- Bucket PRIVÉ, contrairement aux photos de produits : une facture porte les
+-- prix d'achat et l'identité du fournisseur, ce n'est pas une vitrine. Aucune
+-- policy de lecture publique — la consultation passe par une URL signée à
+-- durée limitée, que la policy SELECT ci-dessous autorise aux seuls membres
+-- du commerce. Même convention de chemin, le premier segment est l'id du
+-- commerce : purchase-order-invoices/<business_id>/<order_id>/<fichier>.
+-- ==========================================
+
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'purchase-order-invoices',
+    'purchase-order-invoices',
+    false,
+    10485760, -- 10 Mo : une photo de facture non redimensionnée peut être lourde
+    ARRAY['image/jpeg', 'image/png', 'image/webp', 'application/pdf']
+)
+ON CONFLICT (id) DO UPDATE SET
+    public = EXCLUDED.public,
+    file_size_limit = EXCLUDED.file_size_limit,
+    allowed_mime_types = EXCLUDED.allowed_mime_types;
+
+DROP POLICY IF EXISTS "Business members can read their purchase order invoices" ON storage.objects;
+CREATE POLICY "Business members can read their purchase order invoices"
+ON storage.objects FOR SELECT
+USING (
+    bucket_id = 'purchase-order-invoices'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);
+
+DROP POLICY IF EXISTS "Business members can upload their purchase order invoices" ON storage.objects;
+CREATE POLICY "Business members can upload their purchase order invoices"
+ON storage.objects FOR INSERT
+WITH CHECK (
+    bucket_id = 'purchase-order-invoices'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);
+
+DROP POLICY IF EXISTS "Business members can update their purchase order invoices" ON storage.objects;
+CREATE POLICY "Business members can update their purchase order invoices"
+ON storage.objects FOR UPDATE
+USING (
+    bucket_id = 'purchase-order-invoices'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);
+
+DROP POLICY IF EXISTS "Business members can delete their purchase order invoices" ON storage.objects;
+CREATE POLICY "Business members can delete their purchase order invoices"
+ON storage.objects FOR DELETE
+USING (
+    bucket_id = 'purchase-order-invoices'
+    AND public.is_business_member((storage.foldername(name))[1]::uuid)
+);
+
+-- ==========================================
 -- MESSAGES DE CONTACT (site public)
 -- Insérés uniquement via l'Edge Function send-contact-message
 -- (service_role, contourne RLS) : aucune policy INSERT/SELECT pour
@@ -1456,6 +1511,15 @@ CREATE TABLE public.purchase_orders (
     -- Renseigné à la réception (receive_purchase_order), pas à la commande :
     -- l'argent ne sort que quand la marchandise arrive.
     payment_method TEXT,
+    -- Facture remise par le fournisseur à la livraison. Exigée par
+    -- receive_purchase_order : sans elle, un litige sur ce qui a été livré ne
+    -- repose que sur la mémoire. Le fichier vit dans un bucket PRIVÉ
+    -- (purchase-order-invoices) et on stocke son chemin, pas une URL — la
+    -- consultation passe par une URL signée à durée limitée, car une facture
+    -- porte les prix d'achat et l'identité du fournisseur.
+    invoice_path TEXT,
+    invoice_file_name TEXT,
+    invoice_uploaded_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     received_at TIMESTAMP WITH TIME ZONE
 );
@@ -1583,6 +1647,13 @@ BEGIN
     END IF;
     IF v_order.status <> 'pending' THEN
         RAISE EXCEPTION 'Ce bon de commande a déjà été traité.';
+    END IF;
+    -- La facture du fournisseur est exigée ici, et pas seulement dans
+    -- l'interface : c'est la base qui fait foi, y compris pour une réception
+    -- rejouée depuis la file hors-ligne. Sans elle, un litige sur ce qui a
+    -- été livré ne repose que sur la mémoire du commerçant.
+    IF v_order.invoice_path IS NULL THEN
+        RAISE EXCEPTION 'Joignez la facture du fournisseur avant de valider la réception.';
     END IF;
 
     FOR v_item IN SELECT * FROM public.purchase_order_items WHERE purchase_order_id = p_purchase_order_id

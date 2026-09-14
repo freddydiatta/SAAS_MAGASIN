@@ -1,6 +1,8 @@
 import { supabase } from '../lib/supabase';
 import { enqueue, newId, mergePendingRows, pendingOfKind, dropEntry } from './outbox';
+import { uploadPurchaseOrderInvoice, deleteInvoice } from './invoicesService';
 
+export const PO_INVOICE = 'purchaseOrder.invoice';
 export const PO_CREATE = 'purchaseOrder.create';
 export const PO_UPDATE = 'purchaseOrder.update';
 export const PO_RECEIVE = 'purchaseOrder.receive';
@@ -27,7 +29,7 @@ export const fetchPurchaseOrders = async (businessId) => {
     // commerçant le ressaisirait en croyant l'avoir raté.
     return mergePendingRows(data || [], {
         addKind: PO_CREATE,
-        updateKind: [PO_UPDATE, PO_RECEIVE, PO_CANCEL, PO_UNRECEIVE],
+        updateKind: [PO_UPDATE, PO_INVOICE, PO_RECEIVE, PO_CANCEL, PO_UNRECEIVE],
         deleteKind: PO_DELETE,
         businessId,
     });
@@ -112,8 +114,79 @@ export const updatePurchaseOrder = async ({ orderId, supplierId, items }) => {
     return payload;
 };
 
+// Facture remise par le fournisseur à la livraison. receive_purchase_order la
+// refuse absente : c'est la seule trace de ce qui a réellement été livré et à
+// quel prix, et le moment de la livraison est le seul où on l'a en main.
+export const attachInvoiceRow = async (payload) => {
+    // Une facture mise en file hors-ligne transporte le fichier lui-même
+    // (IndexedDB sait stocker un Blob) : c'est au rejeu qu'il part vers le
+    // stockage, et seulement alors qu'un chemin existe.
+    const { path, fileName } = payload.file
+        ? await uploadPurchaseOrderInvoice({
+            businessId: payload.business_id,
+            orderId: payload.id,
+            file: payload.file,
+        })
+        : { path: payload.invoice_path, fileName: payload.invoice_file_name };
+
+    const { error } = await supabase
+        .from('purchase_orders')
+        .update({
+            invoice_path: path,
+            invoice_file_name: fileName,
+            invoice_uploaded_at: payload.invoice_uploaded_at,
+        })
+        .eq('id', payload.id);
+    if (error) throw error;
+
+    // Remplacement d'une facture : l'ancienne n'a plus de raison de rester
+    // dans le stockage. Best-effort, comme pour les photos de produits.
+    if (payload.previous_invoice_path && payload.previous_invoice_path !== path) {
+        deleteInvoice(payload.previous_invoice_path).catch((e) =>
+            console.error("Impossible de supprimer l'ancienne facture:", e.message)
+        );
+    }
+
+    return { ...payload, invoice_path: path, invoice_file_name: fileName };
+};
+
+export const attachPurchaseOrderInvoice = async ({ orderId, businessId, file, previousInvoicePath }) => {
+    const uploadedAt = new Date().toISOString();
+
+    if (navigator.onLine) {
+        return attachInvoiceRow({
+            id: orderId,
+            business_id: businessId,
+            file,
+            invoice_uploaded_at: uploadedAt,
+            previous_invoice_path: previousInvoicePath || null,
+        });
+    }
+
+    await enqueue({
+        kind: PO_INVOICE,
+        businessId,
+        label: 'Facture fournisseur',
+        payload: {
+            id: orderId,
+            business_id: businessId,
+            file,
+            invoice_file_name: file.name || 'facture',
+            invoice_uploaded_at: uploadedAt,
+            previous_invoice_path: previousInvoicePath || null,
+            // Marque la facture comme jointe pour l'affichage, sans chemin :
+            // le fichier n'est pas encore parti, et la réception mise en file
+            // derrière celle-ci ne partira qu'une fois l'envoi réussi.
+            invoice_pending: true,
+        },
+    });
+
+    return { id: orderId, invoice_file_name: file.name || 'facture', invoice_pending: true };
+};
+
 // Augmente le stock des produits de la commande et marque le bon comme reçu
-// (voir receive_purchase_order) — refuse un bon déjà traité.
+// (voir receive_purchase_order) — refuse un bon déjà traité, ou dont la
+// facture fournisseur n'a pas été jointe.
 // L'argent sort au moment de la réception, pas de la commande : c'est donc
 // ici qu'on enregistre par quel moyen le fournisseur a été payé.
 export const receivePurchaseOrderRow = async ({ id, payment_method }) => {

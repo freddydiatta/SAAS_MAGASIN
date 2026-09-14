@@ -8,18 +8,22 @@ const JPEG_QUALITY = 0.8;
 // directement au téléphone peut peser plusieurs Mo, ce qui serait lourd à
 // uploader (et à re-télécharger plus tard sur les autres appareils) pour
 // une simple vignette de produit affichée à quelques centaines de pixels.
-const resizeImage = (file) => new Promise((resolve, reject) => {
+//
+// La taille est un paramètre car tous les usages n'ont pas le même besoin :
+// une vignette de produit se lit à 800px, une photo de facture doit rester
+// lisible chiffre par chiffre (voir invoicesService).
+export const resizeImage = (file, maxDimension = MAX_DIMENSION, quality = JPEG_QUALITY) => new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
         URL.revokeObjectURL(objectUrl);
         let { width, height } = img;
-        if (width > height && width > MAX_DIMENSION) {
-            height = Math.round(height * (MAX_DIMENSION / width));
-            width = MAX_DIMENSION;
-        } else if (height > MAX_DIMENSION) {
-            width = Math.round(width * (MAX_DIMENSION / height));
-            height = MAX_DIMENSION;
+        if (width > height && width > maxDimension) {
+            height = Math.round(height * (maxDimension / width));
+            width = maxDimension;
+        } else if (height > maxDimension) {
+            width = Math.round(width * (maxDimension / height));
+            height = maxDimension;
         }
         const canvas = document.createElement('canvas');
         canvas.width = width;
@@ -28,7 +32,7 @@ const resizeImage = (file) => new Promise((resolve, reject) => {
         canvas.toBlob(
             (blob) => (blob ? resolve(blob) : reject(new Error("Impossible de traiter cette image."))),
             'image/jpeg',
-            JPEG_QUALITY
+            quality
         );
     };
     img.onerror = () => {

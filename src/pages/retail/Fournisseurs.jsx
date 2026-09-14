@@ -6,8 +6,11 @@ import { DataTable } from '../../components/DataTable';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CreatePurchaseOrderModal } from '../../components/CreatePurchaseOrderModal';
 import { PurchaseOrderPrint } from '../../components/PurchaseOrderPrint';
-import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2, RotateCcw, Banknote, Smartphone } from 'lucide-react';
+import { SupplierInvoiceField } from '../../components/SupplierInvoiceField';
+import { Plus, Trash2, Truck, PackageCheck, XCircle, Printer, Edit2, RotateCcw, Banknote, Smartphone, FileText } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { formatDate } from '../../lib/dates';
+import { getInvoiceUrl } from '../../services/invoicesService';
 
 const ORDER_STATUS = {
     pending: { label: 'En attente', tone: 'amber' },
@@ -54,9 +57,25 @@ export const Fournisseurs = () => {
         purchaseOrders, isLoadingOrders,
         isCreateOrderOpen, editingOrder, openCreateOrderForm, openEditOrderForm, closeCreateOrderForm,
         handleSubmitOrder, handleReceiveOrder, orderToReceive, closeReceiveForm, confirmReceive, isReceivingOrder, handleCancelOrder, handleUnreceiveOrder, handleDeleteOrder, isSavingOrder,
+        attachInvoice, isAttachingInvoice,
         confirmAction, closeConfirmAction, confirmPendingAction, isConfirmingAction,
         orderToPrint, setOrderToPrint, handlePrintOrder,
     } = useFournisseurs(selectedBusiness);
+
+    // Une facture jointe hors-ligne (invoice_pending) compte : elle part avec
+    // la réception, dans cet ordre, dès le retour du réseau.
+    const hasInvoice = !!(orderToReceive?.invoice_path || orderToReceive?.invoice_pending);
+
+    // Bucket privé : pas d'URL permanente à mettre dans un lien, on en signe
+    // une à la demande (voir invoicesService).
+    const openSupplierInvoice = async (order) => {
+        try {
+            const url = await getInvoiceUrl(order.invoice_path);
+            window.open(url, '_blank', 'noopener');
+        } catch (error) {
+            toast.error(error.message || "Impossible d'ouvrir la facture.");
+        }
+    };
 
     const supplierColumns = [
         {
@@ -159,6 +178,17 @@ export const Fournisseurs = () => {
             cellClassName: 'py-4 px-6 text-right',
             render: (order) => (
                 <div className="flex justify-end gap-2">
+                    {order.invoice_path && (
+                        // Le suivi : retrouver la facture du fournisseur des
+                        // mois plus tard, sans rouvrir la réception.
+                        <button
+                            onClick={() => openSupplierInvoice(order)}
+                            title="Voir la facture du fournisseur"
+                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-500/10 rounded-lg transition-colors"
+                        >
+                            <FileText className="w-4 h-4" />
+                        </button>
+                    )}
                     <button
                         onClick={() => handlePrintOrder(order)}
                         title="Voir / imprimer le bon de commande"
@@ -334,26 +364,45 @@ export const Fournisseurs = () => {
                 initialOrder={editingOrder}
             />
 
-            <Modal isOpen={!!orderToReceive} onClose={closeReceiveForm} title="Comment avez-vous payé ?" maxWidth="max-w-sm">
+            <Modal isOpen={!!orderToReceive} onClose={closeReceiveForm} title="Réception de la commande" maxWidth="max-w-sm">
                 {orderToReceive && (
                     <div className="space-y-4">
                         <p className="text-secondary text-sm">
                             Réception de <span className="font-bold text-primary">{Number(orderToReceive.total_amount).toLocaleString('fr-FR')} FCFA</span> chez {orderToReceive.supplier?.name || 'ce fournisseur'}.
                             Le stock sera mis à jour, et ce montant retiré du solde correspondant.
                         </p>
+
+                        <SupplierInvoiceField
+                            order={orderToReceive}
+                            onAttach={attachInvoice}
+                            isAttaching={isAttachingInvoice}
+                        />
+
+                        <div>
+                            <p className="font-semibold text-primary text-sm mb-1">Comment avez-vous payé ?</p>
+                            {!hasInvoice && (
+                                // Le blocage est d'abord côté base (voir
+                                // receive_purchase_order) ; ici on explique
+                                // plutôt que de laisser cliquer pour rien.
+                                <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
+                                    Joignez d'abord la facture du fournisseur.
+                                </p>
+                            )}
+                        </div>
+
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => confirmReceive('cash')}
-                                disabled={isReceivingOrder}
-                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+                                disabled={isReceivingOrder || !hasInvoice}
+                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-300"
                             >
                                 <Banknote className="w-6 h-6 text-blue-500" />
                                 Espèces
                             </button>
                             <button
                                 onClick={() => confirmReceive('mobile_money')}
-                                disabled={isReceivingOrder}
-                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-50"
+                                disabled={isReceivingOrder || !hasInvoice}
+                                className="flex flex-col items-center gap-2 py-4 rounded-xl font-semibold text-primary bg-surface border border-slate-300 dark:border-border-theme hover:border-accent hover:bg-accent/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-300"
                             >
                                 <Smartphone className="w-6 h-6 text-orange-500" />
                                 Mobile Money

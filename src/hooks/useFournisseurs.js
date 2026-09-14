@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { fetchSuppliers, addSupplier, updateSupplier, deleteSupplier } from '../services/suppliersService';
-import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, receivePurchaseOrder, unreceivePurchaseOrder, cancelPurchaseOrder, deletePurchaseOrder } from '../services/purchaseOrdersService';
+import { fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder, attachPurchaseOrderInvoice, receivePurchaseOrder, unreceivePurchaseOrder, cancelPurchaseOrder, deletePurchaseOrder } from '../services/purchaseOrdersService';
 import { addProduct, productKeys } from '../services/productsService';
 import { supplierSchema, firstZodError } from '../lib/validation';
 import { supplierKeys } from './useSuppliers';
@@ -146,6 +146,25 @@ export function useFournisseurs(selectedBusiness) {
         onError: (error) => toast.error(error.message || 'Erreur lors de la modification du bon de commande.'),
     });
 
+    // La facture s'attache au moment de la livraison, avant de valider la
+    // réception que la base refuse sans elle (voir receive_purchase_order).
+    // La modale reste ouverte : joindre la facture et choisir le moyen de
+    // paiement sont deux gestes du même moment.
+    const attachInvoiceMutation = useMutation({
+        mutationFn: ({ order, file }) => attachPurchaseOrderInvoice({
+            orderId: order.id,
+            businessId,
+            file,
+            previousInvoicePath: order.invoice_path,
+        }),
+        onSuccess: (updated) => {
+            queryClient.invalidateQueries({ queryKey: poQueryKey });
+            setOrderToReceive((current) => (current ? { ...current, ...updated } : current));
+            toast.success('Facture enregistrée.');
+        },
+        onError: (error) => toast.error(error.message || "Erreur lors de l'envoi de la facture."),
+    });
+
     // La réception change aussi le stock des produits (via receive_purchase_order
     // côté base) : il faut invalider products en plus des bons pour que
     // Stock.jsx reflète tout de suite les nouvelles quantités.
@@ -271,6 +290,10 @@ export function useFournisseurs(selectedBusiness) {
     // pour un virement Wave.
     const handleReceiveOrder = (order) => setOrderToReceive(order);
     const closeReceiveForm = () => setOrderToReceive(null);
+    const attachInvoice = (file) => {
+        if (!orderToReceive) return;
+        attachInvoiceMutation.mutate({ order: orderToReceive, file });
+    };
     const confirmReceive = (paymentMethod) => {
         if (!orderToReceive) return;
         receiveOrderMutation.mutate({ id: orderToReceive.id, paymentMethod });
@@ -328,6 +351,8 @@ export function useFournisseurs(selectedBusiness) {
         closeCreateOrderForm,
         handleSubmitOrder,
         handleReceiveOrder,
+        attachInvoice,
+        isAttachingInvoice: attachInvoiceMutation.isPending,
         orderToReceive,
         closeReceiveForm,
         confirmReceive,

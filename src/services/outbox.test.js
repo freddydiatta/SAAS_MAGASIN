@@ -3,7 +3,7 @@ import { enqueue, readOutbox, getOutboxCount, pendingOfKind, dropEntry, mergePen
 import { addExpense, deleteExpense, fetchExpenses } from './expensesService';
 import { addProduct, updateProduct } from './productsService';
 import { startInventory, saveInventoryCounts, fetchInventoryItems, deleteInventory } from './inventoriesService';
-import { createPurchaseOrder, receivePurchaseOrder } from './purchaseOrdersService';
+import { createPurchaseOrder, receivePurchaseOrder, attachPurchaseOrderInvoice, fetchPurchaseOrders } from './purchaseOrdersService';
 
 function createQueryBuilder(result) {
     const builder = {
@@ -184,6 +184,38 @@ describe('écriture hors-ligne des services', () => {
 
         const kinds = (await readOutbox()).map((e) => e.kind);
         expect(kinds).toEqual(['purchaseOrder.create', 'purchaseOrder.receive']);
+    });
+
+    it('emporte la facture fournisseur dans la file, avant la réception', async () => {
+        // une livraison arrive souvent là où le réseau ne passe pas. La photo
+        // de la facture voyage donc dans la file (IndexedDB sait stocker un
+        // Blob) et part AVANT la réception : la base refuse celle-ci tant que
+        // la facture manque, et l'ordre de la file garantit qu'elle est là.
+        const order = await createPurchaseOrder({
+            businessId: 'biz-1', supplierId: 's1',
+            items: [{ productId: 'p1', quantity: 2, unitCost: 500 }],
+        });
+
+        const file = new File(['photo'], 'facture-mars.jpg', { type: 'image/jpeg' });
+        await attachPurchaseOrderInvoice({ orderId: order.id, businessId: 'biz-1', file });
+        await receivePurchaseOrder({ id: order.id, paymentMethod: 'cash' });
+
+        const entries = await readOutbox();
+        expect(entries.map((e) => e.kind)).toEqual([
+            'purchaseOrder.create', 'purchaseOrder.invoice', 'purchaseOrder.receive',
+        ]);
+        // le fichier lui-même est conservé, pas seulement son nom
+        expect(entries[1].payload.file).toBeInstanceOf(File);
+
+        // et le bon s'affiche comme ayant sa facture, en attente d'envoi
+        onlineSpy.mockReturnValue(true);
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [], error: null }));
+        const [listed] = await fetchPurchaseOrders('biz-1');
+        expect(listed).toMatchObject({
+            id: order.id,
+            invoice_file_name: 'facture-mars.jpg',
+            invoice_pending: true,
+        });
     });
 
     it('fait compter un inventaire entier sans réseau, à partir du catalogue en cache', async () => {
