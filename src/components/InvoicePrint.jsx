@@ -4,6 +4,15 @@ import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDateTime } from '../lib/dates';
+import { pdfText, pdfAmount, pdfFCFA } from '../lib/pdf';
+
+// Gris volontairement soutenus : les tons très clairs (slate-400) passaient
+// à l'écran mais rendaient la facture délavée, presque floue, une fois
+// imprimée ou lue sur un téléphone.
+const INK = [15, 23, 42];
+const INK_SOFT = [71, 85, 105];
+const INK_LABEL = [100, 116, 139];
+const ACCENT = [67, 56, 202];
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
@@ -27,52 +36,62 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
             // Header
             doc.setFontSize(22);
-            doc.setTextColor(30, 41, 59); // text-primary
-            doc.text(business?.name || 'Boutique', 14, 20);
-            
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK);
+            doc.text(pdfText(business?.name) || 'Boutique', 14, 20);
+
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139); // text-secondary
-            const bizType = business?.type === 'pieces_moto' ? 'Pieces detachees et Accessoires' : 'Boutique / Magasin';
+            doc.setTextColor(...INK_SOFT);
+            // Les accents tiennent sur un octet : rien n'oblige à écrire
+            // « Pieces detachees » dans un PDF (voir lib/pdf.js).
+            const bizType = business?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin';
             doc.text(bizType, 14, 28);
-            if (business?.address) doc.text(`Adresse: ${business.address}`, 14, 34);
-            if (business?.phone) doc.text(`Tel: ${business.phone}`, 14, 40);
+            if (business?.address) doc.text(pdfText(`Adresse : ${business.address}`), 14, 34);
+            if (business?.phone) doc.text(pdfText(`Tél : ${business.phone}`), 14, 40);
 
             // Facture info (Right side)
             doc.setFontSize(16);
-            doc.setTextColor(148, 163, 184); // text-slate-400
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK_LABEL);
             doc.text('FACTURE', 196, 20, { align: 'right' });
-            
+
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(12);
-            doc.setTextColor(30, 41, 59);
+            doc.setTextColor(...INK);
             doc.text(`#${receiptIdStr}`, 196, 28, { align: 'right' });
-            
+
             doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139);
-            const dateStr = formatDateTime(invoiceDetails.date);
+            doc.setTextColor(...INK_SOFT);
+            const dateStr = pdfText(formatDateTime(invoiceDetails.date));
             doc.text(dateStr, 196, 34, { align: 'right' });
 
             // Customer Info
             doc.setFontSize(9);
-            doc.setTextColor(148, 163, 184);
-            doc.text('FACTURE A', 14, 55);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK_LABEL);
+            doc.text('FACTURÉ À', 14, 55);
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(12);
-            doc.setTextColor(30, 41, 59);
-            doc.text(invoiceDetails.customerName || 'Client Comptoir', 14, 62);
+            doc.setTextColor(...INK);
+            doc.text(pdfText(invoiceDetails.customerName) || 'Client Comptoir', 14, 62);
             if (invoiceDetails.customerPhone) {
                 doc.setFontSize(10);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Tel: ${invoiceDetails.customerPhone}`, 14, 68);
+                doc.setTextColor(...INK_SOFT);
+                doc.text(pdfText(`Tél : ${invoiceDetails.customerPhone}`), 14, 68);
             }
 
             doc.setFontSize(9);
-            doc.setTextColor(148, 163, 184);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK_LABEL);
             doc.text('VENDEUR', 196, 55, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(11);
-            doc.setTextColor(30, 41, 59);
-            doc.text(user?.email || '', 196, 62, { align: 'right' });
+            doc.setTextColor(...INK);
+            doc.text(pdfText(user?.email), 196, 62, { align: 'right' });
 
             // Table
-            const tableColumn = ["Description", "Qte", "Prix Unitaire", "Total"];
+            const tableColumn = ["Description", "Qté", "Prix unitaire", "Total"];
             const tableRows = [];
 
             invoiceDetails.items.forEach(item => {
@@ -80,12 +99,12 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                 const price = Number(item.price);
                 const qty = Number(item.quantity);
                 const itemTotal = price * qty;
-                
+
                 tableRows.push([
-                    name,
+                    pdfText(name),
                     qty.toString(),
-                    `${price.toLocaleString('fr-FR')} F`,
-                    `${itemTotal.toLocaleString('fr-FR')} F`
+                    pdfFCFA(price),
+                    pdfFCFA(itemTotal),
                 ]);
             });
 
@@ -95,18 +114,21 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                 body: tableRows,
                 theme: 'plain',
                 headStyles: {
-                    fillColor: [255, 255, 255],
-                    textColor: [100, 116, 139],
-                    fontSize: 9,
+                    // Un fond léger et un trait net sous l'en-tête : sans eux,
+                    // les colonnes se lisaient mal sur un écran de téléphone.
+                    fillColor: [241, 245, 249],
+                    textColor: [51, 65, 85],
+                    fontSize: 9.5,
                     fontStyle: 'bold',
-                    lineColor: [226, 232, 240],
+                    lineColor: [203, 213, 225],
                     lineWidth: { bottom: 0.5 }
                 },
                 bodyStyles: {
-                    textColor: [30, 41, 59],
-                    fontSize: 10,
-                    lineColor: [241, 245, 249],
-                    lineWidth: { bottom: 0.1 }
+                    textColor: INK,
+                    fontSize: 10.5,
+                    cellPadding: 3,
+                    lineColor: [226, 232, 240],
+                    lineWidth: { bottom: 0.2 }
                 },
                 columnStyles: {
                     0: { cellWidth: 'auto' },
@@ -120,32 +142,33 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             // Totals
             const finalY = doc.lastAutoTable.finalY || 80;
             
-            doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139);
+            doc.setFontSize(10.5);
+            doc.setTextColor(...INK_SOFT);
             doc.text('Sous-total', 140, finalY + 10);
-            doc.setTextColor(30, 41, 59);
-            doc.text(`${Number(invoiceDetails.total).toLocaleString('fr-FR')} F`, 196, finalY + 10, { align: 'right' });
+            doc.setTextColor(...INK);
+            doc.text(pdfFCFA(invoiceDetails.total), 196, finalY + 10, { align: 'right' });
 
-            doc.setDrawColor(226, 232, 240);
+            doc.setDrawColor(203, 213, 225);
             doc.line(140, finalY + 14, 196, finalY + 14);
 
-            doc.setFontSize(12);
+            doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
-            doc.text('Total Net', 140, finalY + 22);
-            doc.setTextColor(79, 70, 229); 
-            doc.text(`${Number(invoiceDetails.total).toLocaleString('fr-FR')} FCFA`, 196, finalY + 22, { align: 'right' });
+            doc.setTextColor(...INK);
+            doc.text('Total net', 140, finalY + 22);
+            doc.setTextColor(...ACCENT);
+            doc.text(pdfFCFA(invoiceDetails.total), 196, finalY + 22, { align: 'right' });
 
             // Signatures
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(148, 163, 184);
-            
-            doc.text('Signature du Client', 40, finalY + 45, { align: 'center' });
-            doc.setDrawColor(203, 213, 225);
-            doc.line(14, finalY + 65, 66, finalY + 65); 
+            doc.setFontSize(9.5);
+            doc.setTextColor(...INK_LABEL);
 
-            doc.text('Cachet / Signature Magasin', 160, finalY + 45, { align: 'center' });
-            doc.line(134, finalY + 65, 186, finalY + 65); 
+            doc.text('Signature du client', 40, finalY + 45, { align: 'center' });
+            doc.setDrawColor(148, 163, 184);
+            doc.line(14, finalY + 65, 66, finalY + 65);
+
+            doc.text('Cachet / Signature magasin', 160, finalY + 45, { align: 'center' });
+            doc.line(134, finalY + 65, 186, finalY + 65);
 
             doc.text('Merci de votre confiance !', 105, finalY + 80, { align: 'center' });
 

@@ -3,6 +3,14 @@ import toast from 'react-hot-toast';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDateTime } from '../lib/dates';
+import { pdfText, pdfFCFA } from '../lib/pdf';
+
+// Mêmes encres que la facture de vente : les tons très clairs rendaient le
+// document délavé une fois imprimé ou lu sur un téléphone.
+const INK = [15, 23, 42];
+const INK_SOFT = [71, 85, 105];
+const INK_LABEL = [100, 116, 139];
+const ACCENT = [67, 56, 202];
 
 // Document imprimable/partageable d'un bon de commande fournisseur — même
 // technique que InvoicePrint (facture de vente), volontairement dupliquée
@@ -29,53 +37,63 @@ export const PurchaseOrderPrint = ({ orderDetails, business, onClose }) => {
             doc.setFont('helvetica');
 
             doc.setFontSize(22);
-            doc.setTextColor(30, 41, 59);
-            doc.text(business?.name || 'Boutique', 14, 20);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK);
+            doc.text(pdfText(business?.name) || 'Boutique', 14, 20);
 
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139);
-            const bizType = business?.type === 'pieces_moto' ? 'Pieces detachees et Accessoires' : 'Boutique / Magasin';
+            doc.setTextColor(...INK_SOFT);
+            // Les accents tiennent sur un octet (voir lib/pdf.js) : inutile de
+            // les retirer du document.
+            const bizType = business?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin';
             doc.text(bizType, 14, 28);
-            if (business?.address) doc.text(`Adresse: ${business.address}`, 14, 34);
-            if (business?.phone) doc.text(`Tel: ${business.phone}`, 14, 40);
+            if (business?.address) doc.text(pdfText(`Adresse : ${business.address}`), 14, 34);
+            if (business?.phone) doc.text(pdfText(`Tél : ${business.phone}`), 14, 40);
 
             doc.setFontSize(16);
-            doc.setTextColor(148, 163, 184);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK_LABEL);
             doc.text('BON DE COMMANDE', 196, 20, { align: 'right' });
 
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(12);
-            doc.setTextColor(30, 41, 59);
+            doc.setTextColor(...INK);
             doc.text(`#${orderIdStr}`, 196, 28, { align: 'right' });
 
             doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139);
-            const dateStr = formatDateTime(orderDetails.date);
+            doc.setTextColor(...INK_SOFT);
+            const dateStr = pdfText(formatDateTime(orderDetails.date));
             doc.text(dateStr, 196, 34, { align: 'right' });
 
             doc.setFontSize(9);
-            doc.setTextColor(148, 163, 184);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK_LABEL);
             doc.text('FOURNISSEUR', 14, 55);
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(12);
-            doc.setTextColor(30, 41, 59);
-            doc.text(orderDetails.supplier?.name || 'Non renseigné', 14, 62);
+            doc.setTextColor(...INK);
+            doc.text(pdfText(orderDetails.supplier?.name) || 'Non renseigné', 14, 62);
             if (orderDetails.supplier?.phone) {
                 doc.setFontSize(10);
-                doc.setTextColor(100, 116, 139);
-                doc.text(`Tel: ${orderDetails.supplier.phone}`, 14, 68);
+                doc.setTextColor(...INK_SOFT);
+                doc.text(pdfText(`Tél : ${orderDetails.supplier.phone}`), 14, 68);
             }
 
             doc.setFontSize(9);
-            doc.setTextColor(148, 163, 184);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK_LABEL);
             doc.text('STATUT', 196, 55, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
             doc.setFontSize(11);
-            doc.setTextColor(30, 41, 59);
-            doc.text(statusLabel, 196, 62, { align: 'right' });
+            doc.setTextColor(...INK);
+            doc.text(pdfText(statusLabel), 196, 62, { align: 'right' });
 
-            const tableColumn = ['Description', 'Qte', 'Prix Unitaire', 'Total'];
+            const tableColumn = ['Description', 'Qté', 'Prix unitaire', 'Total'];
             const tableRows = orderDetails.items.map((item) => {
                 const price = Number(item.price);
                 const qty = Number(item.quantity);
-                return [item.name || 'Produit inconnu', qty.toString(), `${price.toLocaleString('fr-FR')} F`, `${(price * qty).toLocaleString('fr-FR')} F`];
+                return [pdfText(item.name) || 'Produit inconnu', qty.toString(), pdfFCFA(price), pdfFCFA(price * qty)];
             });
 
             autoTable(doc, {
@@ -84,18 +102,19 @@ export const PurchaseOrderPrint = ({ orderDetails, business, onClose }) => {
                 body: tableRows,
                 theme: 'plain',
                 headStyles: {
-                    fillColor: [255, 255, 255],
-                    textColor: [100, 116, 139],
-                    fontSize: 9,
+                    fillColor: [241, 245, 249],
+                    textColor: [51, 65, 85],
+                    fontSize: 9.5,
                     fontStyle: 'bold',
-                    lineColor: [226, 232, 240],
+                    lineColor: [203, 213, 225],
                     lineWidth: { bottom: 0.5 },
                 },
                 bodyStyles: {
-                    textColor: [30, 41, 59],
-                    fontSize: 10,
-                    lineColor: [241, 245, 249],
-                    lineWidth: { bottom: 0.1 },
+                    textColor: INK,
+                    fontSize: 10.5,
+                    cellPadding: 3,
+                    lineColor: [226, 232, 240],
+                    lineWidth: { bottom: 0.2 },
                 },
                 columnStyles: {
                     0: { cellWidth: 'auto' },
@@ -108,30 +127,31 @@ export const PurchaseOrderPrint = ({ orderDetails, business, onClose }) => {
 
             const finalY = doc.lastAutoTable.finalY || 80;
 
-            doc.setFontSize(10);
-            doc.setTextColor(100, 116, 139);
+            doc.setFontSize(10.5);
+            doc.setTextColor(...INK_SOFT);
             doc.text('Sous-total', 140, finalY + 10);
-            doc.setTextColor(30, 41, 59);
-            doc.text(`${Number(orderDetails.total).toLocaleString('fr-FR')} F`, 196, finalY + 10, { align: 'right' });
+            doc.setTextColor(...INK);
+            doc.text(pdfFCFA(orderDetails.total), 196, finalY + 10, { align: 'right' });
 
-            doc.setDrawColor(226, 232, 240);
+            doc.setDrawColor(203, 213, 225);
             doc.line(140, finalY + 14, 196, finalY + 14);
 
-            doc.setFontSize(12);
+            doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...INK);
             doc.text('Total', 140, finalY + 22);
-            doc.setTextColor(79, 70, 229);
-            doc.text(`${Number(orderDetails.total).toLocaleString('fr-FR')} FCFA`, 196, finalY + 22, { align: 'right' });
+            doc.setTextColor(...ACCENT);
+            doc.text(pdfFCFA(orderDetails.total), 196, finalY + 22, { align: 'right' });
 
             doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(148, 163, 184);
+            doc.setFontSize(9.5);
+            doc.setTextColor(...INK_LABEL);
 
-            doc.text('Signature Fournisseur', 40, finalY + 45, { align: 'center' });
-            doc.setDrawColor(203, 213, 225);
+            doc.text('Signature fournisseur', 40, finalY + 45, { align: 'center' });
+            doc.setDrawColor(148, 163, 184);
             doc.line(14, finalY + 65, 66, finalY + 65);
 
-            doc.text('Signature Réception', 160, finalY + 45, { align: 'center' });
+            doc.text('Signature réception', 160, finalY + 45, { align: 'center' });
             doc.line(134, finalY + 65, 186, finalY + 65);
 
             const fileName = `Bon_de_commande_${orderIdStr}.pdf`;
