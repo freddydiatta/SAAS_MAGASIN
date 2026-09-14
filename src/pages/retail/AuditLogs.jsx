@@ -124,7 +124,7 @@ export const AuditLogs = () => {
 
         if (log.action === 'MODIFY_PURCHASE_ORDER') {
             const formatItems = (items) =>
-                (items || []).map((item) => `${item.product_name} ×${item.quantity} (${Number(item.unit_cost).toLocaleString('fr-FR')} F)`).join(', ') || '—';
+                (items || []).map((item) => `${item.product_name} ×${item.quantity} (${Number(item.unit_cost).toLocaleString('fr-FR')} FCFA)`).join(', ') || '—';
             return (
                 <div className="text-sm space-y-2">
                     <div className="flex gap-2 items-center text-secondary text-xs">

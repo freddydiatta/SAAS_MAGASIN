@@ -55,7 +55,8 @@ describe('CreatePurchaseOrderModal', () => {
         await user.type(screen.getByPlaceholderText('Prix du pack'), '6000');
 
         // 3 packs x 24 units = 72 units ; 6000 F / 24 = 250 F/unit
-        expect(await screen.findByText('= 72 unités à 250 F/unité')).toBeInTheDocument();
+        // espace insécable avant FCFA : la devise ne passe jamais seule à la ligne
+        expect(await screen.findByText(/= 72 unités à 250\sFCFA\/unité/)).toBeInTheDocument();
 
         await user.click(screen.getByRole('button', { name: 'Créer le bon de commande' }));
 

@@ -62,7 +62,7 @@ export const Stock = () => {
             header: 'Prix Unitaire',
             headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider',
             cellClassName: 'px-6 py-4 text-secondary font-medium',
-            render: (product) => `${product.price.toLocaleString('fr-FR')} F`,
+            render: (product) => `${product.price.toLocaleString('fr-FR')} FCFA`,
         },
         {
             key: 'margin',
@@ -77,7 +77,7 @@ export const Stock = () => {
                 const marginPercent = product.cost_price > 0 ? Math.round((margin / product.cost_price) * 100) : null;
                 return (
                     <span className={`text-sm font-semibold ${margin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                        {margin.toLocaleString('fr-FR')} F{marginPercent !== null && ` (${marginPercent}%)`}
+                        {margin.toLocaleString('fr-FR')}&nbsp;FCFA{marginPercent !== null && ` (${marginPercent}%)`}
                     </span>
                 );
             },

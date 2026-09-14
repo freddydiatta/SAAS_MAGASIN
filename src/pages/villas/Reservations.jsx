@@ -70,7 +70,7 @@ export const Reservations = () => {
             header: 'Montant Total',
             headerClassName: 'px-6 py-4 font-semibold',
             cellClassName: 'px-6 py-4 font-bold text-accent',
-            render: (booking) => `${booking.total_price.toLocaleString('fr-FR')} F`,
+            render: (booking) => `${booking.total_price.toLocaleString('fr-FR')} FCFA`,
         },
         {
             key: 'status',
@@ -181,7 +181,7 @@ export const Reservations = () => {
                         >
                             <option value="">Sélectionnez une villa</option>
                             {villas.map(v => (
-                                <option key={v.id} value={v.id}>{v.name} ({v.price_per_night.toLocaleString()} F/nuit)</option>
+                                <option key={v.id} value={v.id}>{v.name} ({v.price_per_night.toLocaleString('fr-FR')} FCFA/nuit)</option>
                             ))}
                         </select>
                     </div>

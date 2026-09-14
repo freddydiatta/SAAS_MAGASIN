@@ -249,7 +249,7 @@ export const CreatePurchaseOrderModal = ({ isOpen, onClose, onSubmit, isSaving, 
                                         />
                                         {resolvedQuantity > 0 && (
                                             <span className="text-xs text-secondary">
-                                                = {resolvedQuantity} unité{resolvedQuantity > 1 ? 's' : ''} à {resolvedUnitCost.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} F/unité
+                                                = {resolvedQuantity} unité{resolvedQuantity > 1 ? 's' : ''} à {resolvedUnitCost.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} FCFA/unité
                                             </span>
                                         )}
                                     </div>

@@ -85,7 +85,7 @@ export const HistoriqueVentes = () => {
             header: 'Total',
             headerClassName: 'py-5 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
             cellClassName: 'py-4 px-6 text-right font-bold text-primary text-lg',
-            render: (receipt) => `${receipt.total_amount.toLocaleString('fr-FR')} F`,
+            render: (receipt) => `${receipt.total_amount.toLocaleString('fr-FR')} FCFA`,
         },
         {
             key: 'status',

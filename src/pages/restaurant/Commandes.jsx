@@ -130,7 +130,7 @@ export const Commandes = () => {
             header: 'Total',
             headerClassName: 'py-4 px-6 font-semibold text-secondary text-xs uppercase tracking-wider text-right',
             cellClassName: 'py-4 px-6 text-right font-bold text-primary',
-            render: (order) => `${Number(order.total_amount).toLocaleString('fr-FR')} F`,
+            render: (order) => `${Number(order.total_amount).toLocaleString('fr-FR')} FCFA`,
         },
         {
             key: 'time',
