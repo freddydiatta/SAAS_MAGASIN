@@ -6,7 +6,8 @@ import { motion } from 'framer-motion';
 import { useMoneyAccounts } from '../../hooks/useMoneyAccounts';
 import { Modal } from '../../components/Modal';
 import { ConfirmModal } from '../../components/ConfirmModal';
-import { formatDate } from '../../lib/dates';
+import { formatDate, ofMonth, formatMonthName, zonedDayOfMonth } from '../../lib/dates';
+import { describeTrend } from '../../lib/dayTrend';
 import { SalesInsights } from '../../components/SalesInsights';
 
 // Ce qu'il reste sur un moyen de paiement : le point de départ déclaré, que
@@ -70,7 +71,10 @@ export const Finances = () => {
         netProfit,
         revenueThisMonth,
         profitThisMonth,
-        percentChangeMonth,
+        revenueLastMonthSoFar,
+        isFirstTrackedMonth,
+        thisMonthStart,
+        lastMonthStart,
         pendingDebtsTotal,
         stockSaleValue,
         stockCost,
@@ -86,6 +90,20 @@ export const Finances = () => {
         formatFCFA,
     } = useFinances(selectedBusiness);
 
+    // « Ventes de septembre » plutôt que « Ce mois-ci » : un gérant lit
+    // directement de quel mois et de quel chiffre il s'agit.
+    const monthTitle = `Ventes ${ofMonth(thisMonthStart)}`;
+    const today = zonedDayOfMonth(new Date());
+    const lastMonthName = formatMonthName(lastMonthStart);
+    const samePeriodLastMonth = today === 1 ? `Le 1er ${lastMonthName}` : `Du 1er au ${today} ${lastMonthName}`;
+    const monthTrend = describeTrend({
+        current: revenueThisMonth,
+        reference: revenueLastMonthSoFar,
+        format: (value) => `${formatFCFA(value)}\u00A0FCFA`,
+        referenceLabel: samePeriodLastMonth,
+        comparisonLabel: `par rapport au ${today === 1 ? '1er' : `1er–${today}`} ${lastMonthName}`,
+    });
+
     const {
         cashAccounts, mobileAccounts,
         isFormOpen, editingAccount, openAddForm, openEditForm, closeForm,
@@ -97,7 +115,7 @@ export const Finances = () => {
         <div className="max-w-7xl mx-auto space-y-8 animate-fade-in-up pb-10">
             <div>
                 <h1 className="text-3xl font-bold text-primary mb-1 tracking-tight">Finances</h1>
-                <p className="text-secondary text-sm">Ce que vous avez réellement gagné, au-delà de la caisse du jour.</p>
+                <p className="text-secondary text-sm">Ce que vous avez réellement gagné, au-delà des ventes du jour.</p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -152,17 +170,28 @@ export const Finances = () => {
                         <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-blue-500">
                             <TrendingUp className="w-6 h-6" />
                         </div>
-                        <p className="text-secondary text-sm font-medium">Ce mois-ci</p>
+                        <p className="text-secondary text-sm font-medium">{monthTitle}</p>
                     </div>
                     <h3 className="text-2xl font-bold text-primary">{isLoading ? '…' : formatFCFA(revenueThisMonth)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
-                    <div className="flex items-center gap-1 text-xs mt-1">
-                        <span className={`flex items-center gap-1 font-bold ${percentChangeMonth >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {percentChangeMonth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                            {percentChangeMonth > 0 ? '+' : ''}{percentChangeMonth}%
-                        </span>
-                        <span className="text-slate-400">vs mois dernier</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">Bénéfice du mois : {formatFCFA(profitThisMonth)}&nbsp;FCFA</p>
+                    {/* Comparaison au mois dernier à la même date, jamais au mois
+                        entier ; et rien d'inventé quand le mois dernier n'était
+                        pas encore suivi (voir lib/dayTrend). Un retard reste gris. */}
+                    {isFirstTrackedMonth ? (
+                        <p className="text-xs text-slate-500 mt-1">Premier mois suivi dans l'application</p>
+                    ) : (
+                        <div className="flex flex-wrap items-center gap-x-1.5 text-xs mt-1">
+                            {monthTrend.value && (
+                                <span className={`flex items-center gap-1 font-bold ${monthTrend.tone === 'up' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {monthTrend.tone === 'up' ? <TrendingUp className="w-3 h-3" /> : monthTrend.tone === 'down' ? <TrendingDown className="w-3 h-3" /> : null}
+                                    {monthTrend.value}
+                                </span>
+                            )}
+                            <span className={monthTrend.value ? 'text-slate-400' : 'text-slate-500'}>{monthTrend.label}</span>
+                        </div>
+                    )}
+                    <p className="text-xs text-slate-500 mt-1">
+                        Bénéfice {ofMonth(thisMonthStart)} : <span className="font-semibold text-primary">{formatFCFA(profitThisMonth)}&nbsp;FCFA</span>
+                    </p>
                 </motion.div>
 
                 <motion.div

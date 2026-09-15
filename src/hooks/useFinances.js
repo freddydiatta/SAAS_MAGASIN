@@ -7,10 +7,16 @@ import { useProducts } from './useProducts';
 // Regroupement mensuel en heure de Dakar : une vente du 31 août à 23h30 est
 // d'août pour le commerçant, alors qu'un appareil réglé sur Paris la datait
 // du 1er septembre et la basculait dans le mois suivant.
-import { monthKey, monthKeyFromOffset } from '../lib/dates';
+import { monthKey, monthKeyFromOffset, startOfMonth } from '../lib/dates';
 import { useMoneyAccounts } from './useMoneyAccounts';
 
-const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
+// Arrondi à l'unité : le franc CFA n'a pas de centimes, mais les prix d'achat
+// divisés par lot en produisent (541,67 l'unité), et le bénéfice s'affichait
+// « 12 749,86 FCFA » — un chiffre qui fait douter de tout le reste.
+// Séparateur de milliers insécable (écrit en échappement pour ne pas se perdre
+// en espace ordinaire à l'édition) : sinon « 108 850 » pouvait se couper en
+// fin de ligne sur un téléphone.
+const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(Math.round(amount)).replace(/\s/g, ' ');
 
 // Vue d'ensemble des gains réels du commerce (chiffre d'affaires total,
 // bénéfice, tendance mensuelle) — contrairement à "Caisse du jour"
@@ -22,7 +28,10 @@ const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).rep
 // qui tourne depuis des années avait déjà gagné cet argent avant d'ouvrir
 // l'application, et l'exclure donnait un total plus petit que ce que le
 // commerçant a réellement en main — le chiffre paraissait faux.
-export function useFinances(selectedBusiness) {
+//
+// `now` n'est à fournir que par les tests : la comparaison avec le mois
+// dernier « à la même date » dépend du jour où l'on consulte la page.
+export function useFinances(selectedBusiness, { now: fixedNow } = {}) {
     const businessId = selectedBusiness?.id;
 
     const { data: sales = [], isLoading: loadingSales } = useQuery({
@@ -253,19 +262,38 @@ export function useFinances(selectedBusiness) {
             + (Number(s.total_price) - Number(s.total_cost));
     });
 
-    const now = new Date();
+    const now = new Date(fixedNow ?? Date.now());
     const currentMonthKey = monthKeyFromOffset(0, now).key;
-    const lastMonthKey = monthKeyFromOffset(1, now).key;
 
     const revenueThisMonth = revenueByMonth[currentMonthKey] || 0;
-    const revenueLastMonth = revenueByMonth[lastMonthKey] || 0;
     const expensesThisMonth = operatingExpensesByMonth[currentMonthKey] || 0;
     const marginThisMonth = marginByMonth[currentMonthKey] || 0;
     const profitThisMonth = marginThisMonth - expensesThisMonth;
 
-    const percentChangeMonth = revenueLastMonth > 0
-        ? Math.round(((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100)
-        : (revenueThisMonth > 0 ? 100 : 0);
+    // --- Le mois dernier, à la même date ---
+    // Le 15 septembre, septembre ne se compare pas à tout le mois d'août mais
+    // au 1er–15 août : sinon chaque début de mois paraît en chute libre. La
+    // borne est plafonnée à la fin du mois dernier (un 31 face à un mois de 30
+    // jours compare au mois entier).
+    const thisMonthStart = startOfMonth(now);
+    const lastMonthStart = startOfMonth(thisMonthStart - 1);
+    const lastMonthCutoff = Math.min(lastMonthStart + (now.getTime() - thisMonthStart), thisMonthStart);
+    const inLastMonthSoFar = (dateStr) => {
+        const time = new Date(dateStr).getTime();
+        return time >= lastMonthStart && time < lastMonthCutoff;
+    };
+    const revenueLastMonthSoFar = collectedSales
+        .filter((s) => inLastMonthSoFar(s.created_at))
+        .reduce((sum, s) => sum + Number(s.total_price), 0)
+        + paidDebts
+            .filter((d) => inLastMonthSoFar(d.paid_at || d.created_at))
+            .reduce((sum, d) => sum + Number(d.amount), 0);
+
+    // Aucune vente enregistrée avant ce mois : le mois dernier n'est pas « à
+    // zéro », il n'était simplement pas suivi. Le dire plutôt que d'afficher
+    // une comparaison avec du vide.
+    const isFirstTrackedMonth = sales.length > 0
+        && sales.every((s) => new Date(s.created_at).getTime() >= thisMonthStart);
 
     // --- Potentiel du stock restant ---
     // Ce que rapporterait le stock actuel s'il était entièrement vendu — un
@@ -305,7 +333,10 @@ export function useFinances(selectedBusiness) {
         revenueThisMonth,
         expensesThisMonth,
         profitThisMonth,
-        percentChangeMonth,
+        revenueLastMonthSoFar,
+        isFirstTrackedMonth,
+        thisMonthStart,
+        lastMonthStart,
         salesMargin,
         salesWithoutCostCount,
         cashBalance,

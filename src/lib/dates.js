@@ -108,3 +108,23 @@ export const zonedDayKey = (value) => {
     const { year, month, day } = zonedParts(value);
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
+
+// Minuit du 1er jour du mois qui contient `value`, en heure du commerce.
+// Midi UTC le 1er tombe forcément le 1er dans le fuseau du commerce : on part
+// de là pour retrouver son minuit, sans arithmétique de calendrier local.
+export const startOfMonth = (value = new Date()) => {
+    const { year, month } = zonedYearMonth(value);
+    return startOfDay(Date.UTC(year, month - 1, 1, 12));
+};
+
+/** Jour du mois (1-31) en heure du commerce. */
+export const zonedDayOfMonth = (value) => zonedParts(value).day;
+
+/** « septembre », « août »... en heure du commerce. */
+export const formatMonthName = (value) => formatDate(value, { month: 'long' });
+
+/** « de septembre », mais « d'août », « d'avril », « d'octobre ». */
+export const ofMonth = (value) => {
+    const name = formatMonthName(value);
+    return /^[aeiouyh]/i.test(name) ? `d'${name}` : `de ${name}`;
+};

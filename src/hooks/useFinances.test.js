@@ -104,8 +104,18 @@ describe('useFinances', () => {
         expect(result.current.pendingDebtsTotal).toBe(800);
     });
 
-    it('computes this-month figures and the month-over-month percent change', async () => {
-        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+    // Le 15 du mois à midi : les ventes des fixtures (le 10) sont passées, et
+    // la comparaison porte sur le 1er–15 du mois dernier. Date fixe, pour que
+    // le test ne dépende pas du jour où il est lancé.
+    const MID_MONTH = { now: Date.UTC(currentYear, currentMonth - 1, 15, 12) };
+
+    it('computes this-month figures and compares with last month up to the same date', async () => {
+        fetchAllSalesMock.mockResolvedValue([
+            ...SALES,
+            // le 20 du mois dernier : après la même date, donc hors comparaison
+            { id: 's5', total_price: 9000, created_at: new Date(Date.UTC(currentYear, currentMonth - 2, 20, 9)).toISOString(), products: { name: 'Pneu' }, receipts: { status: 'completed', payment_method: 'cash' } },
+        ]);
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS, MID_MONTH));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         // this month: 3000 + 2000 (sales) + 1500 (repaid debt) = 6500
@@ -113,19 +123,40 @@ describe('useFinances', () => {
         expect(result.current.expensesThisMonth).toBe(700);
         // marge inconnue sur ces ventes -> le mois ne porte que ses dépenses
         expect(result.current.profitThisMonth).toBe(-700);
-        // last month revenue was 1000 -> (6500-1000)/1000 * 100 = 550%
-        expect(result.current.percentChangeMonth).toBe(550);
+        // seule la vente du 10 du mois dernier compte, pas celle du 20 : le
+        // 15, un mois entamé ne se compare pas à un mois entier
+        expect(result.current.revenueLastMonthSoFar).toBe(1000);
+        expect(result.current.isFirstTrackedMonth).toBe(false);
     });
 
-    it('returns 0% change (not a divide-by-zero) with no revenue at all', async () => {
+    it('recognises the first month tracked, instead of comparing with an empty month', async () => {
+        // commerce suivi depuis ce mois-ci : le mois dernier n'était pas « à
+        // zéro », il n'était pas suivi, et « +100 % » n'aurait aucun sens
+        fetchAllSalesMock.mockResolvedValue(SALES.filter((sale) => sale.created_at === thisMonth.toISOString()));
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS, MID_MONTH));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        expect(result.current.isFirstTrackedMonth).toBe(true);
+    });
+
+    it('stays sober with no revenue at all', async () => {
         fetchAllSalesMock.mockResolvedValue([]);
         fetchDebtsMock.mockResolvedValue([]);
         fetchExpensesMock.mockResolvedValue([]);
-        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS));
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS, MID_MONTH));
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
-        expect(result.current.percentChangeMonth).toBe(0);
+        expect(result.current.revenueLastMonthSoFar).toBe(0);
         expect(result.current.totalRevenue).toBe(0);
+        expect(result.current.isFirstTrackedMonth).toBe(false);
+    });
+
+    it('rounds amounts to the franc, which has no cents', async () => {
+        const { result } = renderHookWithQueryClient(() => useFinances(BUSINESS, MID_MONTH));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+        // un bénéfice de 12 749,86 s'affichait avec ses centimes
+        expect(result.current.formatFCFA(12749.86)).toBe('12\u00A0750');
     });
 
     it('counts a received purchase order as money out, but never against the profit', async () => {
