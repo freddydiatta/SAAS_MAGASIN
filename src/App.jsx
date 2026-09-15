@@ -53,10 +53,16 @@ function RouteFallback() {
   );
 }
 
+// Durée pendant laquelle les données gardées sur l'appareil restent utilisables
+// hors-ligne. Par défaut (24 h), rouvrir la caisse sans réseau le lundi matin
+// après un dimanche fermé la trouvait vide : catalogue jeté, rien à vendre.
+const OFFLINE_DATA_MAX_AGE = 1000 * 60 * 60 * 24 * 7;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      gcTime: 1000 * 60 * 60 * 24, // 24 heures en cache
+      // au moins OFFLINE_DATA_MAX_AGE, sinon le cache mémoire efface avant la copie sur l'appareil
+      gcTime: OFFLINE_DATA_MAX_AGE,
       staleTime: 1000 * 15, // 15 secondes au lieu de 5 minutes pour rafraîchir vite
       refetchOnWindowFocus: true, // Recharger automatiquement quand on revient sur la fenêtre
       refetchInterval: 15000, // Rafraîchissement automatique toutes les 15 secondes
@@ -118,7 +124,7 @@ function App() {
   return (
     <PersistQueryClientProvider 
       client={queryClient} 
-      persistOptions={{ persister: asyncStoragePersister }}
+      persistOptions={{ persister: asyncStoragePersister, maxAge: OFFLINE_DATA_MAX_AGE }}
     >
       <Toaster position="top-right" toastOptions={{ className: 'font-sans' }} />
       <SyncAndLoadingGate>

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { BusinessProvider, useBusiness } from './BusinessContext';
 
@@ -85,6 +85,99 @@ describe('BusinessContext', () => {
         // n'existe que dans la corbeille de BusinessList, le temps qu'il
         // reste restaurable
         expect(builder.is).toHaveBeenCalledWith('deleted_at', null);
+    });
+
+    it('reprend la dernière liste de magasins connue quand le réseau manque', async () => {
+        // en ligne : la liste est chargée, et gardée sur l'appareil
+        const STORE = { id: 'biz-1', name: 'Dépot CHEZ ANGEL', user_id: 'owner-1' };
+        fromMock.mockImplementation(() => createQueryBuilder({ data: [STORE], error: null }));
+        const online = renderHook(() => useBusiness(), { wrapper });
+        await waitFor(() => expect(online.result.current.selectedBusiness?.id).toBe('biz-1'));
+        online.unmount();
+
+        // hors-ligne : la requête échoue. Avant, aucun magasin n'était
+        // sélectionné et l'app renvoyait vers « Mes magasins » avec une erreur
+        fromMock.mockImplementation(() => createQueryBuilder({ data: null, error: new Error('Failed to fetch') }));
+        const offline = renderHook(() => useBusiness(), { wrapper });
+        await waitFor(() => expect(offline.result.current.loading).toBe(false));
+
+        expect(offline.result.current.selectedBusiness).toMatchObject({ id: 'biz-1', name: 'Dépot CHEZ ANGEL' });
+        expect(offline.result.current.fetchError).toBe('');
+    });
+
+    it('signale toujours l\'erreur quand aucune liste n\'a jamais été chargée', async () => {
+        fromMock.mockImplementation(() => createQueryBuilder({ data: null, error: new Error('Failed to fetch') }));
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        const { result } = renderHook(() => useBusiness(), { wrapper });
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        // sans copie de secours, rien ne doit faire croire à un compte vide
+        expect(result.current.fetchError).toBe('Failed to fetch');
+        console.error.mockRestore();
+    });
+
+    describe('liste gardée sur l\'appareil', () => {
+        const STORE = { id: 'biz-1', name: 'Dépot CHEZ ANGEL', user_id: 'owner-1' };
+
+        const keepListOnDevice = async (list) => {
+            fromMock.mockImplementation(() => createQueryBuilder({ data: list, error: null }));
+            const online = renderHook(() => useBusiness(), { wrapper });
+            await waitFor(() => expect(online.result.current.selectedBusiness?.id).toBe(list[0].id));
+            online.unmount();
+            fromMock.mockClear();
+        };
+
+        let onlineSpy;
+        afterEach(() => {
+            onlineSpy?.mockRestore();
+            onlineSpy = undefined;
+            vi.useRealTimers();
+        });
+
+        it('s\'ouvre hors-ligne sans attendre une requête vouée à l\'échec', async () => {
+            await keepListOnDevice([STORE]);
+            // sans réseau, supabase-js ne répond qu'après ~25 s de tentatives
+            fromMock.mockImplementation(() => createQueryBuilder(new Promise(() => {})));
+            onlineSpy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+
+            const { result } = renderHook(() => useBusiness(), { wrapper });
+            await waitFor(() => expect(result.current.loading).toBe(false));
+
+            expect(result.current.selectedBusiness).toMatchObject({ id: 'biz-1' });
+            expect(fromMock).not.toHaveBeenCalled();
+        });
+
+        it('affiche la liste gardée quand le réseau traîne, puis la vraie dès qu\'elle arrive', async () => {
+            await keepListOnDevice([STORE]);
+            vi.useFakeTimers({ shouldAdvanceTime: true });
+            let answer;
+            const slowResult = new Promise((resolve) => { answer = resolve; });
+            fromMock.mockImplementation(() => createQueryBuilder(slowResult));
+
+            const { result } = renderHook(() => useBusiness(), { wrapper });
+            await act(() => vi.advanceTimersByTimeAsync(3900));
+            expect(result.current.selectedBusiness).toBeNull();
+
+            await act(() => vi.advanceTimersByTimeAsync(200));
+            expect(result.current.selectedBusiness).toMatchObject({ name: 'Dépot CHEZ ANGEL' });
+
+            await act(async () => answer({ data: [{ ...STORE, name: 'Dépôt Chez Angel' }], error: null }));
+            await waitFor(() => expect(result.current.selectedBusiness?.name).toBe('Dépôt Chez Angel'));
+        });
+
+        it('n\'affiche pas la liste gardée quand le réseau répond vite', async () => {
+            await keepListOnDevice([STORE]);
+            vi.useFakeTimers({ shouldAdvanceTime: true });
+            fromMock.mockImplementation(() => createQueryBuilder({ data: [{ ...STORE, name: 'Nouveau nom' }], error: null }));
+
+            const { result } = renderHook(() => useBusiness(), { wrapper });
+            await waitFor(() => expect(result.current.selectedBusiness?.name).toBe('Nouveau nom'));
+            // le minuteur de secours ne doit pas remettre l'ancienne liste par-dessus
+            await act(() => vi.advanceTimersByTimeAsync(5000));
+
+            expect(result.current.selectedBusiness?.name).toBe('Nouveau nom');
+        });
     });
 
     describe('switchToCashierOffline', () => {

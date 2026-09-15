@@ -1,5 +1,5 @@
-import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
+import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
@@ -13,6 +13,24 @@ import { clientsClaim } from 'workbox-core';
 // ci-dessous, juste exprimé en API Workbox directe plutôt qu'en config.
 
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Ouvrir n'importe quelle adresse de l'application sans réseau.
+//
+// L'application n'a qu'une seule page HTML (index.html) : c'est React qui
+// affiche ensuite /login, /dashboard/caisse... Le précache ne connaît que
+// « / » et « /index.html ». Sans cette règle, ouvrir /login hors-ligne — et
+// l'app installée démarre justement sur /login (start_url) — partait chercher
+// la page sur le réseau et Safari affichait « votre iPhone n'est pas connecté
+// à Internet ». generateSW posait cette règle tout seul (navigateFallback) ;
+// elle a disparu au passage à injectManifest, et le mode hors-ligne avec elle.
+//
+// Exclus : les fichiers (une adresse avec extension, comme /favicon.svg ou
+// une image) doivent rester de vrais fichiers, pas la page de l'application.
+registerRoute(
+    new NavigationRoute(createHandlerBoundToURL('/index.html'), {
+        denylist: [/\/[^/?]+\.[^/?]+$/],
+    })
+);
 
 // Photos produits/menu/villas (bucket Supabase Storage product-images) :
 // sans cette règle, le service worker ne touche que les fichiers de build

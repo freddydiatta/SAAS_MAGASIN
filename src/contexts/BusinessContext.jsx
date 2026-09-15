@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { cacheCashierCredentials, verifyPinOffline, restoreSessionLocally, findCachedCashierByUserId } from '../services/offlineCashierAuth';
@@ -12,6 +13,14 @@ const BusinessContext = createContext({});
 // les jetons de session ici : le retour au propriétaire ré-authentifie
 // réellement plutôt que de restaurer un jeton en mémoire.
 const OWNER_SESSION_KEY = 'gestionpro_owner_session';
+
+// Dernière liste de commerces obtenue en ligne, gardée sur l'appareil. Sans
+// elle, ouvrir l'app hors-ligne échouait au chargement des commerces : aucun
+// commerce sélectionné, donc renvoi vers « Mes magasins » avec « Impossible de
+// charger vos commerces », et ni caisse ni aperçu accessibles.
+const businessesCacheKey = (userId) => `businesses_cache:${userId}`;
+// Attente maximale de la liste en ligne quand une liste est déjà sur l'appareil.
+const BUSINESSES_WAIT_MS = 4000;
 
 export const BusinessProvider = ({ children }) => {
     const { user, refreshSession } = useAuth();
@@ -30,6 +39,23 @@ export const BusinessProvider = ({ children }) => {
     // base — indiscernable d'un compte réellement vide sans ce champ.
     const [fetchError, setFetchError] = useState('');
 
+    const applyBusinesses = (list) => {
+        setBusinesses(list);
+
+        // Auto-select if a business was previously selected in localStorage
+        const savedBusinessId = localStorage.getItem('gestionpro_selected_business');
+        const saved = savedBusinessId && list.find(b => b.id === savedBusinessId);
+        if (saved) {
+            setSelectedBusiness(saved);
+        } else if (list.length > 0) {
+            // Otherwise auto-select the first one
+            setSelectedBusiness(list[0]);
+            localStorage.setItem('gestionpro_selected_business', list[0].id);
+        } else {
+            setSelectedBusiness(null);
+        }
+    };
+
     const fetchBusinesses = async () => {
         if (!user) {
             setBusinesses([]);
@@ -38,6 +64,29 @@ export const BusinessProvider = ({ children }) => {
             setLoading(false);
             return;
         }
+
+        let cached = null;
+        try {
+            cached = await idbGet(businessesCacheKey(user.id));
+        } catch {
+            cached = null; // stockage indisponible (navigation privée)
+        }
+        const showCached = () => {
+            setFetchError('');
+            applyBusinesses(cached);
+            setLoading(false);
+        };
+
+        // Hors ligne, la requête ne peut qu'échouer, et seulement après que
+        // supabase-js a renoncé à renouveler l'accès (~25 s d'écran vide).
+        if (cached?.length && !navigator.onLine) {
+            showCached();
+            return;
+        }
+        // Réseau présent mais qui ne répond pas : la dernière liste connue
+        // s'affiche au bout de quelques secondes, la vraie la remplace dès
+        // qu'elle arrive.
+        const slowNetworkTimer = cached?.length ? setTimeout(showCached, BUSINESSES_WAIT_MS) : null;
 
         try {
             // Pas de filtre .eq('user_id', ...) ici : la RLS (is_business_member)
@@ -51,26 +100,28 @@ export const BusinessProvider = ({ children }) => {
                 .select('*')
                 .is('deleted_at', null)
                 .order('created_at', { ascending: true });
+            // avant tout autre await : la liste enregistrée ne doit pas écraser la vraie
+            clearTimeout(slowNetworkTimer);
 
             if (error) throw error;
 
             setFetchError('');
-            setBusinesses(data || []);
-
-            // Auto-select if a business was previously selected in localStorage
-            const savedBusinessId = localStorage.getItem('gestionpro_selected_business');
-            if (savedBusinessId && data?.find(b => b.id === savedBusinessId)) {
-                setSelectedBusiness(data.find(b => b.id === savedBusinessId));
-            } else if (data && data.length > 0) {
-                // Otherwise auto-select the first one
-                setSelectedBusiness(data[0]);
-                localStorage.setItem('gestionpro_selected_business', data[0].id);
-            } else {
-                setSelectedBusiness(null);
+            applyBusinesses(data || []);
+            try {
+                await idbSet(businessesCacheKey(user.id), data || []);
+            } catch {
+                // stockage indisponible (navigation privée) : l'app marche, sans repli hors-ligne
             }
         } catch (error) {
-            console.error('Error fetching businesses:', error.message);
-            setFetchError(error.message || 'Impossible de charger vos commerces.');
+            // Pas de réseau : on repart de la dernière liste connue plutôt que
+            // de bloquer toute l'application.
+            clearTimeout(slowNetworkTimer);
+            if (cached?.length) {
+                showCached();
+            } else {
+                console.error('Error fetching businesses:', error.message);
+                setFetchError(error.message || 'Impossible de charger vos commerces.');
+            }
         } finally {
             setLoading(false);
         }
