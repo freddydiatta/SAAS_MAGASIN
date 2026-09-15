@@ -27,10 +27,11 @@ export const DashboardLayout = () => {
         localStorage.setItem('sidebarCollapsed', isSidebarCollapsed);
     }, [isSidebarCollapsed]);
 
-    // Cinq accès toujours visibles — ceux du quotidien au comptoir — et tout
-    // le reste rangé dans un groupe « Paramètres » replié. Treize entrées à la
-    // suite noyaient les gestes de tous les jours au milieu de pages qu'on
-    // ouvre une fois par semaine.
+    // Les accès du quotidien toujours visibles, le reste rangé dans un groupe
+    // « Paramètres » replié : treize entrées à la suite noyaient les gestes de
+    // tous les jours au milieu de pages qu'on ouvre rarement. Dépenses,
+    // Inventaires et Fournisseurs restent dehors : on s'en sert chaque semaine
+    // au dépôt, les cacher derrière un clic de plus ralentissait le travail.
     const getMenu = () => {
         const type = selectedBusiness?.type;
         const home = { path: '/dashboard', label: 'Aperçu', icon: '🏠' };
@@ -45,32 +46,32 @@ export const DashboardLayout = () => {
                 { path: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
+                depenses,
                 dettes,
             ];
-            secondary.push(depenses);
         } else if (type === 'restaurant') {
             primary = [
                 home,
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
+                depenses,
                 dettes,
             ];
-            secondary.push(depenses);
         } else {
             // Commerce (pieces_moto, quincaillerie, boutique)
             primary = [
                 home,
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '🛒' },
                 { path: '/dashboard/stock', label: 'Stock', icon: '📦' },
+                depenses,
                 dettes,
                 { path: '/dashboard/historique', label: 'Historique', icon: '🕒' },
+                { path: '/dashboard/inventaires', label: 'Inventaires', icon: '🧮' },
             ];
-            secondary.push({ path: '/dashboard/inventaires', label: 'Inventaires', icon: '🧮' });
             if (type === 'pieces_moto') {
                 secondary.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
             }
-            secondary.push(depenses);
         }
 
         // Réservé au propriétaire : programme d'affiliation, logs de
@@ -84,7 +85,8 @@ export const DashboardLayout = () => {
             if (type !== 'villa' && type !== 'restaurant') {
                 // Fournisseurs : réservé au propriétaire comme Sécurité, les
                 // prix d'achat négociés y sont visibles (marge par produit).
-                secondary.push({ path: '/dashboard/fournisseurs', label: 'Fournisseurs', icon: '🚚' });
+                // Visible en permanence, en dernier, comme avant le groupe.
+                primary.push({ path: '/dashboard/fournisseurs', label: 'Fournisseurs', icon: '🚚' });
                 // Finances : bénéfice net et chiffre d'affaires total, encore
                 // plus sensible que les marges — réservé au propriétaire.
                 secondary.push({ path: '/dashboard/finances', label: 'Finances', icon: '📈' });

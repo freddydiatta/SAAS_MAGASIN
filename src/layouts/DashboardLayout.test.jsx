@@ -42,10 +42,12 @@ describe('DashboardLayout — barre latérale', () => {
         businessState.isCashier = false;
     });
 
-    it('ne montre que les 5 accès du quotidien, le reste replié sous « Paramètres »', () => {
+    it('montre les accès du quotidien, le reste replié sous « Paramètres »', () => {
         renderAt('/dashboard');
 
-        expect(visibleLinks()).toEqual(['Aperçu', 'Caisse', 'Stock', 'Dettes', 'Historique']);
+        expect(visibleLinks()).toEqual([
+            'Aperçu', 'Caisse', 'Stock', 'Dépenses', 'Dettes', 'Historique', 'Inventaires', 'Fournisseurs',
+        ]);
         const toggle = within(sidebar()).getByRole('button', { name: /Paramètres/ });
         expect(toggle).toHaveAttribute('aria-expanded', 'false');
     });
@@ -56,8 +58,8 @@ describe('DashboardLayout — barre latérale', () => {
         await userEvent.click(within(sidebar()).getByRole('button', { name: /Paramètres/ }));
 
         expect(visibleLinks()).toEqual([
-            'Aperçu', 'Caisse', 'Stock', 'Dettes', 'Historique',
-            'Inventaires', 'Dépenses', 'Fournisseurs', 'Finances', 'Sécurité', 'Affiliation', 'Abonnement et équipe',
+            'Aperçu', 'Caisse', 'Stock', 'Dépenses', 'Dettes', 'Historique', 'Inventaires', 'Fournisseurs',
+            'Finances', 'Sécurité', 'Affiliation', 'Abonnement et équipe',
         ]);
     });
 
@@ -69,16 +71,12 @@ describe('DashboardLayout — barre latérale', () => {
         expect(active).toHaveAttribute('aria-current', 'page');
     });
 
-    it('garde les pages réservées au propriétaire hors de portée d\'un caissier', async () => {
+    it('garde les pages réservées au propriétaire hors de portée d\'un caissier', () => {
         businessState.isCashier = true;
         renderAt('/dashboard');
 
-        await userEvent.click(within(sidebar()).getByRole('button', { name: /Paramètres/ }));
-
-        const labels = visibleLinks();
-        expect(labels).toContain('Inventaires');
-        expect(labels).not.toContain('Finances');
-        expect(labels).not.toContain('Fournisseurs');
-        expect(labels).not.toContain('Abonnement et équipe');
+        expect(visibleLinks()).toEqual(['Aperçu', 'Caisse', 'Stock', 'Dépenses', 'Dettes', 'Historique', 'Inventaires']);
+        // plus rien à ranger pour un caissier : pas de groupe vide
+        expect(within(sidebar()).queryByRole('button', { name: /Paramètres/ })).toBeNull();
     });
 });

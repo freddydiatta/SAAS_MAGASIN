@@ -107,7 +107,7 @@ export const RetailDashboard = () => {
                             <DollarSign className="w-6 h-6 text-accent" />
                         </div>
                         <div>
-                            <p className="text-secondary text-sm font-medium">Caisse du jour</p>
+                            <p className="text-secondary text-sm font-medium">Ventes du jour</p>
                             <h3 className="text-2xl font-bold text-primary">{formatFCFA(caisseDuJour)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                         </div>
                     </div>

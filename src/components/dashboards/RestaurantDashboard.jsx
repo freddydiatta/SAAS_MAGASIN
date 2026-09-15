@@ -58,7 +58,7 @@ export const RestaurantDashboard = () => {
                             <DollarSign className="w-6 h-6 text-emerald-500" />
                         </div>
                         <div>
-                            <p className="text-secondary text-sm font-medium">Caisse du jour</p>
+                            <p className="text-secondary text-sm font-medium">Ventes du jour</p>
                             <h3 className="text-2xl font-bold text-primary">{isLoading ? '—' : formatFCFA(caisseDuJour)} <span className="text-sm">FCFA</span></h3>
                         </div>
                     </div>
