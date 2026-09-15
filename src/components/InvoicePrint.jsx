@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDateTime } from '../lib/dates';
 import { pdfText, pdfFCFA } from '../lib/pdf';
+import { deliverPdf, printPdf, isTouchDevice } from '../lib/pdfOutput';
 
 // Gris volontairement soutenus : les tons très clairs (slate-400) passaient
 // à l'écran mais rendaient la facture délavée, presque floue, une fois
@@ -26,192 +27,174 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const invoiceNumber = invoiceDetails.invoiceNumber || null;
     const invoiceLabel = invoiceNumber || 'Numéro en attente';
 
-    // Native browser print (ideal for Desktop and receipt printers)
-    const handleNativePrint = () => {
-        window.print();
+    const fileName = `Facture_${invoiceNumber || new Date(invoiceDetails.date).getTime()}.pdf`;
+
+    // Le document PDF, construit à la demande. « Imprimer » et « PDF /
+    // Partager » partent tous deux de lui : ce qui sort de l'imprimante est
+    // exactement ce que l'on voit dans le PDF.
+    const buildPdf = () => {
+        const doc = new jsPDF({ format: 'a4' });
+
+        // Set default font
+        doc.setFont('helvetica');
+
+        // Header
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...INK);
+        doc.text(pdfText(business?.name) || 'Boutique', 14, 20);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...INK_SOFT);
+        // Les accents tiennent sur un octet : rien n'oblige à écrire
+        // « Pieces detachees » dans un PDF (voir lib/pdf.js).
+        const bizType = business?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin';
+        doc.text(bizType, 14, 28);
+        if (business?.address) doc.text(pdfText(`Adresse : ${business.address}`), 14, 34);
+        if (business?.phone) doc.text(pdfText(`Tél : ${business.phone}`), 14, 40);
+
+        // Facture info (Right side)
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...INK_LABEL);
+        doc.text('FACTURE', 196, 20, { align: 'right' });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(12);
+        doc.setTextColor(...INK);
+        doc.text(invoiceNumber ? `N° ${invoiceNumber}` : invoiceLabel, 196, 28, { align: 'right' });
+
+        doc.setFontSize(10);
+        doc.setTextColor(...INK_SOFT);
+        const dateStr = pdfText(formatDateTime(invoiceDetails.date));
+        doc.text(dateStr, 196, 34, { align: 'right' });
+
+        // Customer Info
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...INK_LABEL);
+        doc.text('FACTURÉ À', 14, 55);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(12);
+        doc.setTextColor(...INK);
+        doc.text(pdfText(invoiceDetails.customerName) || 'Client Comptoir', 14, 62);
+        if (invoiceDetails.customerPhone) {
+            doc.setFontSize(10);
+            doc.setTextColor(...INK_SOFT);
+            doc.text(pdfText(`Tél : ${invoiceDetails.customerPhone}`), 14, 68);
+        }
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...INK_LABEL);
+        doc.text('VENDEUR', 196, 55, { align: 'right' });
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.setTextColor(...INK);
+        doc.text(pdfText(user?.email), 196, 62, { align: 'right' });
+
+        // Table
+        const tableColumn = ["Description", "Qté", "Prix unitaire", "Total"];
+        const tableRows = [];
+
+        invoiceDetails.items.forEach(item => {
+            const name = item.name || item.products?.name || 'Produit Inconnu';
+            const price = Number(item.price);
+            const qty = Number(item.quantity);
+            const itemTotal = price * qty;
+
+            tableRows.push([
+                pdfText(name),
+                qty.toString(),
+                pdfFCFA(price),
+                pdfFCFA(itemTotal),
+            ]);
+        });
+
+        autoTable(doc, {
+            startY: 80,
+            head: [tableColumn],
+            body: tableRows,
+            theme: 'plain',
+            headStyles: {
+                // Un fond léger et un trait net sous l'en-tête : sans eux,
+                // les colonnes se lisaient mal sur un écran de téléphone.
+                fillColor: [241, 245, 249],
+                textColor: [51, 65, 85],
+                fontSize: 9.5,
+                fontStyle: 'bold',
+                lineColor: [203, 213, 225],
+                lineWidth: { bottom: 0.5 }
+            },
+            bodyStyles: {
+                textColor: INK,
+                fontSize: 10.5,
+                cellPadding: 3,
+                lineColor: [226, 232, 240],
+                lineWidth: { bottom: 0.2 }
+            },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { halign: 'center' },
+                2: { halign: 'right' },
+                3: { halign: 'right', fontStyle: 'bold' }
+            },
+            margin: { top: 10 }
+        });
+
+        // Totals
+        const finalY = doc.lastAutoTable.finalY || 80;
+
+        doc.setFontSize(10.5);
+        doc.setTextColor(...INK_SOFT);
+        doc.text('Sous-total', 140, finalY + 10);
+        doc.setTextColor(...INK);
+        doc.text(pdfFCFA(invoiceDetails.total), 196, finalY + 10, { align: 'right' });
+
+        doc.setDrawColor(203, 213, 225);
+        doc.line(140, finalY + 14, 196, finalY + 14);
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...INK);
+        doc.text('Total net', 140, finalY + 22);
+        doc.setTextColor(...ACCENT);
+        doc.text(pdfFCFA(invoiceDetails.total), 196, finalY + 22, { align: 'right' });
+
+        // Signatures
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(...INK_LABEL);
+
+        doc.text('Signature du client', 40, finalY + 45, { align: 'center' });
+        doc.setDrawColor(148, 163, 184);
+        doc.line(14, finalY + 65, 66, finalY + 65);
+
+        doc.text('Cachet / Signature magasin', 160, finalY + 45, { align: 'center' });
+        doc.line(134, finalY + 65, 186, finalY + 65);
+
+        doc.text('Merci de votre confiance !', 105, finalY + 80, { align: 'center' });
+
+        // Save / Share
+
+        return doc;
     };
 
-    // PDF Generation (ideal for Mobile and sharing)
-    const handlePDFGenerate = () => {
+    const runSafely = (action) => {
         try {
-            const doc = new jsPDF({ format: 'a4' });
-
-            // Set default font
-            doc.setFont('helvetica');
-
-            // Header
-            doc.setFontSize(22);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...INK);
-            doc.text(pdfText(business?.name) || 'Boutique', 14, 20);
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(...INK_SOFT);
-            // Les accents tiennent sur un octet : rien n'oblige à écrire
-            // « Pieces detachees » dans un PDF (voir lib/pdf.js).
-            const bizType = business?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin';
-            doc.text(bizType, 14, 28);
-            if (business?.address) doc.text(pdfText(`Adresse : ${business.address}`), 14, 34);
-            if (business?.phone) doc.text(pdfText(`Tél : ${business.phone}`), 14, 40);
-
-            // Facture info (Right side)
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...INK_LABEL);
-            doc.text('FACTURE', 196, 20, { align: 'right' });
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            doc.setTextColor(...INK);
-            doc.text(invoiceNumber ? `N° ${invoiceNumber}` : invoiceLabel, 196, 28, { align: 'right' });
-
-            doc.setFontSize(10);
-            doc.setTextColor(...INK_SOFT);
-            const dateStr = pdfText(formatDateTime(invoiceDetails.date));
-            doc.text(dateStr, 196, 34, { align: 'right' });
-
-            // Customer Info
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...INK_LABEL);
-            doc.text('FACTURÉ À', 14, 55);
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(12);
-            doc.setTextColor(...INK);
-            doc.text(pdfText(invoiceDetails.customerName) || 'Client Comptoir', 14, 62);
-            if (invoiceDetails.customerPhone) {
-                doc.setFontSize(10);
-                doc.setTextColor(...INK_SOFT);
-                doc.text(pdfText(`Tél : ${invoiceDetails.customerPhone}`), 14, 68);
-            }
-
-            doc.setFontSize(9);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...INK_LABEL);
-            doc.text('VENDEUR', 196, 55, { align: 'right' });
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(11);
-            doc.setTextColor(...INK);
-            doc.text(pdfText(user?.email), 196, 62, { align: 'right' });
-
-            // Table
-            const tableColumn = ["Description", "Qté", "Prix unitaire", "Total"];
-            const tableRows = [];
-
-            invoiceDetails.items.forEach(item => {
-                const name = item.name || item.products?.name || 'Produit Inconnu';
-                const price = Number(item.price);
-                const qty = Number(item.quantity);
-                const itemTotal = price * qty;
-
-                tableRows.push([
-                    pdfText(name),
-                    qty.toString(),
-                    pdfFCFA(price),
-                    pdfFCFA(itemTotal),
-                ]);
-            });
-
-            autoTable(doc, {
-                startY: 80,
-                head: [tableColumn],
-                body: tableRows,
-                theme: 'plain',
-                headStyles: {
-                    // Un fond léger et un trait net sous l'en-tête : sans eux,
-                    // les colonnes se lisaient mal sur un écran de téléphone.
-                    fillColor: [241, 245, 249],
-                    textColor: [51, 65, 85],
-                    fontSize: 9.5,
-                    fontStyle: 'bold',
-                    lineColor: [203, 213, 225],
-                    lineWidth: { bottom: 0.5 }
-                },
-                bodyStyles: {
-                    textColor: INK,
-                    fontSize: 10.5,
-                    cellPadding: 3,
-                    lineColor: [226, 232, 240],
-                    lineWidth: { bottom: 0.2 }
-                },
-                columnStyles: {
-                    0: { cellWidth: 'auto' },
-                    1: { halign: 'center' },
-                    2: { halign: 'right' },
-                    3: { halign: 'right', fontStyle: 'bold' }
-                },
-                margin: { top: 10 }
-            });
-
-            // Totals
-            const finalY = doc.lastAutoTable.finalY || 80;
-
-            doc.setFontSize(10.5);
-            doc.setTextColor(...INK_SOFT);
-            doc.text('Sous-total', 140, finalY + 10);
-            doc.setTextColor(...INK);
-            doc.text(pdfFCFA(invoiceDetails.total), 196, finalY + 10, { align: 'right' });
-
-            doc.setDrawColor(203, 213, 225);
-            doc.line(140, finalY + 14, 196, finalY + 14);
-
-            doc.setFontSize(13);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(...INK);
-            doc.text('Total net', 140, finalY + 22);
-            doc.setTextColor(...ACCENT);
-            doc.text(pdfFCFA(invoiceDetails.total), 196, finalY + 22, { align: 'right' });
-
-            // Signatures
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9.5);
-            doc.setTextColor(...INK_LABEL);
-
-            doc.text('Signature du client', 40, finalY + 45, { align: 'center' });
-            doc.setDrawColor(148, 163, 184);
-            doc.line(14, finalY + 65, 66, finalY + 65);
-
-            doc.text('Cachet / Signature magasin', 160, finalY + 45, { align: 'center' });
-            doc.line(134, finalY + 65, 186, finalY + 65);
-
-            doc.text('Merci de votre confiance !', 105, finalY + 80, { align: 'center' });
-
-            // Save / Share
-            const fileName = `Facture_${invoiceNumber || new Date(invoiceDetails.date).getTime()}.pdf`;
-            const pdfBlob = doc.output('blob');
-
-            // 1. Try Native Share API (ideal for mobile)
-            if (navigator.share && navigator.canShare) {
-                const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-                if (navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        title: 'Facture',
-                        files: [file]
-                    }).catch(err => console.log('Partage annule:', err));
-                    return; // Stop here if share was triggered
-                }
-            }
-
-            // 2. Fallback for iOS Safari or Desktop
-            const blobUrl = URL.createObjectURL(pdfBlob);
-
-            // We try to open in a new tab (bypasses popup blocker because it's synchronous)
-            const newWin = window.open(blobUrl, '_blank');
-
-            if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
-                // 3. If popup was blocked, fallback to native save
-                doc.save(fileName);
-            }
-
-            // Cleanup
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-
+            action(buildPdf(), { fileName, title: 'Facture' });
         } catch (error) {
             console.error('Erreur PDF:', error);
-            toast.error("Impossible de générer le PDF. Réessayez ou utilisez le bouton Imprimer.");
+            toast.error("Impossible de générer la facture. Réessayez.");
         }
     };
+
+    const handlePDFGenerate = () => runSafely(deliverPdf);
+    const handlePrint = () => runSafely(printPdf);
+    // Sur téléphone, un seul bouton : la feuille de partage du système propose
+    // déjà « Imprimer », deux boutons y mèneraient au même endroit.
+    const touch = isTouchDevice();
 
     return (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 print:p-0 print:block">
@@ -222,18 +205,29 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                         ← Fermer
                     </button>
                     <div className="flex gap-2 md:gap-3">
-                        <button
-                            onClick={handleNativePrint}
-                            className="btn-secondary bg-white px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
-                        >
-                            🖨️ Imprimer
-                        </button>
-                        <button
-                            onClick={handlePDFGenerate}
-                            className="btn-primary px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
-                        >
-                            📄 PDF / Partager
-                        </button>
+                        {touch ? (
+                            <button
+                                onClick={handlePDFGenerate}
+                                className="btn-primary px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
+                            >
+                                🖨️ Imprimer / Partager
+                            </button>
+                        ) : (
+                            <>
+                                <button
+                                    onClick={handlePrint}
+                                    className="btn-secondary bg-white px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
+                                >
+                                    🖨️ Imprimer
+                                </button>
+                                <button
+                                    onClick={handlePDFGenerate}
+                                    className="btn-primary px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
+                                >
+                                    📄 PDF / Partager
+                                </button>
+                            </>
+                        )}
                     </div>
                 </div>
 
@@ -243,14 +237,14 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                         {/* Header */}
                         <div className="flex justify-between items-start border-b border-slate-200 pb-8 mb-8">
                             <div>
-                                <h1 className="text-2xl md:text-4xl font-bold text-primary mb-2">{business?.name}</h1>
+                                <h1 className="text-xl sm:text-2xl md:text-4xl font-bold text-primary mb-2">{business?.name}</h1>
                                 <p className="text-secondary text-sm md:text-base">{business?.type === 'pieces_moto' ? 'Pièces détachées et Accessoires' : 'Boutique / Magasin'}</p>
-                                {business?.address && <p className="text-secondary mt-1 text-sm md:text-base">📍 {business.address}</p>}
-                                {business?.phone && <p className="text-secondary text-sm md:text-base">📞 {business.phone}</p>}
+                                {business?.address && <p className="text-secondary mt-1 text-sm md:text-base">Adresse : {business.address}</p>}
+                                {business?.phone && <p className="text-secondary text-sm md:text-base">Tél : {business.phone}</p>}
                             </div>
                             <div className="text-right">
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Facture</h2>
-                                <p className="text-primary font-medium">{invoiceNumber ? `N° ${invoiceNumber}` : invoiceLabel}</p>
+                                <p className="text-primary font-medium whitespace-nowrap">{invoiceNumber ? `N° ${invoiceNumber}` : invoiceLabel}</p>
                                 <p className="text-secondary text-sm md:text-base">{formatDateTime(invoiceDetails.date)}</p>
                             </div>
                         </div>
@@ -261,7 +255,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                                 <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase mb-2">Facturé à</h3>
                                 <p className="text-base md:text-lg font-bold text-primary">{invoiceDetails.customerName || 'Client Comptoir'}</p>
                                 {invoiceDetails.customerPhone && (
-                                    <p className="text-secondary mt-1 text-sm md:text-base">📞 {invoiceDetails.customerPhone}</p>
+                                    <p className="text-secondary mt-1 text-sm md:text-base">Tél : {invoiceDetails.customerPhone}</p>
                                 )}
                             </div>
                             <div className="text-right">
@@ -272,12 +266,12 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
                         {/* Items Table */}
                         <div className="overflow-x-auto">
-                            <table className="w-full mb-10 text-left border-collapse min-w-[400px]">
+                            <table className="w-full mb-10 text-left border-collapse">
                                 <thead>
                                     <tr className="border-b-2 border-slate-200">
                                         <th className="py-3 font-bold text-slate-500 uppercase text-xs md:text-sm">Description</th>
                                         <th className="py-3 font-bold text-slate-500 uppercase text-xs md:text-sm text-center">Qté</th>
-                                        <th className="py-3 font-bold text-slate-500 uppercase text-xs md:text-sm text-right">Prix Unitaire</th>
+                                        <th className="py-3 font-bold text-slate-500 uppercase text-xs md:text-sm text-right"><span className="hidden sm:inline">Prix unitaire</span><span className="sm:hidden">P.U.</span></th>
                                         <th className="py-3 font-bold text-slate-500 uppercase text-xs md:text-sm text-right">Total</th>
                                     </tr>
                                 </thead>
@@ -288,10 +282,10 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                                         const qty = Number(item.quantity);
                                         return (
                                             <tr key={idx} className="border-b border-slate-100">
-                                                <td className="py-4 font-medium text-primary text-sm md:text-base">{name}</td>
-                                                <td className="py-4 text-center text-sm md:text-base">{qty}</td>
-                                                <td className="py-4 text-right text-secondary text-sm md:text-base">{price.toLocaleString('fr-FR')}&nbsp;FCFA</td>
-                                                <td className="py-4 text-right font-bold text-primary text-sm md:text-base">{(price * qty).toLocaleString('fr-FR')}&nbsp;FCFA</td>
+                                                <td className="py-4 pr-2 font-medium text-primary text-xs sm:text-sm md:text-base">{name}</td>
+                                                <td className="py-4 text-center text-xs sm:text-sm md:text-base">{qty}</td>
+                                                <td className="py-4 pl-2 text-right text-secondary text-xs sm:text-sm md:text-base whitespace-nowrap">{price.toLocaleString('fr-FR')}&nbsp;FCFA</td>
+                                                <td className="py-4 pl-2 text-right font-bold text-primary text-xs sm:text-sm md:text-base whitespace-nowrap">{(price * qty).toLocaleString('fr-FR')}&nbsp;FCFA</td>
                                             </tr>
                                         );
                                     })}

@@ -69,15 +69,43 @@ describe('PurchaseOrderPrint', () => {
         expect(screen.getAllByText('Non renseigné').length).toBeGreaterThan(0);
     });
 
-    it('uses window.print for the native print button', async () => {
+    it('imprime le PDF lui-même, jamais la page affichée (ordinateur)', async () => {
+        // window.print() imprimait la mise en page de l'écran : sur iPhone, une
+        // facture tassée, la colonne Total coupée, l'adresse du site en bas
         const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
         const user = userEvent.setup();
         render(<PurchaseOrderPrint orderDetails={ORDER} business={BUSINESS} onClose={() => {}} />);
 
-        await user.click(screen.getByRole('button', { name: /imprimer/i }));
+        await user.click(screen.getByRole('button', { name: /^.*imprimer$/i }));
 
-        expect(printSpy).toHaveBeenCalledTimes(1);
+        const frame = document.querySelector('iframe');
+        expect(frame).not.toBeNull();
+        expect(frame.getAttribute('src')).toBe('blob:mock-url');
+        const framePrint = vi.fn();
+        Object.defineProperty(frame, 'contentWindow', { value: { focus: vi.fn(), print: framePrint } });
+        frame.onload();
+
+        expect(framePrint).toHaveBeenCalledTimes(1);
+        expect(printSpy).not.toHaveBeenCalled();
+        frame.remove();
         printSpy.mockRestore();
+    });
+
+    it('sur téléphone, un seul bouton qui ouvre la feuille de partage (et son « Imprimer »)', async () => {
+        const matchMediaBefore = window.matchMedia;
+        window.matchMedia = vi.fn(() => ({ matches: true }));
+        const shareMock = vi.fn().mockResolvedValue(undefined);
+        navigator.share = shareMock;
+        navigator.canShare = vi.fn(() => true);
+        const user = userEvent.setup();
+        render(<PurchaseOrderPrint orderDetails={ORDER} business={BUSINESS} onClose={() => {}} />);
+
+        // pas deux boutons menant au même endroit
+        expect(screen.queryByRole('button', { name: /pdf.*partager/i })).toBeNull();
+        await user.click(screen.getByRole('button', { name: /imprimer \/ partager/i }));
+
+        expect(shareMock).toHaveBeenCalledWith(expect.objectContaining({ files: expect.any(Array) }));
+        window.matchMedia = matchMediaBefore;
     });
 
     it('shares the PDF directly via the Web Share API when available (mobile)', async () => {
@@ -114,7 +142,7 @@ describe('PurchaseOrderPrint', () => {
 
         await user.click(screen.getByRole('button', { name: /pdf.*partager/i }));
 
-        expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/impossible de générer le pdf/i));
+        expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/impossible de générer le bon de commande/i));
         console.error.mockRestore();
     });
 });
