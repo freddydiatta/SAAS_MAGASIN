@@ -4,9 +4,30 @@ import { AddProductModal } from '../AddProductModal';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard } from 'lucide-react';
+import { DollarSign, ShoppingCart, AlertTriangle, TrendingUp, TrendingDown, Package, CreditCard, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDate } from '../../lib/dates';
+import { describeDayTrend } from '../../lib/dayTrend';
+import { RESTOCK_FILTER } from '../../lib/stock';
+
+// Écart avec hier à la même heure. Un retard ne s'affiche jamais en rouge : la
+// journée n'est pas finie, et une alerte à chaque ouverture le matin n'aide
+// personne (voir lib/dayTrend).
+const DayTrend = ({ trend }) => {
+    const toneClass = trend.tone === 'up' ? 'text-emerald-600' : 'text-slate-500';
+    const Icon = trend.tone === 'up' ? TrendingUp : trend.tone === 'down' ? TrendingDown : null;
+    return (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+            {trend.value && (
+                <span className={`flex items-center gap-1 font-bold ${toneClass}`}>
+                    {Icon && <Icon className="w-4 h-4" />}
+                    {trend.value}
+                </span>
+            )}
+            <span className={`font-medium ${trend.value ? 'text-slate-400' : toneClass}`}>{trend.label}</span>
+        </div>
+    );
+};
 
 export const RetailDashboard = () => {
     const { selectedBusiness } = useBusiness();
@@ -20,17 +41,36 @@ export const RetailDashboard = () => {
         caisseDuJourMobile,
         caisseDuJourCredit,
         caisseDuJourMoyenInconnu,
-        percentChange,
+        caisseHier,
         panierMoyen,
         transactions,
-        diffTransactions,
+        transactionsHier,
         alertesStock,
+        outOfStockCount,
         lowStockProducts,
         chartData,
         total7Days,
         topProducts,
         formatFCFA,
     } = useRetailDashboardStats(selectedBusiness);
+
+    const cashTrend = describeDayTrend({
+        today: caisseDuJour,
+        yesterdaySoFar: caisseHier,
+        format: (value) => `${formatFCFA(value)}\u00A0FCFA`,
+    });
+    const transactionsTrend = describeDayTrend({
+        today: transactions,
+        yesterdaySoFar: transactionsHier,
+        mode: 'difference',
+        format: (count) => `${count} vente${count > 1 ? 's' : ''}`,
+    });
+
+    const openRestockList = () => navigate(`/dashboard/stock?filtre=${RESTOCK_FILTER}`);
+    const nearlyEmptyCount = alertesStock - outOfStockCount;
+    // Les ruptures d'abord (lowStockProducts est déjà trié par urgence) : ce
+    // sont elles qui font perdre des ventes aujourd'hui.
+    const firstNames = lowStockProducts.slice(0, 3).map((p) => p.name);
 
     return (
         <div className="space-y-10 animate-fade-in-up pb-10">
@@ -71,12 +111,8 @@ export const RetailDashboard = () => {
                             <h3 className="text-2xl font-bold text-primary">{formatFCFA(caisseDuJour)}&nbsp;<span className="text-sm font-medium">FCFA</span></h3>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm relative mb-3">
-                        <span className={`flex items-center gap-1 font-bold ${percentChange >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {percentChange >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                            {percentChange > 0 ? '+' : ''}{percentChange}%
-                        </span>
-                        <span className="text-slate-400 font-medium">vs hier</span>
+                    <div className="relative mb-3">
+                        <DayTrend trend={cashTrend} />
                     </div>
 
                     <div className="pt-3 border-t border-slate-100 dark:border-border-theme/50 flex justify-between text-xs relative gap-2">
@@ -118,12 +154,7 @@ export const RetailDashboard = () => {
                             <h3 className="text-2xl font-bold text-primary">{transactions}</h3>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
-                        <span className={`flex items-center gap-1 font-bold ${diffTransactions >= 0 ? 'text-emerald-500' : 'text-slate-400'}`}>
-                            {diffTransactions > 0 ? '+' : ''}{diffTransactions}
-                        </span>
-                        <span className="text-slate-400 font-medium">vs hier</span>
-                    </div>
+                    <DayTrend trend={transactionsTrend} />
                 </motion.div>
 
                 <motion.div
@@ -146,20 +177,27 @@ export const RetailDashboard = () => {
                     </div>
                 </motion.div>
 
-                <motion.div
+                {/* Toute la carte est un bouton : un doigt qui tape n'importe où dessus
+                    ouvre directement la liste filtrée des articles à commander, au lieu
+                    d'un stock complet où il faudrait les rechercher un par un. */}
+                <motion.button
+                    type="button"
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 }}
-                    onClick={alertesStock > 0 ? () => navigate('/dashboard/stock') : undefined}
-                    className={`bg-panel rounded-3xl p-6 shadow-premium border ${alertesStock > 0 ? 'border-red-200 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 cursor-pointer' : 'border-slate-100 dark:border-border-theme'} relative overflow-hidden group`}
+                    onClick={openRestockList}
+                    aria-label={alertesStock > 0
+                        ? `${alertesStock} articles à réapprovisionner, dont ${outOfStockCount} en rupture. Voir la liste.`
+                        : 'Stock sain. Voir le stock.'}
+                    className={`text-left w-full bg-panel rounded-3xl p-6 shadow-premium border ${alertesStock > 0 ? 'border-red-200 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10 hover:border-red-300' : 'border-slate-100 dark:border-border-theme hover:border-accent/30'} relative overflow-hidden group cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50`}
                 >
-                    <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform ${alertesStock > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 dark:bg-slate-800 text-amber-500'}`}>
+                    <div className="flex items-center gap-4 mb-3">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform ${alertesStock > 0 ? 'bg-red-100 text-red-500' : 'bg-slate-50 dark:bg-slate-800 text-amber-500'}`}>
                             {alertesStock > 0 ? <AlertTriangle className="w-6 h-6" /> : <Package className="w-6 h-6" />}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <p className={`text-sm font-medium ${alertesStock > 0 ? 'text-red-600 dark:text-red-400' : 'text-secondary'}`}>
-                                Alertes Stock
+                                À réapprovisionner
                             </p>
                             <h3 className={`text-2xl font-bold ${alertesStock > 0 ? 'text-red-600 dark:text-red-400' : 'text-primary'}`}>
                                 {alertesStock}
@@ -167,14 +205,28 @@ export const RetailDashboard = () => {
                         </div>
                     </div>
                     {alertesStock > 0 ? (
-                        <div className="text-sm font-medium text-red-500 truncate">
-                            {lowStockProducts.slice(0, 2).map(p => p.name).join(', ')}
-                            {lowStockProducts.length > 2 ? ` +${lowStockProducts.length - 2} autre${lowStockProducts.length - 2 > 1 ? 's' : ''}` : ''}
-                        </div>
+                        <>
+                            {/* Les chiffres d'abord : ils tiennent toujours sur la carte,
+                                contrairement à une liste de noms qu'il fallait couper. */}
+                            <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+                                {outOfStockCount > 0 && <>{outOfStockCount} en rupture</>}
+                                {outOfStockCount > 0 && nearlyEmptyCount > 0 && ' · '}
+                                {nearlyEmptyCount > 0 && <>{nearlyEmptyCount} presque vide{nearlyEmptyCount > 1 ? 's' : ''}</>}
+                            </p>
+                            <ul className="mt-1.5 space-y-0.5">
+                                {firstNames.map((name) => (
+                                    <li key={name} className="text-xs text-red-600/80 dark:text-red-400/80 truncate">{name}</li>
+                                ))}
+                            </ul>
+                            <p className="mt-2 flex items-center gap-1 text-sm font-semibold text-red-700 dark:text-red-400">
+                                {alertesStock > firstNames.length ? `Voir les ${alertesStock} articles` : 'Voir la liste'}
+                                <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+                            </p>
+                        </>
                     ) : (
-                        <div className="text-sm font-medium text-slate-400">Stock sain</div>
+                        <p className="text-sm font-medium text-slate-400">Stock sain</p>
                     )}
-                </motion.div>
+                </motion.button>
 
             </div>
 

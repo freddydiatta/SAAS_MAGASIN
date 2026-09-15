@@ -6,10 +6,11 @@ import { useProducts } from '../../hooks/useProducts';
 import { deleteProduct, productKeys } from '../../services/productsService';
 import { AddProductModal } from '../../components/AddProductModal';
 import { EditProductModal } from '../../components/EditProductModal';
-import { Plus, Search, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { DataTable } from '../../components/DataTable';
+import { RESTOCK_FILTER, needsRestock, isOutOfStock, byRestockUrgency, LOW_STOCK_THRESHOLD } from '../../lib/stock';
 
 export const Stock = () => {
     const { selectedBusiness } = useBusiness();
@@ -20,8 +21,19 @@ export const Stock = () => {
     // Pré-rempli depuis ?q=... (voir Finances.jsx, lien "Voir dans Stock" sur
     // un produit sans prix d'achat) pour retrouver directement un article
     // précis sans avoir à le chercher à la main.
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
+    // Filtre « à réapprovisionner », ouvert depuis la carte d'alerte de
+    // l'aperçu. Porté par l'URL plutôt que par un état local : le lien reste
+    // valable si on recharge la page, et le bouton retour du téléphone ramène
+    // bien à l'aperçu.
+    const restockOnly = searchParams.get('filtre') === RESTOCK_FILTER;
+    const setRestockOnly = (enabled) => {
+        const next = new URLSearchParams(searchParams);
+        if (enabled) next.set('filtre', RESTOCK_FILTER);
+        else next.delete('filtre');
+        setSearchParams(next, { replace: true });
+    };
 
     const { data: products = [], isLoading } = useProducts(selectedBusiness?.id);
 
@@ -44,10 +56,15 @@ export const Stock = () => {
         }
     };
 
-    const filteredProducts = useMemo(
-        () => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase())),
-        [products, searchTerm]
-    );
+    const restockCount = useMemo(() => products.filter(needsRestock).length, [products]);
+    const outOfStockCount = useMemo(() => products.filter(isOutOfStock).length, [products]);
+
+    const filteredProducts = useMemo(() => {
+        const matching = products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
+        // Dans le filtre, les ruptures remontent en tête : c'est l'ordre dans
+        // lequel passer commande. Sinon l'ordre alphabétique habituel.
+        return restockOnly ? matching.filter(needsRestock).sort(byRestockUrgency) : matching;
+    }, [products, searchTerm, restockOnly]);
 
     const columns = [
         {
@@ -139,7 +156,7 @@ export const Stock = () => {
                     <p className="text-secondary text-sm">Gérez vos articles, prix et quantités.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button 
+                    <button
                         onClick={() => setIsAddProductOpen(true)}
                         className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2 shadow-premium"
                     >
@@ -148,36 +165,60 @@ export const Stock = () => {
                 </div>
             </div>
 
-            <motion.div 
+            <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-panel rounded-3xl shadow-premium border border-slate-100 dark:border-border-theme overflow-hidden"
             >
-                <div className="p-6 border-b border-slate-100 dark:border-border-theme relative">
-                    <input 
-                        type="text" 
-                        placeholder="Rechercher un article..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full max-w-md bg-surface border border-slate-200 dark:border-border-theme rounded-full py-3 px-5 pl-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary placeholder:text-slate-400"
-                    />
-                    <Search className="absolute left-10 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <div className="p-6 border-b border-slate-100 dark:border-border-theme flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="relative w-full max-w-md">
+                        <input
+                            type="text"
+                            placeholder="Rechercher un article..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-surface border border-slate-200 dark:border-border-theme rounded-full py-3 px-5 pl-12 text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all text-primary placeholder:text-slate-400"
+                        />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+                    </div>
+                    {restockCount > 0 && (
+                        <button
+                            type="button"
+                            onClick={() => setRestockOnly(!restockOnly)}
+                            aria-pressed={restockOnly}
+                            className={`shrink-0 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold border transition-colors ${restockOnly
+                                ? 'bg-red-50 border-red-200 text-red-700'
+                                : 'bg-surface border-slate-200 text-secondary hover:border-red-200 hover:text-red-700'}`}
+                        >
+                            <AlertTriangle className="w-4 h-4" />
+                            À réapprovisionner ({restockCount})
+                            {restockOnly && <X className="w-4 h-4" aria-hidden="true" />}
+                        </button>
+                    )}
                 </div>
+                {restockOnly && (
+                    <p className="px-6 py-3 text-sm text-secondary bg-red-50/40 border-b border-slate-100 dark:border-border-theme">
+                        {outOfStockCount > 0 && <><span className="font-semibold text-red-700">{outOfStockCount} en rupture</span>, </>}
+                        les autres ont {LOW_STOCK_THRESHOLD} unités ou moins. Les plus urgents sont en haut de la liste.
+                    </p>
+                )}
                 <DataTable
                     columns={columns}
                     data={filteredProducts}
                     isLoading={isLoading}
-                    emptyContent="Aucun article trouvé. Ajoutez votre premier produit !"
+                    emptyContent={restockOnly
+                        ? 'Rien à réapprovisionner pour le moment.'
+                        : 'Aucun article trouvé. Ajoutez votre premier produit !'}
                 />
             </motion.div>
 
-            <AddProductModal 
-                isOpen={isAddProductOpen} 
-                onClose={() => setIsAddProductOpen(false)} 
+            <AddProductModal
+                isOpen={isAddProductOpen}
+                onClose={() => setIsAddProductOpen(false)}
             />
-            <EditProductModal 
-                isOpen={isEditProductOpen} 
-                onClose={() => { setIsEditProductOpen(false); setProductToEdit(null); }} 
+            <EditProductModal
+                isOpen={isEditProductOpen}
+                onClose={() => { setIsEditProductOpen(false); setProductToEdit(null); }}
                 product={productToEdit}
             />
         </div>

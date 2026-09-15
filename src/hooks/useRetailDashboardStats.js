@@ -3,22 +3,21 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useProducts } from './useProducts';
 import { fetchDebts } from '../services/debtsService';
-import { startOfDay, startOfToday, formatDate } from '../lib/dates';
+import { startOfDay, formatDate } from '../lib/dates';
+import { needsRestock, isOutOfStock, byRestockUrgency } from '../lib/stock';
+import { sameTimeYesterday } from '../lib/dayTrend';
 
 const formatFCFA = (amount) => new Intl.NumberFormat('fr-FR').format(amount).replace(/\s/g, ' ');
 const DAY_MS = 24 * 60 * 60 * 1000;
-// À partir de combien d'unités un produit est signalé comme bas. Le même
-// seuil déclenche la notification push au moment de la vente, côté base
-// (process_sale, voir supabase/setup.sql) : les deux doivent rester d'accord,
-// sinon la carte "Alertes Stock" et l'alerte reçue sur le téléphone ne
-// parleraient pas des mêmes produits.
-const LOW_STOCK_THRESHOLD = 5;
 
 // Tous les calculs de KPI du tableau de bord commerce (caisse du jour,
 // variation vs hier, panier moyen, alertes stock, graphique 7 jours, top
 // produits) : sorti de RetailDashboard.jsx, qui mélangeait ces calculs avec
 // le rendu des cartes/graphique dans un seul fichier de 300+ lignes.
-export function useRetailDashboardStats(selectedBusiness) {
+//
+// `now` n'est à fournir que par les tests : la comparaison avec « hier à la
+// même heure » dépend de l'instant présent.
+export function useRetailDashboardStats(selectedBusiness, { now = Date.now() } = {}) {
     const { user } = useAuth();
 
     const { data: products = [] } = useProducts(selectedBusiness?.id);
@@ -55,7 +54,7 @@ export function useRetailDashboardStats(selectedBusiness) {
     // Bornes calculées en heure de Dakar (voir lib/dates) : avec le minuit de
     // l'appareil, une vente de 23h passait dans la caisse du lendemain quand
     // le téléphone était réglé sur Paris.
-    const today = startOfToday();
+    const today = startOfDay(now);
     // Minuit de la veille : reculer d'une milliseconde retombe forcément dans
     // la journée précédente, sans arithmétique de calendrier local.
     const yesterday = startOfDay(today - 1);
@@ -67,18 +66,30 @@ export function useRetailDashboardStats(selectedBusiness) {
     const isCashCollected = (sale) => sale.receipts?.payment_method !== 'credit';
 
     const salesToday = sales.filter(s => new Date(s.created_at).getTime() >= today);
+    // Hier jusqu'à la même heure qu'en ce moment : c'est la seule base de
+    // comparaison juste pour une journée pas encore terminée (voir dayTrend).
+    const yesterdayCutoff = sameTimeYesterday({ now, todayStart: today, yesterdayStart: yesterday });
     const salesYesterday = sales.filter(s => {
         const time = new Date(s.created_at).getTime();
-        return time >= yesterday && time < today;
+        return time >= yesterday && time < yesterdayCutoff;
     });
     const collectedSalesToday = salesToday.filter(isCashCollected);
     const collectedSalesYesterday = salesYesterday.filter(isCashCollected);
 
-    const debtsRepaidToday = debts.filter(d => d.status === 'paid' && d.paid_at && new Date(d.paid_at).getTime() >= today);
-    const debtsRepaidYesterday = debts.filter(d => {
-        if (d.status !== 'paid' || !d.paid_at) return false;
-        const time = new Date(d.paid_at).getTime();
-        return time >= yesterday && time < today;
+    // Chaque VERSEMENT compte le jour où il est reçu : une avance de 5 000 ce
+    // matin est dans la caisse du jour, même si la dette n'est pas soldée ; et
+    // une dette soldée aujourd'hui n'y apporte que son dernier versement, pas
+    // les tranches déjà encaissées les jours précédents.
+    const debtPayments = debts.flatMap((debt) => (debt.payments || []).map((payment) => ({
+        amount: payment.amount,
+        payment_method: payment.payment_method,
+        paid_at: payment.paid_at,
+    })));
+    const debtsRepaidToday = debtPayments.filter(p => p.paid_at && new Date(p.paid_at).getTime() >= today);
+    const debtsRepaidYesterday = debtPayments.filter(p => {
+        if (!p.paid_at) return false;
+        const time = new Date(p.paid_at).getTime();
+        return time >= yesterday && time < yesterdayCutoff;
     });
     const caisseDuJourRembourse = debtsRepaidToday.reduce((sum, d) => sum + Number(d.amount), 0);
     const caisseHierRembourse = debtsRepaidYesterday.reduce((sum, d) => sum + Number(d.amount), 0);
@@ -122,19 +133,16 @@ export function useRetailDashboardStats(selectedBusiness) {
         .filter(sale => sale.receipts?.payment_method === 'credit')
         .reduce((sum, sale) => sum + Number(sale.total_price), 0);
 
-    // Calculate % change (prevent divide by zero)
-    const percentChange = caisseHier > 0
-        ? Math.round(((caisseDuJour - caisseHier) / caisseHier) * 100)
-        : (caisseDuJour > 0 ? 100 : 0);
 
     const panierMoyen = collectedSalesToday.length > 0 ? Math.round(ventesCollecteesDuJour / collectedSalesToday.length) : 0;
     const transactions = salesToday.length;
 
+    // Même mesure que `transactions` ci-dessus, hier à la même heure.
     const transactionsHier = salesYesterday.length;
-    const diffTransactions = transactions - transactionsHier;
 
-    const lowStockProducts = products.filter(p => p.stock_quantity <= LOW_STOCK_THRESHOLD);
+    const lowStockProducts = products.filter(needsRestock).sort(byRestockUrgency);
     const alertesStock = lowStockProducts.length;
+    const outOfStockCount = lowStockProducts.filter(isOutOfStock).length;
 
     // --- Chart Data (Last 7 Days) ---
     const chartData = [];
@@ -188,11 +196,12 @@ export function useRetailDashboardStats(selectedBusiness) {
         caisseDuJourCredit,
         caisseDuJourRembourse,
         caisseDuJourMoyenInconnu,
-        percentChange,
+        caisseHier,
         panierMoyen,
         transactions,
-        diffTransactions,
+        transactionsHier,
         alertesStock,
+        outOfStockCount,
         lowStockProducts,
         chartData,
         total7Days,
