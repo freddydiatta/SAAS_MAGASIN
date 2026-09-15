@@ -1,5 +1,6 @@
 import toast from 'react-hot-toast';
 import { readOutbox, writeOutbox, MAX_ATTEMPTS } from './outbox';
+import { isNetworkError } from '../lib/networkError';
 import {
     EXPENSE_ADD, EXPENSE_DELETE,
     insertExpenseRow, deleteExpenseRow,
@@ -128,8 +129,17 @@ export const flushOutbox = async (queryClient) => {
                 await writeOutbox(entries);
                 synced++;
             } catch (e) {
-                entry.attempts = (entry.attempts || 0) + 1;
                 entry.lastError = e?.message || 'Erreur inconnue';
+
+                // La connexion est en cause, pas l'opération : ce n'est pas une
+                // tentative. Sinon un Wi-Fi sans internet (navigator.onLine reste
+                // à true) mettait de côté des ventes valides en 2 min 30.
+                if (isNetworkError(e)) {
+                    await writeOutbox(entries);
+                    break;
+                }
+
+                entry.attempts = (entry.attempts || 0) + 1;
 
                 if (entry.attempts >= MAX_ATTEMPTS) {
                     entry.blocked = true;

@@ -256,6 +256,27 @@ describe('syncOfflineSales', () => {
         );
     });
 
+    it('never sets a write aside because the connection keeps failing', async () => {
+        // Wi-Fi sans internet : navigator.onLine reste à true, la synchro
+        // repasse toutes les 30 s. La vente n'y est pour rien.
+        await queueSale();
+        rpcMock.mockResolvedValue({ data: null, error: { message: 'TypeError: Load failed', code: '' } });
+
+        for (let i = 0; i < 8; i++) {
+            await syncOfflineSales({ invalidateQueries: vi.fn() });
+        }
+
+        const [entry] = await readOutbox();
+        expect(entry.blocked).toBe(false);
+        expect(entry.attempts).toBe(0);
+        expect(toastErrorMock).not.toHaveBeenCalled();
+
+        // le réseau revient : la vente part normalement
+        rpcMock.mockResolvedValue({ data: { id: 'real-1' }, error: null });
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
+        expect(await readOutbox()).toHaveLength(0);
+    });
+
     it('ignores a concurrent call while a sync is already in flight', async () => {
         await queueSale();
         rpcMock.mockResolvedValueOnce({ data: { id: 'real-1' }, error: null });
