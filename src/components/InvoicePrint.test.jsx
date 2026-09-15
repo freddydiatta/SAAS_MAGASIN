@@ -33,6 +33,7 @@ vi.mock('jspdf-autotable', () => ({ default: vi.fn() }));
 const BUSINESS = { name: 'Boutique Almadies', type: 'quincaillerie', address: 'Dakar', phone: '77 000 00 00' };
 const INVOICE = {
     receiptId: 'abcdef12-3456',
+    invoiceNumber: 'FAC-2026-00031',
     date: '2026-08-21T10:00:00.000Z',
     customerName: 'Awa Diop',
     customerPhone: '78 111 11 11',
@@ -65,7 +66,8 @@ describe('InvoicePrint', () => {
         expect(screen.getByText('Boutique Almadies')).toBeInTheDocument();
         expect(screen.getByText('Awa Diop')).toBeInTheDocument();
         expect(screen.getByText('Casque Moto')).toBeInTheDocument();
-        expect(screen.getByText(/#ABCDEF12/)).toBeInTheDocument();
+        // le numéro de la suite, plus le début de l'identifiant technique
+        expect(screen.getByText('N° FAC-2026-00031')).toBeInTheDocument();
     });
 
     it('uses window.print for the native print button', async () => {
@@ -111,7 +113,7 @@ describe('InvoicePrint', () => {
 
         await user.click(screen.getByRole('button', { name: /pdf.*partager/i }));
 
-        expect(docMock.save).toHaveBeenCalledWith('Facture_ABCDEF12.pdf');
+        expect(docMock.save).toHaveBeenCalledWith('Facture_FAC-2026-00031.pdf');
         openSpy.mockRestore();
     });
 
@@ -127,5 +129,13 @@ describe('InvoicePrint', () => {
 
         expect(toastErrorMock).toHaveBeenCalledWith(expect.stringMatching(/impossible de générer le pdf/i));
         console.error.mockRestore();
+    });
+
+    it('annonce un numéro en attente plutôt que d\'en inventer un', () => {
+        // l'ancien repli tirait un nombre au hasard à chaque affichage : la
+        // même facture changeait de numéro à chaque réimpression
+        render(<InvoicePrint invoiceDetails={{ ...INVOICE, invoiceNumber: undefined }} business={BUSINESS} onClose={() => {}} />);
+
+        expect(screen.getByText('Numéro en attente')).toBeInTheDocument();
     });
 });

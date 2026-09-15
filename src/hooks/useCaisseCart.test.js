@@ -76,12 +76,14 @@ describe('useCaisseCart', () => {
             await result.current.handleCheckout(false);
         });
 
+        // en ligne, aucun numéro n'est proposé : c'est la base qui l'attribue
         expect(rpcMock).toHaveBeenCalledWith('process_sale', {
             p_business_id: 'biz-1',
             p_customer_name: null,
             p_customer_phone: null,
             p_payment_method: 'cash',
             p_items: [{ product_id: 'p1', quantity: 1 }],
+            p_invoice_number: null,
         });
         expect(result.current.cart).toEqual([]);
         expect(result.current.toastMessage).toMatch(/encaissée avec succès/);
@@ -128,7 +130,9 @@ describe('useCaisseCart', () => {
             await result.current.handleCheckout(false);
         });
 
-        expect(saveOfflineSaleMock).toHaveBeenCalledWith('biz-1', [{ ...PRODUCT, quantity: 1 }], '', '', 1000, 'cash');
+        // hors-ligne, l'appareil prend lui-même le numéro suivant, pour que la
+        // facture remise au client porte déjà son vrai numéro
+        expect(saveOfflineSaleMock).toHaveBeenCalledWith('biz-1', [{ ...PRODUCT, quantity: 1 }], '', '', 1000, 'cash', expect.stringMatching(/^FAC-\d{4}-\d{5}$/));
         expect(rpcMock).not.toHaveBeenCalled();
         expect(result.current.cart).toEqual([]);
         expect(result.current.toastMessage).toMatch(/enregistrée hors-ligne/);

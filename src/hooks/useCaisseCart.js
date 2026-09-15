@@ -1,8 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { saveOfflineSale } from '../services/syncService';
 import { processSale } from '../services/salesService';
 import { addDebt } from '../services/debtsService';
+import { takeOfflineInvoiceNumber, rememberInvoiceNumber, refreshLastInvoiceNumber } from '../services/invoiceNumbering';
 import { invoiceCustomerSchema, firstZodError } from '../lib/validation';
 
 // Tout le cycle panier -> encaissement -> facture de la caisse : état du
@@ -23,6 +24,14 @@ export function useCaisseCart(selectedBusiness) {
     const [toastMessage, setToastMessage] = useState('');
     const [amountReceived, setAmountReceived] = useState('');
     const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash', 'mobile_money' ou 'credit'
+
+    // À l'ouverture de la caisse avec du réseau, l'appareil apprend le dernier
+    // numéro de facture attribué : c'est de là que partira la numérotation si
+    // la connexion tombe ensuite (voir takeOfflineInvoiceNumber).
+    const businessId = selectedBusiness?.id;
+    useEffect(() => {
+        refreshLastInvoiceNumber(businessId);
+    }, [businessId]);
 
     const showToast = (message) => {
         setToastMessage(message);
@@ -83,7 +92,15 @@ export function useCaisseCart(selectedBusiness) {
         try {
             if (!navigator.onLine) {
                 // HORS-LIGNE
-                const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal, paymentMethod);
+                // Les ventes déjà chargées dans l'historique donnent aussi le
+                // dernier numéro connu, au cas où la caisse n'aurait jamais été
+                // ouverte avec du réseau depuis la mise à jour.
+                const cachedReceipts = queryClient.getQueryData(['receipts', selectedBusiness.id]) || [];
+                for (const receipt of cachedReceipts) {
+                    await rememberInvoiceNumber(selectedBusiness.id, receipt.invoice_number);
+                }
+                const invoiceNumber = await takeOfflineInvoiceNumber(selectedBusiness.id);
+                const newReceipt = await saveOfflineSale(selectedBusiness.id, cart, customerName, customerPhone, cartTotal, paymentMethod, invoiceNumber);
                 queryClient.invalidateQueries(['offlineSalesPending']);
 
                 // Mettre à jour le cache local des ventes
@@ -127,7 +144,8 @@ export function useCaisseCart(selectedBusiness) {
                         date: new Date(),
                         customerName: customerName || 'Client Comptoir',
                         customerPhone: customerPhone,
-                        receiptId: newReceipt.id
+                        receiptId: newReceipt.id,
+                        invoiceNumber,
                     });
                     setShowInvoice(true);
                 } else {
@@ -208,7 +226,8 @@ export function useCaisseCart(selectedBusiness) {
                     date: new Date(),
                     customerName: customerName || 'Client Comptoir',
                     customerPhone: customerPhone,
-                    receiptId: receiptId
+                    receiptId: receiptId,
+                    invoiceNumber: receiptData.invoice_number,
                 });
                 setShowInvoice(true);
             } else if (debtRegistrationFailed) {

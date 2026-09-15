@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDateTime } from '../lib/dates';
-import { pdfText, pdfAmount, pdfFCFA } from '../lib/pdf';
+import { pdfText, pdfFCFA } from '../lib/pdf';
 
 // Gris volontairement soutenus : les tons très clairs (slate-400) passaient
 // à l'écran mais rendaient la facture délavée, presque floue, une fois
@@ -16,10 +16,15 @@ const ACCENT = [67, 56, 202];
 
 export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const { user } = useAuth();
-    
+
     if (!invoiceDetails || !business) return null;
 
-    const receiptIdStr = invoiceDetails.receiptId ? invoiceDetails.receiptId.split('-')[0].toUpperCase() : Math.floor(Math.random() * 100000).toString().padStart(5, '0');
+    // Numéro de facture attribué par la base (FAC-2026-00031), ou réservé par
+    // l'appareil pour une vente faite hors-ligne. Jamais tiré au hasard : un
+    // numéro qui change à chaque réimpression ne vaut rien sur un papier remis
+    // au client.
+    const invoiceNumber = invoiceDetails.invoiceNumber || null;
+    const invoiceLabel = invoiceNumber || 'Numéro en attente';
 
     // Native browser print (ideal for Desktop and receipt printers)
     const handleNativePrint = () => {
@@ -30,7 +35,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
     const handlePDFGenerate = () => {
         try {
             const doc = new jsPDF({ format: 'a4' });
-            
+
             // Set default font
             doc.setFont('helvetica');
 
@@ -59,7 +64,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(12);
             doc.setTextColor(...INK);
-            doc.text(`#${receiptIdStr}`, 196, 28, { align: 'right' });
+            doc.text(invoiceNumber ? `N° ${invoiceNumber}` : invoiceLabel, 196, 28, { align: 'right' });
 
             doc.setFontSize(10);
             doc.setTextColor(...INK_SOFT);
@@ -141,7 +146,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
             // Totals
             const finalY = doc.lastAutoTable.finalY || 80;
-            
+
             doc.setFontSize(10.5);
             doc.setTextColor(...INK_SOFT);
             doc.text('Sous-total', 140, finalY + 10);
@@ -173,9 +178,9 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
             doc.text('Merci de votre confiance !', 105, finalY + 80, { align: 'center' });
 
             // Save / Share
-            const fileName = `Facture_${receiptIdStr}.pdf`;
+            const fileName = `Facture_${invoiceNumber || new Date(invoiceDetails.date).getTime()}.pdf`;
             const pdfBlob = doc.output('blob');
-            
+
             // 1. Try Native Share API (ideal for mobile)
             if (navigator.share && navigator.canShare) {
                 const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
@@ -190,15 +195,15 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
 
             // 2. Fallback for iOS Safari or Desktop
             const blobUrl = URL.createObjectURL(pdfBlob);
-            
+
             // We try to open in a new tab (bypasses popup blocker because it's synchronous)
             const newWin = window.open(blobUrl, '_blank');
-            
+
             if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
                 // 3. If popup was blocked, fallback to native save
                 doc.save(fileName);
             }
-            
+
             // Cleanup
             setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 
@@ -217,14 +222,14 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                         ← Fermer
                     </button>
                     <div className="flex gap-2 md:gap-3">
-                        <button 
-                            onClick={handleNativePrint} 
+                        <button
+                            onClick={handleNativePrint}
                             className="btn-secondary bg-white px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
                         >
                             🖨️ Imprimer
                         </button>
-                        <button 
-                            onClick={handlePDFGenerate} 
+                        <button
+                            onClick={handlePDFGenerate}
                             className="btn-primary px-4 md:px-5 py-2 md:py-2.5 flex items-center gap-2"
                         >
                             📄 PDF / Partager
@@ -245,7 +250,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                             </div>
                             <div className="text-right">
                                 <h2 className="text-xl md:text-2xl font-bold text-slate-400 uppercase tracking-widest mb-2">Facture</h2>
-                                <p className="text-primary font-medium">#{receiptIdStr}</p>
+                                <p className="text-primary font-medium">{invoiceNumber ? `N° ${invoiceNumber}` : invoiceLabel}</p>
                                 <p className="text-secondary text-sm md:text-base">{formatDateTime(invoiceDetails.date)}</p>
                             </div>
                         </div>
@@ -319,7 +324,7 @@ export const InvoicePrint = ({ invoiceDetails, business, onClose }) => {
                                 <div className="w-full border-b-2 border-dashed border-slate-300 mx-auto"></div>
                             </div>
                         </div>
-                        
+
                         <div className="text-center mt-12 text-xs md:text-sm text-slate-400">
                             Merci de votre confiance !
                         </div>

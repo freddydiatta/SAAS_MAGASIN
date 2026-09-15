@@ -17,13 +17,16 @@ vi.mock('../lib/supabase', () => ({
     supabase: { rpc: rpcMock, from: fromMock },
 }));
 
-const { toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
+const { toastMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
+    toastMock: vi.fn(),
     toastErrorMock: vi.fn(),
     toastSuccessMock: vi.fn(),
 }));
 
+// toast() s'appelle aussi directement (message d'information), pas seulement
+// toast.error / toast.success.
 vi.mock('react-hot-toast', () => ({
-    default: { error: toastErrorMock, success: toastSuccessMock },
+    default: Object.assign(toastMock, { error: toastErrorMock, success: toastSuccessMock }),
 }));
 
 const onlineSpy = vi.spyOn(navigator, 'onLine', 'get');
@@ -83,6 +86,7 @@ describe('syncOfflineSales', () => {
     beforeEach(() => {
         rpcMock.mockReset();
         fromMock.mockReset();
+        toastMock.mockReset();
         toastErrorMock.mockReset();
         toastSuccessMock.mockReset();
         onlineSpy.mockReturnValue(true);
@@ -96,7 +100,8 @@ describe('syncOfflineSales', () => {
             overrides.customerName ?? 'Client',
             overrides.customerPhone ?? '77000',
             overrides.total ?? 2000,
-            overrides.paymentMethod || 'cash'
+            overrides.paymentMethod || 'cash',
+            overrides.invoiceNumber ?? null
         );
         onlineSpy.mockReturnValue(true);
     };
@@ -132,11 +137,42 @@ describe('syncOfflineSales', () => {
             p_items: [{ product_id: 'p1', quantity: 2 }],
             // la date de la vente réelle, pas celle de la synchronisation
             p_created_at: queued.payload.createdAt,
+            p_invoice_number: null,
         });
 
         expect(await readOutbox()).toHaveLength(0);
         expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['products'] });
         expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales'] });
+    });
+
+    it('proposes the invoice number printed offline to the database', async () => {
+        await queueSale({ invoiceNumber: 'FAC-2026-00032' });
+        rpcMock.mockResolvedValueOnce({ data: { id: 'r1', invoice_number: 'FAC-2026-00032', offline_invoice_number: null }, error: null });
+
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
+
+        expect(rpcMock).toHaveBeenCalledWith('process_sale', expect.objectContaining({ p_invoice_number: 'FAC-2026-00032' }));
+        // numéro accepté tel quel : rien à signaler
+        expect(toastMock).not.toHaveBeenCalled();
+    });
+
+    it('says so when the database had to renumber an invoice printed offline', async () => {
+        // un autre appareil a vendu pendant la coupure : le client a un papier
+        // FAC-2026-00032, la vente est enregistrée sous FAC-2026-00034
+        await queueSale({ invoiceNumber: 'FAC-2026-00032' });
+        rpcMock.mockResolvedValueOnce({
+            data: { id: 'r1', invoice_number: 'FAC-2026-00034', offline_invoice_number: 'FAC-2026-00032' },
+            error: null,
+        });
+
+        await syncOfflineSales({ invalidateQueries: vi.fn() });
+
+        expect(toastMock).toHaveBeenCalledWith(
+            expect.stringMatching(/FAC-2026-00032 renumérotée FAC-2026-00034/),
+            expect.objectContaining({ duration: 12000 })
+        );
+        // la vente est bien partie : pas de nouvelle tentative
+        expect(await readOutbox()).toHaveLength(0);
     });
 
     it('records a debt once a queued credit sale is synced', async () => {

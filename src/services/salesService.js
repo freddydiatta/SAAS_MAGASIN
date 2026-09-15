@@ -2,6 +2,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { addDebt } from './debtsService';
 import { enqueue } from './outbox';
+import { rememberInvoiceNumber } from './invoiceNumbering';
 
 // Types d'opérations mis en file quand le réseau manque (voir outbox.js).
 export const SALE_PROCESS = 'sale.process';
@@ -13,15 +14,24 @@ export const SALE_MODIFY = 'sale.modify';
 // suites d'insert/update séparées côté client. Centralisé ici car appelé à
 // la fois depuis la caisse en ligne (Caisse.jsx) et la synchronisation des
 // ventes hors-ligne (syncService.js).
-export const processSale = async ({ businessId, customerName, customerPhone, paymentMethod, items, createdAt }) => {
-    return supabase.rpc('process_sale', {
+// invoiceNumber : uniquement pour une vente faite hors-ligne, le numéro déjà
+// imprimé sur la facture du client. En ligne, la base attribue le numéro
+// elle-même (voir process_sale) et le renvoie dans le reçu.
+export const processSale = async ({ businessId, customerName, customerPhone, paymentMethod, items, createdAt, invoiceNumber }) => {
+    const result = await supabase.rpc('process_sale', {
         p_business_id: businessId,
         p_customer_name: customerName,
         p_customer_phone: customerPhone,
         p_payment_method: paymentMethod,
         p_items: items,
         p_created_at: createdAt,
+        p_invoice_number: invoiceNumber || null,
     });
+    // Le dernier numéro vu sert à numéroter la prochaine vente hors-ligne.
+    if (result.data?.invoice_number) {
+        await rememberInvoiceNumber(businessId, result.data.invoice_number);
+    }
+    return result;
 };
 
 // L'auteur de la correction est dérivé côté serveur depuis auth.uid()
@@ -71,8 +81,20 @@ export const replayQueuedSale = async (payload) => {
         paymentMethod: payload.paymentMethod || 'cash',
         items: payload.items,
         createdAt: payload.createdAt,
+        invoiceNumber: payload.invoiceNumber,
     });
     if (error) throw error;
+
+    // Le numéro imprimé hors-ligne n'était plus le suivant : un autre appareil
+    // a vendu pendant la coupure, et la base a dû renuméroter pour garder la
+    // suite sans trou. Le client a déjà un papier avec l'ancien numéro : il
+    // faut le savoir pour pouvoir rapprocher les deux.
+    if (syncedReceipt?.offline_invoice_number) {
+        toast(
+            `Facture ${syncedReceipt.offline_invoice_number} renumérotée ${syncedReceipt.invoice_number} : un autre appareil a vendu pendant la coupure.`,
+            { duration: 12000, icon: 'ℹ️' }
+        );
+    }
 
     // Une vente à crédit passée hors-ligne devient une dette dès que la
     // synchro réussit — même logique que la caisse en ligne (useCaisseCart),

@@ -103,6 +103,7 @@ describe('Caisse checkout', () => {
                 p_customer_phone: null,
                 p_payment_method: 'cash',
                 p_items: [{ product_id: 'p1', quantity: 1 }],
+                p_invoice_number: null,
             });
         });
 
@@ -148,7 +149,8 @@ describe('Caisse checkout', () => {
                 '',
                 '',
                 1000,
-                'cash'
+                'cash',
+                expect.stringMatching(/^FAC-\d{4}-\d{5}$/)
             );
         });
         expect(rpcMock).not.toHaveBeenCalled();

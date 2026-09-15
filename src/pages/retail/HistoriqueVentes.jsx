@@ -43,6 +43,14 @@ export const HistoriqueVentes = () => {
                     <div className="text-sm text-secondary">
                         {formatTime(receipt.created_at)}
                     </div>
+                    {/* Le numéro de facture sous la date : c'est par lui qu'on
+                        retrouve une vente quand un client revient avec son
+                        papier. */}
+                    {receipt.invoice_number && (
+                        <div className="text-xs font-medium text-slate-500 tabular-nums whitespace-nowrap mt-0.5">
+                            {receipt.invoice_number}
+                        </div>
+                    )}
                 </>
             ),
         },

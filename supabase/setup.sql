@@ -260,8 +260,20 @@ CREATE TABLE public.receipts (
     customer_phone TEXT,
     total_amount DECIMAL(10, 2) NOT NULL CHECK (total_amount >= 0),
     status TEXT DEFAULT 'completed', -- 'completed', 'cancelled'
+    -- FAC-2026-00001 : suite propre à chaque commerce, repartant à 1 chaque
+    -- année, attribuée par process_sale (voir allocate_invoice_number). Une
+    -- vente annulée garde son numéro : le réutiliser donnerait deux papiers
+    -- identiques, le sauter laisserait un trou inexpliqué.
+    invoice_number TEXT,
+    -- Numéro imprimé hors-ligne quand la synchronisation a dû en attribuer un
+    -- autre (un autre appareil avait vendu pendant la coupure). NULL sinon.
+    offline_invoice_number TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS receipts_invoice_number_unique
+    ON public.receipts (business_id, invoice_number)
+    WHERE invoice_number IS NOT NULL;
 
 ALTER TABLE public.receipts ENABLE ROW LEVEL SECURITY;
 
@@ -622,13 +634,80 @@ FOR SELECT USING (public.is_business_owner(business_id));
 -- de ventes concurrentes.
 -- ==========================================
 
+-- ==========================================
+-- NUMÉROTATION DES FACTURES
+-- Une suite par commerce et par année (heure de Dakar). Le compteur n'avance
+-- que par allocate_invoice_number, d'une unité à la fois et sous verrou :
+-- deux caisses ne prennent jamais le même numéro. Lecture seule pour les
+-- membres, qui en ont besoin pour numéroter une vente faite hors-ligne.
+-- ==========================================
+
+CREATE TABLE IF NOT EXISTS public.invoice_counters (
+    business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
+    year INTEGER NOT NULL,
+    last_number INTEGER NOT NULL DEFAULT 0 CHECK (last_number >= 0),
+    PRIMARY KEY (business_id, year)
+);
+
+ALTER TABLE public.invoice_counters ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Members can read invoice counters" ON public.invoice_counters;
+CREATE POLICY "Members can read invoice counters"
+ON public.invoice_counters
+FOR SELECT USING (public.is_business_member(business_id));
+
+CREATE OR REPLACE FUNCTION public.format_invoice_number(p_year integer, p_number integer)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+AS $
+    -- lpad tronque au-delà de sa longueur : au-delà de 99 999 factures dans
+    -- l'année, on écrit le nombre entier plutôt que de le couper.
+    SELECT 'FAC-' || p_year || '-' ||
+        CASE WHEN p_number > 99999 THEN p_number::text ELSE lpad(p_number::text, 5, '0') END;
+$;
+
+CREATE OR REPLACE FUNCTION public.allocate_invoice_number(p_business_id uuid, p_at timestamptz)
+RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+    v_year integer := extract(year FROM p_at AT TIME ZONE 'Africa/Dakar')::integer;
+    v_next integer;
+BEGIN
+    IF NOT public.is_business_member(p_business_id) THEN
+        RAISE EXCEPTION 'Accès refusé';
+    END IF;
+
+    INSERT INTO public.invoice_counters (business_id, year, last_number)
+    VALUES (p_business_id, v_year, 0)
+    ON CONFLICT (business_id, year) DO NOTHING;
+
+    UPDATE public.invoice_counters
+    SET last_number = last_number + 1
+    WHERE business_id = p_business_id AND year = v_year
+    RETURNING last_number INTO v_next;
+
+    RETURN public.format_invoice_number(v_year, v_next);
+END;
+$;
+
+REVOKE EXECUTE ON FUNCTION public.allocate_invoice_number(uuid, timestamptz) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.allocate_invoice_number(uuid, timestamptz) TO authenticated;
+
+-- p_invoice_number : numéro imprimé hors-ligne. Accepté s'il est bien le
+-- suivant ; sinon la base attribue le vrai suivant, pour garder la suite sans
+-- trou, et garde le numéro imprimé dans offline_invoice_number.
 CREATE OR REPLACE FUNCTION public.process_sale(
     p_business_id uuid,
     p_customer_name text,
     p_customer_phone text,
     p_payment_method text,
     p_items jsonb, -- [{ "product_id": uuid, "quantity": int }, ...]
-    p_created_at timestamptz DEFAULT NULL
+    p_created_at timestamptz DEFAULT NULL,
+    p_invoice_number text DEFAULT NULL
 )
 RETURNS public.receipts
 LANGUAGE plpgsql
@@ -641,6 +720,8 @@ DECLARE
     v_qty integer;
     v_total numeric := 0;
     v_new_stock integer;
+    v_at timestamptz := COALESCE(p_created_at, timezone('utc'::text, now()));
+    v_invoice_number text;
 BEGIN
     IF p_items IS NULL OR jsonb_array_length(p_items) = 0 THEN
         RAISE EXCEPTION 'Le panier est vide';
@@ -666,10 +747,19 @@ BEGIN
         v_total := v_total + (v_product.price * v_qty);
     END LOOP;
 
-    INSERT INTO public.receipts (business_id, customer_name, customer_phone, total_amount, status, payment_method, created_at)
+    -- Numéro attribué seulement une fois le panier validé : une vente refusée
+    -- (stock insuffisant) ne consomme pas de numéro, la suite reste sans trou.
+    v_invoice_number := public.allocate_invoice_number(p_business_id, v_at);
+
+    INSERT INTO public.receipts (
+        business_id, customer_name, customer_phone, total_amount, status, payment_method, created_at,
+        invoice_number, offline_invoice_number
+    )
     VALUES (
-        p_business_id, p_customer_name, p_customer_phone, v_total, 'completed', p_payment_method,
-        COALESCE(p_created_at, timezone('utc'::text, now()))
+        p_business_id, p_customer_name, p_customer_phone, v_total, 'completed', p_payment_method, v_at,
+        v_invoice_number,
+        CASE WHEN p_invoice_number IS NOT NULL AND p_invoice_number <> v_invoice_number
+             THEN p_invoice_number END
     )
     RETURNING * INTO v_receipt;
 
@@ -702,7 +792,8 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.process_sale(uuid, text, text, text, jsonb, timestamptz) TO authenticated;
+REVOKE EXECUTE ON FUNCTION public.process_sale(uuid, text, text, text, jsonb, timestamptz, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.process_sale(uuid, text, text, text, jsonb, timestamptz, text) TO authenticated;
 
 -- Auteur d'une correction dérivé côté serveur, jamais depuis le client :
 -- nom du caissier s'il est membre actif de ce commerce, sinon son email.

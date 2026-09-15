@@ -23,7 +23,7 @@ export const getOfflineSalesCount = async () => {
  * Met une vente en file quand l'application est hors ligne, et renvoie un reçu
  * provisoire pour l'affichage immédiat (historique, facture, stock décrémenté).
  */
-export const saveOfflineSale = async (businessId, cart, customerName, customerPhone, total, paymentMethod) => {
+export const saveOfflineSale = async (businessId, cart, customerName, customerPhone, total, paymentMethod, invoiceNumber = null) => {
     const method = paymentMethod || 'cash';
     const createdAt = new Date().toISOString();
 
@@ -40,6 +40,9 @@ export const saveOfflineSale = async (businessId, cart, customerName, customerPh
             // une vente de mardi soir doit rester comptée mardi.
             createdAt,
             total,
+            // Numéro déjà imprimé sur la facture du client (voir
+            // takeOfflineInvoiceNumber) : proposé à la base à la synchro.
+            invoiceNumber,
             items: cart.map((item) => ({ product_id: item.id, quantity: item.quantity })),
         },
     });
@@ -53,6 +56,7 @@ export const saveOfflineSale = async (businessId, cart, customerName, customerPh
         status: 'completed',
         payment_method: method,
         created_at: createdAt,
+        invoice_number: invoiceNumber,
         isOffline: true,
         sales: cart.map((item) => ({
             id: 'temp-sale-' + newId(),

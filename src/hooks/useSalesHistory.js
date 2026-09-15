@@ -84,6 +84,7 @@ export function useSalesHistory(selectedBusiness) {
     const handlePrint = (receipt) => {
         setReceiptToPrint({
             receiptId: receipt.id,
+            invoiceNumber: receipt.invoice_number,
             date: receipt.created_at,
             customerName: receipt.customer_name,
             customerPhone: receipt.customer_phone,
