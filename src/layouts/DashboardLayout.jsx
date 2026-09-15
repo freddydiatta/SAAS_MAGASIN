@@ -27,50 +27,50 @@ export const DashboardLayout = () => {
         localStorage.setItem('sidebarCollapsed', isSidebarCollapsed);
     }, [isSidebarCollapsed]);
 
-    const getMenuItems = () => {
+    // Cinq accès toujours visibles — ceux du quotidien au comptoir — et tout
+    // le reste rangé dans un groupe « Paramètres » replié. Treize entrées à la
+    // suite noyaient les gestes de tous les jours au milieu de pages qu'on
+    // ouvre une fois par semaine.
+    const getMenu = () => {
         const type = selectedBusiness?.type;
-        const common = [{ path: '/dashboard', label: 'Aperçu', icon: '🏠' }];
-        // Toujours juste avant "Affiliation" dans chaque branche : les
-        // dépenses (transport, divers...) partagent la même logique quel
-        // que soit le vertical, pas de raison de la dupliquer par métier.
-        const depensesItem = { path: '/dashboard/depenses', label: 'Dépenses', icon: '💸' };
-        // Juste après les dépenses partout, même raison : l'argent prêté à
-        // un client ne dépend pas du métier.
-        const dettesItem = { path: '/dashboard/dettes', label: 'Dettes', icon: '🤝' };
-        let items;
+        const home = { path: '/dashboard', label: 'Aperçu', icon: '🏠' };
+        const dettes = { path: '/dashboard/dettes', label: 'Dettes', icon: '🤝' };
+        const depenses = { path: '/dashboard/depenses', label: 'Dépenses', icon: '💸' };
+        let primary;
+        const secondary = [];
 
         if (type === 'villa') {
-            items = [
-                ...common,
+            primary = [
+                home,
                 { path: '/dashboard/calendrier', label: 'Calendrier', icon: '📅' },
                 { path: '/dashboard/villas', label: 'Villas', icon: '🏡' },
                 { path: '/dashboard/reservations', label: 'Réservations', icon: '📝' },
-                depensesItem,
-                dettesItem,
+                dettes,
             ];
+            secondary.push(depenses);
         } else if (type === 'restaurant') {
-            items = [
-                ...common,
+            primary = [
+                home,
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '💵' },
                 { path: '/dashboard/commandes', label: 'Commandes', icon: '🍽️' },
                 { path: '/dashboard/menu', label: 'Menu', icon: '📋' },
-                depensesItem,
-                dettesItem,
+                dettes,
             ];
+            secondary.push(depenses);
         } else {
-            // Default (Retail: pieces_moto, quincaillerie, boutique)
-            items = [
-                ...common,
+            // Commerce (pieces_moto, quincaillerie, boutique)
+            primary = [
+                home,
                 { path: '/dashboard/caisse', label: 'Caisse', icon: '🛒' },
-                { path: '/dashboard/stock', label: 'Stock / Articles', icon: '📦' },
+                { path: '/dashboard/stock', label: 'Stock', icon: '📦' },
+                dettes,
                 { path: '/dashboard/historique', label: 'Historique', icon: '🕒' },
-                { path: '/dashboard/inventaires', label: 'Inventaires', icon: '🧮' },
             ];
+            secondary.push({ path: '/dashboard/inventaires', label: 'Inventaires', icon: '🧮' });
             if (type === 'pieces_moto') {
-                items.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
+                secondary.push({ path: '/dashboard/motos', label: 'Motos', icon: '🏍️' });
             }
-            items.push(depensesItem);
-            items.push(dettesItem);
+            secondary.push(depenses);
         }
 
         // Réservé au propriétaire : programme d'affiliation, logs de
@@ -81,25 +81,75 @@ export const DashboardLayout = () => {
         // affilié (AffiliateDashboard crée le profil manquant pour
         // n'importe quel compte connecté), un artefact de données parasite.
         if (!isCashier) {
-            items.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
             if (type !== 'villa' && type !== 'restaurant') {
                 // Fournisseurs : réservé au propriétaire comme Sécurité, les
                 // prix d'achat négociés y sont visibles (marge par produit).
-                items.push({ path: '/dashboard/fournisseurs', label: 'Fournisseurs', icon: '🚚' });
+                secondary.push({ path: '/dashboard/fournisseurs', label: 'Fournisseurs', icon: '🚚' });
                 // Finances : bénéfice net et chiffre d'affaires total, encore
                 // plus sensible que les marges — réservé au propriétaire.
-                items.push({ path: '/dashboard/finances', label: 'Finances', icon: '📈' });
-                items.push({ path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' });
+                secondary.push({ path: '/dashboard/finances', label: 'Finances', icon: '📈' });
+                secondary.push({ path: '/dashboard/securite', label: 'Sécurité', icon: '🛡️' });
             }
-            items.push({ path: '/dashboard/parametres', label: 'Paramètres', icon: '⚙️' });
+            secondary.push({ path: '/dashboard/affiliation', label: 'Affiliation', icon: '💰' });
+            secondary.push({ path: '/dashboard/parametres', label: 'Abonnement et équipe', icon: '👥' });
         }
 
-        return items;
+        return { primary, secondary };
     };
 
-    const menuItems = getMenuItems();
+    const { primary: primaryItems, secondary: secondaryItems } = getMenu();
+    const isOnSecondaryPage = secondaryItems.some((item) => item.path === location.pathname);
+    // Le groupe s'ouvre tout seul quand on est sur l'une de ses pages : sinon
+    // l'entrée active serait cachée et on ne saurait plus où l'on se trouve.
+    // Déduit de la page courante plutôt que synchronisé par un effet ; le
+    // replier à la main sur une page du groupe reste possible, et ne vaut que
+    // pour cette page.
+    const [manuallyOpen, setManuallyOpen] = useState(false);
+    const [collapsedOnPath, setCollapsedOnPath] = useState(null);
+    const isSettingsOpen = manuallyOpen || (isOnSecondaryPage && collapsedOnPath !== location.pathname);
 
-    const isExpired = selectedBusiness?.subscription_end_date 
+    const isCompact = isSidebarCollapsed && !isMobileMenuOpen;
+
+    const renderLink = (item, { nested = false } = {}) => {
+        const isActive = location.pathname === item.path;
+        return (
+            <Link
+                key={item.path}
+                to={item.path}
+                onClick={() => setIsMobileMenuOpen(false)}
+                title={isCompact ? item.label : undefined}
+                aria-current={isActive ? 'page' : undefined}
+                className={`flex items-center ${isCompact ? 'justify-center px-0' : `gap-4 ${nested ? 'pl-6 pr-4' : 'px-4'}`} ${nested ? 'py-2' : 'py-2.5'} rounded-xl text-sm font-medium transition-all duration-200 ${
+                    isActive
+                    ? 'bg-orange-50 dark:bg-accent/10 text-accent'
+                    : 'text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary'
+                }`}
+            >
+                <span className={`${nested ? 'text-lg' : 'text-xl'} ${isActive ? 'opacity-100' : 'opacity-60 grayscale'}`}>{item.icon}</span>
+                {!isCompact && <span className="whitespace-nowrap">{item.label}</span>}
+            </Link>
+        );
+    };
+
+    const toggleSettings = () => {
+        // Menu réduit à des icônes : ouvrir le groupe n'aurait rien à montrer,
+        // on déploie d'abord le menu.
+        if (isCompact) {
+            setIsSidebarCollapsed(false);
+            setManuallyOpen(true);
+            setCollapsedOnPath(null);
+            return;
+        }
+        if (isSettingsOpen) {
+            setManuallyOpen(false);
+            setCollapsedOnPath(location.pathname);
+        } else {
+            setManuallyOpen(true);
+            setCollapsedOnPath(null);
+        }
+    };
+
+    const isExpired = selectedBusiness?.subscription_end_date
         ? new Date(selectedBusiness.subscription_end_date) < new Date()
         : selectedBusiness?.subscription_status !== 'active';
 
@@ -107,14 +157,14 @@ export const DashboardLayout = () => {
         <div className="flex h-screen bg-surface font-sans text-primary transition-colors duration-200">
             {/* Mobile Menu Overlay */}
             {isMobileMenuOpen && (
-                <div 
+                <div
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 md:hidden transition-opacity"
                     onClick={() => setIsMobileMenuOpen(false)}
                 ></div>
             )}
 
             {/* Sidebar */}
-            <aside 
+            <aside
                 className={`${isSidebarCollapsed ? 'w-[88px]' : 'w-[280px]'} bg-panel border-r border-slate-100 dark:border-border-theme flex flex-col fixed md:relative z-40 transition-all duration-300 ease-in-out h-full print:hidden ${isMobileMenuOpen ? 'translate-x-0 w-[280px]' : '-translate-x-full md:translate-x-0'}`}
             >
                 {/* Logo & Toggle */}
@@ -127,7 +177,7 @@ export const DashboardLayout = () => {
                             <span className="font-bold text-lg text-primary tracking-tight whitespace-nowrap">Gestion<span className="text-accent">Pro</span></span>
                         )}
                     </Link>
-                    
+
                     {/* Floating Toggle Button */}
                     <button
                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -148,27 +198,43 @@ export const DashboardLayout = () => {
 
                 {/* Nav Links */}
                 <nav className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5">
-                    {menuItems.map((item, idx) => {
-                        const isActive = location.pathname === item.path;
-                        return (
-                            <Link 
-                                key={idx} 
-                                to={item.path}
-                                onClick={() => setIsMobileMenuOpen(false)}
-                                title={isSidebarCollapsed && !isMobileMenuOpen ? item.label : undefined}
-                                className={`flex items-center ${isSidebarCollapsed && !isMobileMenuOpen ? 'justify-center px-0' : 'gap-4 px-4'} py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                                    isActive 
-                                    ? 'bg-orange-50 dark:bg-accent/10 text-accent' 
+                    {primaryItems.map((item) => renderLink(item))}
+
+                    {secondaryItems.length > 0 && (
+                        <div className="pt-3 mt-3 border-t border-slate-100 dark:border-border-theme">
+                            <button
+                                type="button"
+                                onClick={toggleSettings}
+                                aria-expanded={isSettingsOpen && !isCompact}
+                                aria-controls="sidebar-settings-group"
+                                title={isCompact ? 'Paramètres' : undefined}
+                                className={`w-full flex items-center ${isCompact ? 'justify-center px-0' : 'gap-4 px-4'} py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+                                    isOnSecondaryPage && (!isSettingsOpen || isCompact)
+                                    ? 'bg-orange-50 dark:bg-accent/10 text-accent'
                                     : 'text-secondary hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-primary'
                                 }`}
                             >
-                                <span className={`text-xl ${isActive ? 'opacity-100' : 'opacity-60 grayscale'}`}>{item.icon}</span>
-                                {(!isSidebarCollapsed || isMobileMenuOpen) && (
-                                    <span className="whitespace-nowrap">{item.label}</span>
+                                <span className={`text-xl ${isOnSecondaryPage ? 'opacity-100' : 'opacity-60 grayscale'}`}>⚙️</span>
+                                {!isCompact && (
+                                    <>
+                                        <span className="whitespace-nowrap flex-1 text-left">Paramètres</span>
+                                        <svg
+                                            aria-hidden="true"
+                                            xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                                            className={`transition-transform ${isSettingsOpen ? 'rotate-90' : ''}`}
+                                        >
+                                            <path d="m9 18 6-6-6-6" />
+                                        </svg>
+                                    </>
                                 )}
-                            </Link>
-                        );
-                    })}
+                            </button>
+                            {isSettingsOpen && !isCompact && (
+                                <div id="sidebar-settings-group" className="mt-1 space-y-0.5">
+                                    {secondaryItems.map((item) => renderLink(item, { nested: true }))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </nav>
 
                 {/* Bottom Store Selector */}
@@ -222,7 +288,7 @@ export const DashboardLayout = () => {
 
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible relative">
-                
+
                 {/* Floating Topbar */}
                 <header className="absolute top-6 left-6 right-6 z-20 flex justify-between items-center print:hidden pointer-events-none">
                     {/* Mobile Menu Trigger & Search */}
@@ -265,7 +331,7 @@ export const DashboardLayout = () => {
                     </div>
                 </main>
             </div>
-            
+
             <BillingModal isExpired={isExpired} />
         </div>
     );
